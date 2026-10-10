@@ -1,0 +1,357 @@
+name: archon-pre-multiagent-readiness-audit
+description: |
+  Audit a single-agent codebase before it is extended into a multi-agent pattern
+  (orchestrator/sub-agents, parallel workers, sequential handoffs). Measures
+  coupling, state handling, tool-failure handling, failure-path test coverage,
+  latency and context utilization; ranks each single-agent shortcut by the
+  failure it becomes once delegated; and returns a readiness verdict —
+  READY, READY_WITH_CONDITIONS or NOT_READY — with a report a planner or
+  implementer can act on. Advisory: the checkout is left exactly as it was
+  found and nothing public is written.
+
+  Use when: a single-agent system is about to become several — "are we ready
+  to go multi-agent", "will these shortcuts compound under a swarm", "audit
+  this agent before we add sub-agents".
+  NOT for: refactoring the findings (plan, then deliver), root-causing one bug
+  (investigate), or reviewing a change (review).
+
+model: medium
+
+inputs:
+  shape:
+    default: ""
+    description: >-
+      The planned multi-agent shape — orchestrator, parallel, handoff or other.
+      Severity depends on it, so the audit never assumes one: when empty, the
+      shape must be stated in the design input or in the repository's own
+      documents, or the run refuses before spending anything on analysis.
+  scope:
+    default: ""
+    description: >-
+      The agent to audit — a directory, package or entry point. Empty means the
+      repository's single agent loop; if there are several, the run refuses
+      rather than picking one.
+  design:
+    default: ""
+    description: >-
+      Optional — a design doc, ADR, issue reference or pasted description of the
+      proposed multi-agent design. Read as the source of the target shape and of
+      which boundaries will become agent boundaries.
+  traces:
+    default: ""
+    description: >-
+      Optional path to existing logs or traces of real agent runs. Latency and
+      context metrics are taken from these when present; otherwise they are
+      measured from the project's existing test invocations, or reported as
+      unmeasurable. Nothing is ever instrumented.
+
+# ready:false is a valid completion: the run succeeds with an authored outcome
+# of false — lifecycle status and work outcome are separate facts. Consumers
+# gate on $verdict.output.ready, which is true only for an unconditional READY.
+returns: verdict
+outcome_field: ready
+
+nodes:
+  # Priming (skill Step 0). The agent locates every surface the lenses inspect
+  # and writes them to prime.md, which is how the fresh-context lenses inherit
+  # it. It also answers the two questions the audit's conclusions rest on and
+  # cannot infer from code alone — which shape, and whether a test suite exists.
+  - id: prime
+    command: audit-prime
+    mutates_checkout: false
+    output_type: audit-prime
+    output_format:
+      type: object
+      properties:
+        shape:
+          type: string
+          enum: [orchestrator, parallel, handoff, other, unknown]
+        shape_source:
+          type: string
+          enum: [input, document, none]
+        agent_found:
+          type: boolean
+        tests_present:
+          type: boolean
+        summary:
+          type: string
+      required: [shape, shape_source, agent_found, tests_present, summary]
+
+  # The skill asks for the shape rather than assuming it, and a run cannot ask,
+  # so this refuses. It protects the fan-out below: severity ratings for every
+  # lens are meaningless without a shape, and guessing one wastes the whole
+  # paid analysis on a question that had no answer.
+  - id: shape-gate
+    script: shape-gate
+    runtime: bun
+    depends_on: [prime]
+    with:
+      declared: "$INPUTS.shape"
+      resolved: "$prime.output.shape"
+      agent_found: "$prime.output.agent_found"
+    output_format:
+      type: object
+      properties:
+        shape: { type: string }
+        # Whether more than one agent can run at once. Everything shape-dependent
+        # downstream reads this one boolean instead of restating the vocabulary.
+        concurrent: { type: boolean }
+      required: [shape, concurrent]
+
+  # The suite is evidence, not a verdict: a red result completes this node
+  # normally and the verdict script reads it. It runs before the lenses, not
+  # beside them, because a test run may write to the checkout and the lenses
+  # declare it unchanged. No suite means no baseline; the coverage lens then
+  # works from the code alone and says so.
+  - id: baseline
+    include: archon-validate
+    depends_on: [shape-gate]
+    when: "$prime.output.tests_present == true"
+    with:
+      scope: >-
+        The project's existing test suite with the coverage reporting it already
+        configures. Do not install or configure a coverage tool that the
+        project does not already declare; if it declares none, run the test
+        check alone.
+
+  # ── Specialist lenses (skill Steps 1, 2 and 4) ────────────────────
+  # Each writes one file under $ARTIFACTS_DIR/audit/. A lens that dies after its
+  # retries costs one file, not the audit: lens-check names the gap, synthesize
+  # discloses it, and the verdict script refuses to certify READY over it.
+  - id: coupling
+    command: audit-coupling
+    context: fresh
+    mutates_checkout: false
+    depends_on: [shape-gate, baseline]
+    trigger_rule: none_failed_min_one_success
+    retry:
+      max_attempts: 2
+      delay_ms: 20000
+
+  - id: state
+    command: audit-state
+    context: fresh
+    mutates_checkout: false
+    depends_on: [shape-gate, baseline]
+    trigger_rule: none_failed_min_one_success
+    retry:
+      max_attempts: 2
+      delay_ms: 20000
+
+  - id: tools
+    command: audit-tools
+    context: fresh
+    mutates_checkout: false
+    depends_on: [shape-gate, baseline]
+    trigger_rule: none_failed_min_one_success
+    retry:
+      max_attempts: 2
+      delay_ms: 20000
+
+  # The one lens that reads another's file: its gap list is the tools lens's
+  # failure-mode inventory cross-referenced against the tests (skill Step 2), so
+  # it waits for `tools`. If `tools` fails, this is skipped with it, and
+  # lens-check reports both missing rather than a coverage claim with no inventory.
+  - id: coverage
+    command: audit-coverage
+    context: fresh
+    mutates_checkout: false
+    depends_on: [shape-gate, baseline, tools]
+    trigger_rule: none_failed_min_one_success
+    retry:
+      max_attempts: 2
+      delay_ms: 20000
+
+  - id: metrics
+    command: audit-metrics
+    context: fresh
+    mutates_checkout: false
+    depends_on: [shape-gate, baseline]
+    trigger_rule: none_failed_min_one_success
+    retry:
+      max_attempts: 2
+      delay_ms: 20000
+
+  # all_done lets this barrier settle after a lens whose retries were exhausted,
+  # and unlike a bare barrier it records which lens reports exist. It succeeds
+  # whatever it finds, so the nodes below run iff the shape gate did.
+  - id: lens-check
+    script: lens-check
+    runtime: bun
+    depends_on: [coupling, state, tools, coverage, metrics]
+    trigger_rule: all_done
+    with:
+      lenses: "coupling,state,tools,coverage,metrics"
+    output_format:
+      type: object
+      properties:
+        present:
+          type: array
+          items: { type: string }
+        missing:
+          type: array
+          items: { type: string }
+      required: [present, missing]
+
+  # Compounding-risk analysis (skill Step 3): the step that makes this an audit
+  # rather than a code review. It reads every lens file and re-rates each finding
+  # for the multi-agent blast radius under the resolved shape.
+  - id: compounding
+    command: audit-compounding
+    model: large
+    context: fresh
+    mutates_checkout: false
+    depends_on: [lens-check]
+    retry:
+      max_attempts: 2
+      delay_ms: 20000
+
+  # The deciding agent authors the report body and proposes a verdict. It does
+  # not certify one: the verdict node derives the final answer. The body pointer
+  # is the evidence contract — the engine refuses this node if the file it names
+  # is missing or empty.
+  - id: synthesize
+    command: audit-synthesize
+    model: large
+    context: fresh
+    mutates_checkout: false
+    depends_on: [compounding, lens-check]
+    with:
+      missing_lenses: { from: "$lens-check.output.missing" }
+    output_type: readiness-synthesis
+    output_format:
+      type: object
+      properties:
+        project:
+          type: string
+        proposed_verdict:
+          type: string
+          enum: [READY, READY_WITH_CONDITIONS, NOT_READY]
+        # Counts by multi-agent severity, after the compounding pass re-rated them.
+        findings:
+          type: object
+          properties:
+            critical: { type: integer, minimum: 0 }
+            high: { type: integer, minimum: 0 }
+            medium: { type: integer, minimum: 0 }
+            low: { type: integer, minimum: 0 }
+          required: [critical, high, medium, low]
+        # State classified shared-and-unsynchronized by the state lens.
+        unsafe_state: { type: integer, minimum: 0 }
+        # Failure modes rated high or critical with no test that induces them.
+        untested_high_risk_failure_modes: { type: integer, minimum: 0 }
+        metrics_measured:
+          type: string
+          enum: [all, partial, none]
+        # Ordered: the first item is the first thing to do.
+        prerequisites:
+          type: array
+          items: { type: string }
+        # Decisions a local refactor cannot make (a message bus, a shared store).
+        open_decisions:
+          type: array
+          items: { type: string }
+        top_risks:
+          type: array
+          items: { type: string }
+          maxItems: 3
+        summary: { type: string }
+        body:
+          type: object
+          properties:
+            type: { type: string, enum: [archon_artifact] }
+            run_id: { type: string }
+            path: { type: string, enum: [audit/report-body.md] }
+          required: [type, run_id, path]
+      required:
+        - project
+        - proposed_verdict
+        - findings
+        - unsafe_state
+        - untested_high_risk_failure_modes
+        - metrics_measured
+        - prerequisites
+        - open_decisions
+        - top_risks
+        - summary
+        - body
+
+  # The prompt judges; this boundary derives. The final verdict is the more
+  # severe of the agent's proposal and a floor computed from facts a script can
+  # check — findings by severity, unsafe state under a concurrent shape, the
+  # baseline suite's own certified result, unmeasured metrics, missing lenses.
+  # It also renders the two sections that depend on the final verdict, so the
+  # report can never disagree with the value a caller gates on.
+  - id: verdict
+    script: verdict
+    runtime: bun
+    depends_on: [synthesize, lens-check, shape-gate, baseline]
+    trigger_rule: none_failed_min_one_success
+    with:
+      proposed: "$synthesize.output.proposed_verdict"
+      project: "$synthesize.output.project"
+      shape: "$shape-gate.output.shape"
+      concurrent: "$shape-gate.output.concurrent"
+      findings: { from: "$synthesize.output.findings" }
+      unsafe_state: "$synthesize.output.unsafe_state"
+      untested: "$synthesize.output.untested_high_risk_failure_modes"
+      metrics: "$synthesize.output.metrics_measured"
+      prerequisites: { from: "$synthesize.output.prerequisites" }
+      open_decisions: { from: "$synthesize.output.open_decisions" }
+      top_risks: { from: "$synthesize.output.top_risks" }
+      summary: "$synthesize.output.summary"
+      missing: { from: "$lens-check.output.missing" }
+      baseline: { from: "$baseline.output", if_skipped: null }
+      body: { from: "$synthesize.output.body" }
+    output_type: readiness-audit
+    output_format:
+      type: object
+      properties:
+        verdict:
+          type: string
+          enum: [READY, READY_WITH_CONDITIONS, NOT_READY]
+        ready: { type: boolean }
+        confidence:
+          type: string
+          enum: [high, medium, low]
+        shape: { type: string }
+        # True when the boundary raised the agent's proposal.
+        raised: { type: boolean }
+        raised_because:
+          type: array
+          items: { type: string }
+        # Where a follow-up should start. plan when a decision is still open;
+        # deliver when every prerequisite is a local, decided change.
+        next:
+          type: string
+          enum: [none, plan, deliver]
+        prerequisites:
+          type: array
+          items: { type: string }
+        open_decisions:
+          type: array
+          items: { type: string }
+        top_risks:
+          type: array
+          items: { type: string }
+        summary: { type: string }
+        report:
+          type: object
+          properties:
+            type: { type: string, enum: [archon_artifact] }
+            run_id: { type: string }
+            path: { type: string, enum: [readiness-audit.md] }
+          required: [type, run_id, path]
+      required:
+        - verdict
+        - ready
+        - confidence
+        - shape
+        - raised
+        - raised_because
+        - next
+        - prerequisites
+        - open_decisions
+        - top_risks
+        - summary
+        - report

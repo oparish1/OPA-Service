@@ -1,0 +1,257 @@
+name: archon-change-readiness-check
+description: |
+  Before an AI system or agent is rolled out to a team, close the gap between
+  "technically correct" and "adopted": who may act, who can see why it acted, and
+  whether the people expected to use it were taught its edges. Primes on the
+  solution actually being deployed, gets the stakeholder's answers, then drafts the
+  decision-authority tiers, auditability standard, training material, accountability
+  map and adoption telemetry — and composes a Human-AI Collaboration Charter and a
+  User Adoption Enablement Package. Advisory: it leaves the checkout unchanged and
+  writes nothing to a tracker.
+
+  The governing rule is the skill's: every number, tier and retention window is a
+  commitment someone will be held to, so it comes from the stakeholder or stays
+  marked unresolved. A draft with named gaps is a valid, honest completion
+  (`ready: false`); a fabricated commitment fails the run at `verdict`.
+
+  Use when: an AI system is about to be rolled out — "is this ready to roll out",
+  "write the HITL charter", "plan adoption for this agent", "who is accountable
+  when it gets this wrong".
+  NOT for: reviewing the code (review), running the project's checks (validate),
+  or deciding what to build (triage, plan).
+
+model: medium
+
+inputs:
+  target:
+    default: ""
+    description: >-
+      The solution being deployed — a description, a path, or Jira issue keys and
+      Confluence page ids for the priming step to read. When empty, the run's
+      trigger message is the target.
+  answers:
+    default: ""
+    description: >-
+      Path to the stakeholder-answers file: Markdown with a `## <dimension>` section
+      for business_owner, end_users, stakes, regulatory, rollout and tooling. The
+      run pauses when business_owner or stakes is missing and re-reads the file on
+      resume; any other gap is carried as unresolved, never defaulted.
+  scope:
+    default: "both"
+    description: >-
+      Which deliverable to compose — both, charter, or package. A narrow ask still
+      runs the interview and the analysis; it only skips the document it did not ask for.
+  format:
+    default: "md"
+    description: >-
+      Deliverable format — md, docx, pptx, or confluence. The skill defaults to Word
+      but asks first; this run does not guess, so md is the portable default.
+
+returns: outcome
+outcome_field: ready
+
+nodes:
+  # Step 0. The action inventory is the required input for every later step, so it
+  # is a certified field rather than prose a later node has to trust.
+  - id: prime
+    command: prime
+    mutates_checkout: false
+    output_type: solution-inventory
+    output_format:
+      type: object
+      properties:
+        actions:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string, minLength: 1 }
+              effect: { type: string, enum: [read, write, external] }
+              reversible: { type: string, enum: ["yes", "no", unknown] }
+            required: [name, effect, reversible]
+        integrations:
+          type: array
+          items: { type: string }
+        audit_infrastructure: { type: string }
+        summary: { type: string }
+        report:
+          type: object
+          properties:
+            type: { type: string, enum: [archon_artifact] }
+            run_id: { type: string }
+            path: { type: string, enum: [inventory.md] }
+          required: [type, run_id, path]
+      required: [actions, integrations, audit_infrastructure, summary, report]
+
+  # Step 1. The interview is the answers file. A missing business owner or stakes
+  # answer suspends the run (releasing the worker) and the operator resumes after
+  # filling it in; every other gap flows on as unresolved. The probe is real, so the
+  # pause is decided by the file, not by a model's sense that it has enough.
+  - id: interview
+    depends_on: [prime]
+    loop_group:
+      max_iterations: 5
+      until_bash: test $intake.output.state = "answered"
+      nodes:
+        - id: intake
+          script: intake
+          runtime: bun
+          with:
+            answers: "$INPUTS.answers"
+          output_format: &intake_state
+            type: object
+            properties:
+              state: { type: string, enum: [answered, blocked] }
+              blocking: { type: string }
+              answered: { type: array, items: { type: string } }
+              unresolved: { type: array, items: { type: string } }
+            required: [state, blocking, answered, unresolved]
+        - id: interview-pause
+          wait:
+            attention: >-
+              Stakeholder answers are missing for: $intake.output.blocking. No
+              accountable party or authority tier can be committed without them.
+              Answer the questions in $ARTIFACTS_DIR/questionnaire.md in the file
+              given as the answers input, then resume this run.
+          when: "$intake.output.state == 'blocked'"
+          depends_on: [intake]
+
+  # The loop's own outputs are internal to it; one more read after it is the
+  # settled view every later node binds.
+  - id: answers
+    script: intake
+    runtime: bun
+    depends_on: [interview]
+    with:
+      answers: "$INPUTS.answers"
+    output_format: *intake_state
+
+  # Steps 2 and 5. Tiers, thresholds, hand-offs and the RACI are one analysis: the
+  # RACI's first row is who sets the thresholds.
+  - id: authority
+    command: authority
+    mutates_checkout: false
+    depends_on: [answers]
+    output_type: authority-analysis
+    output_format: &analysis
+      type: object
+      properties:
+        commitments: &commitments
+          type: array
+          items:
+            type: object
+            properties:
+              kind:
+                type: string
+                enum: [tier, threshold, retention, window, cadence, accountable]
+              subject: { type: string, minLength: 1 }
+              value: { type: string }
+              source: { type: string, enum: [stakeholder, unresolved] }
+              evidence: { type: string }
+            required: [kind, subject, value, source, evidence]
+        summary: { type: string }
+        report:
+          type: object
+          properties:
+            type: { type: string, enum: [archon_artifact] }
+            run_id: { type: string }
+            path: { type: string }
+          required: [type, run_id, path]
+      required: [commitments, summary, report]
+
+  # Steps 3, 4 and 6 read the settled tiers and do not read each other, so they fan
+  # out. Each one owns its own report and its own commitments.
+  - id: audit
+    command: audit
+    mutates_checkout: false
+    context: fresh
+    depends_on: [authority]
+    output_type: audit-standard
+    output_format: *analysis
+
+  - id: training
+    command: training
+    mutates_checkout: false
+    context: fresh
+    depends_on: [authority]
+    output_type: training-content
+    output_format: *analysis
+
+  - id: telemetry
+    command: telemetry
+    mutates_checkout: false
+    context: fresh
+    depends_on: [authority]
+    output_type: telemetry-plan
+    output_format: *analysis
+
+  # The prompts judge; this boundary verifies the relations a schema cannot — that no
+  # commitment was invented, every action has a tier, nothing irreversible runs
+  # unattended, and each decision has exactly one accountable role.
+  - id: verdict
+    script: verdict
+    runtime: bun
+    depends_on: [authority, audit, training, telemetry]
+    with:
+      actions: { from: "$prime.output.actions" }
+      answers: { from: "$answers.output" }
+      authority: { from: "$authority.output" }
+      audit: { from: "$audit.output" }
+      training: { from: "$training.output" }
+      telemetry: { from: "$telemetry.output" }
+    output_format: &verdict
+      type: object
+      properties:
+        ready: { type: boolean }
+        unresolved: { type: array, items: { type: string } }
+        committed: { type: integer }
+        summary: { type: string }
+      required: [ready, unresolved, committed, summary]
+
+  # Step 7. Composition happens after the verdict so the documents carry its gaps
+  # verbatim. A narrow ask skips the document it did not ask for.
+  - id: charter
+    command: compose-charter
+    mutates_checkout: false
+    context: fresh
+    depends_on: [verdict]
+    when: "$INPUTS.scope == 'both' || $INPUTS.scope == 'charter'"
+    output_type: collaboration-charter
+    output_format: &document
+      type: object
+      properties:
+        summary: { type: string }
+        report:
+          type: object
+          properties:
+            type: { type: string, enum: [archon_artifact] }
+            run_id: { type: string }
+            path: { type: string }
+          required: [type, run_id, path]
+      required: [summary, report]
+
+  - id: package
+    command: compose-package
+    mutates_checkout: false
+    context: fresh
+    depends_on: [verdict]
+    when: "$INPUTS.scope == 'both' || $INPUTS.scope == 'package'"
+    output_type: enablement-package
+    output_format: *document
+
+  # One return for every legitimate terminal result. Both compose nodes may be
+  # skipped by scope, so the join needs only one completed dependency.
+  - id: outcome
+    script: outcome
+    runtime: bun
+    depends_on: [verdict, charter, package]
+    trigger_rule: none_failed_min_one_success
+    with:
+      ready: "$verdict.output.ready"
+      unresolved: { from: "$verdict.output.unresolved" }
+    output_format:
+      type: object
+      properties:
+        ready: { type: boolean }
+        summary: { type: string }
+      required: [ready, summary]

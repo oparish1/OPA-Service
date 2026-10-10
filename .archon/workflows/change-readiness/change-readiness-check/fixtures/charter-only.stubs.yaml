@@ -1,0 +1,31 @@
+# Dry-run fixture: a narrow ask. Scope is the charter, so the package node is skipped
+# and outcome still joins on the one completed document. Run with scope=charter.
+prime:
+  actions:
+    - { name: "look up order", effect: read, reversible: "yes" }
+    - { name: "send routine update email", effect: external, reversible: "yes" }
+    - { name: "issue refund", effect: external, reversible: "no" }
+  integrations: ["email", "payments API"]
+  audit_infrastructure: "stub: structured request logs only"
+  summary: "stub: three actions inventoried"
+  report: { type: archon_artifact, run_id: "fixture-run", path: "inventory.md" }
+intake: '{"state":"answered","blocking":"","answered":["business_owner","stakes"],"unresolved":[]}'
+answers: '{"state":"answered","blocking":"","answered":["business_owner","stakes"],"unresolved":[]}'
+authority:
+  commitments:
+    - { kind: tier, subject: "look up order", value: autonomous, source: stakeholder, evidence: "stakes answer" }
+    - { kind: tier, subject: "send routine update email", value: review, source: stakeholder, evidence: "stakes answer" }
+    - { kind: tier, subject: "issue refund", value: approval, source: stakeholder, evidence: "stakes answer" }
+    - { kind: accountable, subject: "incident response", value: "Head of Support", source: stakeholder, evidence: "business_owner answer" }
+  summary: "stub"
+  report: { type: archon_artifact, run_id: "fixture-run", path: "authority.md" }
+audit: { commitments: [], summary: "stub", report: { type: archon_artifact, run_id: "fixture-run", path: "audit.md" } }
+training: { commitments: [], summary: "stub", report: { type: archon_artifact, run_id: "fixture-run", path: "training.md" } }
+telemetry: { commitments: [], summary: "stub", report: { type: archon_artifact, run_id: "fixture-run", path: "telemetry.md" } }
+charter:
+  summary: "stub: charter composed"
+  report: { type: archon_artifact, run_id: "fixture-run", path: "charter.md" }
+fixture:
+  expect: completed
+  reached: [verdict, charter, outcome]
+exec-code: true

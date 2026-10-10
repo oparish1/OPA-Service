@@ -1,0 +1,46 @@
+# Dry-run fixture: every dimension answered and every commitment sourced. The real
+# verdict script runs (--exec-code) and must certify ready:true; both documents compose.
+prime:
+  actions:
+    - { name: "look up order", effect: read, reversible: "yes" }
+    - { name: "send routine update email", effect: external, reversible: "yes" }
+    - { name: "issue refund", effect: external, reversible: "no" }
+  integrations: ["email", "payments API"]
+  audit_infrastructure: "stub: structured request logs only"
+  summary: "stub: three actions inventoried"
+  report: { type: archon_artifact, run_id: "fixture-run", path: "inventory.md" }
+intake: '{"state":"answered","blocking":"","answered":["business_owner","end_users","stakes","regulatory","rollout","tooling"],"unresolved":[]}'
+answers: '{"state":"answered","blocking":"","answered":["business_owner","end_users","stakes","regulatory","rollout","tooling"],"unresolved":[]}'
+authority:
+  commitments:
+    - { kind: tier, subject: "look up order", value: autonomous, source: stakeholder, evidence: "stakeholder: read-only lookups run unattended" }
+    - { kind: tier, subject: "send routine update email", value: review, source: stakeholder, evidence: "stakeholder: reviewer may recall within the stated window" }
+    - { kind: tier, subject: "issue refund", value: approval, source: stakeholder, evidence: "stakeholder: every refund needs sign-off" }
+    - { kind: accountable, subject: "setting thresholds", value: "Head of Support", source: stakeholder, evidence: "business_owner answer" }
+    - { kind: accountable, subject: "incident response", value: "Head of Support", source: stakeholder, evidence: "business_owner answer" }
+  summary: "stub: tiers and RACI drafted"
+  report: { type: archon_artifact, run_id: "fixture-run", path: "authority.md" }
+audit:
+  commitments:
+    - { kind: retention, subject: "action logs", value: "7 years", source: stakeholder, evidence: "regulatory answer" }
+  summary: "stub: audit standard drafted"
+  report: { type: archon_artifact, run_id: "fixture-run", path: "audit.md" }
+training:
+  commitments: []
+  summary: "stub: two tracks drafted"
+  report: { type: archon_artifact, run_id: "fixture-run", path: "training.md" }
+telemetry:
+  commitments:
+    - { kind: cadence, subject: "metrics review", value: "weekly during pilot", source: stakeholder, evidence: "rollout answer" }
+  summary: "stub: telemetry drafted"
+  report: { type: archon_artifact, run_id: "fixture-run", path: "telemetry.md" }
+charter:
+  summary: "stub: charter composed"
+  report: { type: archon_artifact, run_id: "fixture-run", path: "charter.md" }
+package:
+  summary: "stub: package composed"
+  report: { type: archon_artifact, run_id: "fixture-run", path: "enablement-package.md" }
+fixture:
+  expect: completed
+  reached: [verdict, charter, package, outcome]
+exec-code: true

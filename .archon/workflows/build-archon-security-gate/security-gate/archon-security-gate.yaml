@@ -1,0 +1,472 @@
+name: archon-security-gate
+description: |
+  A pre-production security audit and gate. Primes the codebase, resolves
+  whether the review is scoped as agentic, non-agentic, or both and whether
+  the system is multi-tenant, then runs five audit lenses in parallel:
+  identity/access/agent-execution boundaries, API and data exposure, agentic
+  threat modeling, dependency and model-integration vulnerability scanning,
+  and static/dynamic analysis. Synthesizes every finding into one Security
+  Assessment & Threat Gate Approval Sign-off document ending in an explicit
+  PASS / CONDITIONAL PASS / FAIL decision, never softened to be agreeable.
+
+  Read-only throughout: no node in this workflow writes code, runs a
+  scanner's autofix, or performs DAST probing without an explicit prior
+  authorization input. This workflow judges; it does not remediate — filing
+  findings as tracked issues is an explicit opt-in, and nothing here opens a
+  PR.
+
+  Use when: the user asks for a "security review", "threat model",
+  "pre-production security audit", "threat gate", "security sign-off", wants
+  dependencies or packages scanned for CVEs, wants SAST/DAST run against
+  agent tools or the UI, or is preparing a go/no-go decision before deploying
+  an agentic system.
+  NOT for: reviewing a single change for correctness (archon-review), fixing
+  a known vulnerability once found (archon-implement / archon-ship on the
+  resulting issue), or a codebase-wide debt/readiness audit with no security
+  focus (archon-prototype-audit).
+
+model: large
+
+inputs:
+  jira_issue_keys:
+    default: ""
+    description: >-
+      Optional Jira issue keys to load as context before auditing — prior
+      findings, security requirements, and compliance obligations often live
+      there. Forwarded to priming exactly as /prime-codebase's own Step 0
+      would use them.
+  confluence_page_ids:
+    default: ""
+    description: Optional Confluence page ids, same handling as jira_issue_keys.
+  dast_authorized:
+    default: "false"
+    description: >-
+      Explicit prior authorization to run active dynamic analysis (DAST)
+      against a locally reachable dev server this run finds, if one exists —
+      true or false. DAST is active, intrusive testing; the source skill is
+      explicit that it must never run without the user's explicit
+      confirmation, and a workflow run has no one to confirm with mid-run, so
+      this defaults to false and DAST is recorded as a coverage gap instead
+      of attempted. Never authorizes testing anything beyond a server this
+      run itself finds running locally.
+  file_issues:
+    default: "false"
+    description: >-
+      File one GitHub issue per Critical/High finding (the report's
+      Conditions for Approval / Blocking Issues) — true or false. Not part of
+      the source skill's own scope; off by default, the same audit-first
+      shape archon-triage's publish input and archon-prototype-audit's own
+      file_issues input already use in this pack. Needs a working github
+      connection; refuses cleanly per-node if none is available.
+
+returns: outcome
+outcome_field: passed
+
+nodes:
+  # Step 0. Primes via /prime-codebase (forwarding Jira/Confluence context),
+  # locates the specific areas Step 0 calls out (authn/authz, session
+  # management, the agent loop, tool/function definitions, API routes,
+  # dependency manifests, CI/CD config, and where secrets are expected to
+  # live — never their values), and resolves the two inputs that change what
+  # "Critical" means downstream: whether this review is scoped as agentic,
+  # non-agentic, or both, and whether the system is multi-tenant. Both are
+  # hard-gated here rather than left to each lens to assume, because both
+  # change finding severity and therefore the gate decision itself — a
+  # security gate should not proceed on an unresolved input that changes how
+  # a Critical is scored. This is a deliberately more conservative reading
+  # than the source skill's own text, which scopes the multi-tenant question
+  # to "before evaluating tenant-isolation findings" specifically; see the
+  # pack README for why this workflow gates the whole run on it instead.
+  #
+  # Every other ambiguity the source skill raises (which approver role to
+  # name, whether a scanner or SAST/DAST tool is available) is a coverage gap
+  # each lens records and synthesize weighs toward CONDITIONAL PASS, not a
+  # reason to stop here — the source skill itself designs a graceful
+  # fallback for those, unlike scope and tenancy, which it says to ask about
+  # rather than default.
+  - id: prime-scope
+    command: prime-scope-security
+    context: fresh
+    mutates_checkout: false
+    output_type: security-review-scope
+    with:
+      jira_issue_keys: "$INPUTS.jira_issue_keys"
+      confluence_page_ids: "$INPUTS.confluence_page_ids"
+    output_format:
+      type: object
+      properties:
+        scope_resolved:
+          type: boolean
+        agentic_scope:
+          type: string
+          enum: [agentic, non_agentic, both]
+        multi_tenant:
+          type: boolean
+        key_areas:
+          type: object
+          properties:
+            auth: { type: array, items: { type: string } }
+            session: { type: array, items: { type: string } }
+            agent_loop: { type: array, items: { type: string } }
+            tool_defs: { type: array, items: { type: string } }
+            api_routes: { type: array, items: { type: string } }
+            dependency_manifests: { type: array, items: { type: string } }
+            ci_config: { type: array, items: { type: string } }
+            secrets_locations: { type: array, items: { type: string } }
+          required:
+            - auth
+            - session
+            - agent_loop
+            - tool_defs
+            - api_routes
+            - dependency_manifests
+            - ci_config
+            - secrets_locations
+        open_questions:
+          type: array
+          items: { type: string }
+        summary:
+          type: string
+        report:
+          type: object
+          properties:
+            type: { type: string, enum: [archon_artifact] }
+            run_id: { type: string }
+            path: { type: string, enum: [scope.md] }
+          required: [type, run_id, path]
+      required:
+        - scope_resolved
+        - agentic_scope
+        - multi_tenant
+        - key_areas
+        - open_questions
+        - summary
+        - report
+
+  - id: gate-scope
+    script: gate-scope
+    runtime: bun
+    depends_on: [prime-scope]
+    with:
+      scope_resolved: "$prime-scope.output.scope_resolved"
+      open_questions: { from: "$prime-scope.output.open_questions" }
+      summary: "$prime-scope.output.summary"
+    output_format:
+      type: object
+      properties:
+        gate: { type: string, enum: [scope] }
+      required: [gate]
+
+  # ── Five parallel audit lenses (Steps 1–5) ─────────────────────────
+  # Each depends on prime-scope directly (to read its fields) and gate-scope
+  # (to be blocked if scope was refused), the same double-edge pattern used
+  # so a node can both read an ancestor's output and be held on a spend gate.
+  - id: audit-identity-access
+    command: audit-identity-access
+    context: fresh
+    mutates_checkout: false
+    depends_on: [prime-scope, gate-scope]
+    retry:
+      max_attempts: 2
+      delay_ms: 20000
+    with:
+      agentic_scope: "$prime-scope.output.agentic_scope"
+      multi_tenant: "$prime-scope.output.multi_tenant"
+      key_areas: { from: "$prime-scope.output.key_areas" }
+    output_type: identity-access-findings
+    output_format: &finding_lens_output
+      type: object
+      properties:
+        findings:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              subcategory: { type: string }
+              file: { type: string }
+              line: { type: integer }
+              description: { type: string }
+              severity: { type: string, enum: [Critical, High, Medium, Low] }
+              recommended_fix: { type: string }
+            required: [id, subcategory, file, description, severity, recommended_fix]
+        coverage_gaps:
+          type: array
+          items: { type: string }
+        summary:
+          type: string
+        report:
+          type: object
+          properties:
+            type: { type: string, enum: [archon_artifact] }
+            run_id: { type: string }
+          required: [type, run_id]
+      required: [findings, coverage_gaps, summary, report]
+
+  - id: audit-api-data
+    command: audit-api-data
+    context: fresh
+    mutates_checkout: false
+    depends_on: [prime-scope, gate-scope]
+    retry:
+      max_attempts: 2
+      delay_ms: 20000
+    with:
+      agentic_scope: "$prime-scope.output.agentic_scope"
+      key_areas: { from: "$prime-scope.output.key_areas" }
+    output_type: api-data-findings
+    output_format: *finding_lens_output
+
+  # Only runs when the review is scoped as agentic or both — the one lens
+  # this workflow skips outright, matching the source skill's own instruction
+  # to skip the agentic-specific portions of Step 3 for a non-agentic review.
+  - id: audit-agentic-threats
+    command: audit-agentic-threats
+    context: fresh
+    mutates_checkout: false
+    depends_on: [prime-scope, gate-scope]
+    when: "$prime-scope.output.agentic_scope != 'non_agentic'"
+    retry:
+      max_attempts: 2
+      delay_ms: 20000
+    with:
+      multi_tenant: "$prime-scope.output.multi_tenant"
+      key_areas: { from: "$prime-scope.output.key_areas" }
+    output_type: agentic-threat-model
+    output_format:
+      type: object
+      properties:
+        scenarios:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              category:
+                type: string
+                enum: [direct_prompt_injection, indirect_prompt_injection, context_poisoning, unauthorized_tool_execution]
+              actor: { type: string }
+              vector: { type: string }
+              target: { type: string }
+              impact: { type: string }
+              likelihood: { type: string, enum: [Critical, High, Medium, Low] }
+              severity: { type: string, enum: [Critical, High, Medium, Low] }
+              mitigation_status:
+                type: string
+                enum: [unmitigated, partially_mitigated, mitigated]
+              evidence: { type: string }
+            required:
+              - id
+              - category
+              - actor
+              - vector
+              - target
+              - impact
+              - likelihood
+              - severity
+              - mitigation_status
+              - evidence
+        coverage_gaps:
+          type: array
+          items: { type: string }
+        summary:
+          type: string
+        report:
+          type: object
+          properties:
+            type: { type: string, enum: [archon_artifact] }
+            run_id: { type: string }
+          required: [type, run_id]
+      required: [scenarios, coverage_gaps, summary, report]
+
+  - id: scan-dependencies
+    command: scan-dependencies
+    context: fresh
+    mutates_checkout: false
+    depends_on: [prime-scope, gate-scope]
+    retry:
+      max_attempts: 2
+      delay_ms: 20000
+    with:
+      key_areas: { from: "$prime-scope.output.key_areas" }
+    output_type: dependency-scan
+    output_format:
+      type: object
+      properties:
+        findings:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              package: { type: string }
+              current_version: { type: string }
+              patched_version: { type: [string, "null"] }
+              cve_id: { type: [string, "null"] }
+              severity: { type: string, enum: [Critical, High, Medium, Low, Unknown] }
+              description: { type: string }
+            required: [id, package, current_version, patched_version, cve_id, severity, description]
+        coverage_gaps:
+          type: array
+          items: { type: string }
+        summary:
+          type: string
+        report:
+          type: object
+          properties:
+            type: { type: string, enum: [archon_artifact] }
+            run_id: { type: string }
+          required: [type, run_id]
+      required: [findings, coverage_gaps, summary, report]
+
+  - id: sast-dast
+    command: sast-dast
+    context: fresh
+    mutates_checkout: false
+    depends_on: [prime-scope, gate-scope]
+    retry:
+      max_attempts: 2
+      delay_ms: 20000
+    with:
+      key_areas: { from: "$prime-scope.output.key_areas" }
+      dast_authorized: "$INPUTS.dast_authorized"
+    output_type: sast-dast-results
+    output_format:
+      type: object
+      properties:
+        findings:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              tool: { type: string }
+              file: { type: string }
+              line: { type: integer }
+              category: { type: string }
+              severity: { type: string, enum: [Critical, High, Medium, Low] }
+              description: { type: string }
+            required: [id, tool, file, category, severity, description]
+        dast_performed:
+          type: boolean
+        coverage_gaps:
+          type: array
+          items: { type: string }
+        summary:
+          type: string
+        report:
+          type: object
+          properties:
+            type: { type: string, enum: [archon_artifact] }
+            run_id: { type: string }
+          required: [type, run_id]
+      required: [findings, dast_performed, coverage_gaps, summary, report]
+
+  # Barrier before synthesis, the same shape as archon-review's
+  # review-complete: settles once every lens is done, whether it ran,
+  # legitimately skipped (audit-agentic-threats on a non-agentic scope), or
+  # exhausted its retries — synthesize is the one place that decides whether
+  # a missing report is disclosed as a coverage gap or treated as a blocking
+  # failure of the run itself.
+  - id: audit-complete
+    bash: "true"
+    depends_on:
+      - audit-identity-access
+      - audit-api-data
+      - audit-agentic-threats
+      - scan-dependencies
+      - sast-dast
+    trigger_rule: all_done
+
+  # Step 6. Consolidates every lens's findings (and coverage gaps) into the
+  # sign-off document and the PASS / CONDITIONAL PASS / FAIL decision. The
+  # decision rules are fixed by the source skill and restated verbatim in
+  # synthesize-gate.md's own prompt — this node does not have discretion to
+  # soften them.
+  - id: synthesize
+    command: synthesize-gate
+    context: fresh
+    mutates_checkout: false
+    depends_on: [prime-scope, audit-complete]
+    output_type: security-gate-signoff
+    output_format:
+      type: object
+      properties:
+        gate_decision:
+          type: string
+          enum: [PASS, CONDITIONAL_PASS, FAIL]
+        critical_count: { type: integer }
+        high_count: { type: integer }
+        medium_count: { type: integer }
+        low_count: { type: integer }
+        most_urgent_action:
+          type: string
+        blocking_finding_ids:
+          type: array
+          items: { type: string }
+        summary:
+          type: string
+        report:
+          type: object
+          properties:
+            type: { type: string, enum: [archon_artifact] }
+            run_id: { type: string }
+            path: { type: string, enum: [security-assessment-signoff.md] }
+          required: [type, run_id, path]
+      required:
+        - gate_decision
+        - critical_count
+        - high_count
+        - medium_count
+        - low_count
+        - most_urgent_action
+        - blocking_finding_ids
+        - summary
+        - report
+
+  # Opt-in bridge into the rest of the pack: each filed issue is shaped as a
+  # triage-ready contract, so a subsequent archon-ship / archon-ship-figma
+  # run can pick up remediation directly. Files Critical and High findings
+  # only — Medium/Low are the report's own Residual Risk Accepted section,
+  # for a human approver to decide, not to auto-track as issues.
+  - id: file-issues
+    command: file-security-issues
+    context: fresh
+    mutates_checkout: false
+    depends_on: [synthesize]
+    when: "$INPUTS.file_issues == 'true'"
+    output_format:
+      type: object
+      properties:
+        issues_filed:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              title: { type: string }
+              url: { type: string }
+            required: [id, title, url]
+        summary:
+          type: string
+      required: [issues_filed, summary]
+
+  - id: outcome
+    script: outcome
+    runtime: bun
+    depends_on: [synthesize, file-issues]
+    trigger_rule: none_failed_min_one_success
+    with:
+      gate_decision: "$synthesize.output.gate_decision"
+      critical_count: "$synthesize.output.critical_count"
+      high_count: "$synthesize.output.high_count"
+      medium_count: "$synthesize.output.medium_count"
+      low_count: "$synthesize.output.low_count"
+      most_urgent_action: "$synthesize.output.most_urgent_action"
+      issues_filed: { from: "$file-issues.output.issues_filed", if_skipped: null }
+    output_format:
+      type: object
+      properties:
+        passed: { type: boolean }
+        summary: { type: string }
+      required: [passed, summary]

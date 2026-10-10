@@ -1,0 +1,26 @@
+# Guard fixture, seen red: the refund action from the inventory has no tier at all. The real verdict script must refuse.
+prime:
+  actions:
+    - { name: "look up order", effect: read, reversible: "yes" }
+    - { name: "send routine update email", effect: external, reversible: "yes" }
+    - { name: "issue refund", effect: external, reversible: "no" }
+  integrations: ["email", "payments API"]
+  audit_infrastructure: "stub: structured request logs only"
+  summary: "stub: three actions inventoried"
+  report: { type: archon_artifact, run_id: "fixture-run", path: "inventory.md" }
+intake: '{"state":"answered","blocking":"","answered":["business_owner","stakes"],"unresolved":[]}'
+answers: '{"state":"answered","blocking":"","answered":["business_owner","stakes"],"unresolved":[]}'
+authority:
+  commitments:
+    - { kind: tier, subject: "look up order", value: autonomous, source: stakeholder, evidence: "e" }
+    - { kind: tier, subject: "send routine update email", value: review, source: stakeholder, evidence: "e" }
+    - { kind: accountable, subject: "incident response", value: "Head of Support", source: stakeholder, evidence: "e" }
+  summary: "stub: an illegal tuple the boundary must catch"
+  report: { type: archon_artifact, run_id: "fixture-run", path: "authority.md" }
+audit: { commitments: [], summary: "stub", report: { type: archon_artifact, run_id: "fixture-run", path: "audit.md" } }
+training: { commitments: [], summary: "stub", report: { type: archon_artifact, run_id: "fixture-run", path: "training.md" } }
+telemetry: { commitments: [], summary: "stub", report: { type: archon_artifact, run_id: "fixture-run", path: "telemetry.md" } }
+fixture:
+  expect: failed
+  fail-node: verdict
+exec-code: true

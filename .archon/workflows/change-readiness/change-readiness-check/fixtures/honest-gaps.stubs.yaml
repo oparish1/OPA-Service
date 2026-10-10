@@ -1,0 +1,46 @@
+# Dry-run fixture: the owner and stakes are known but no refund threshold or
+# retention window was given. Those stay unresolved with no value, the verdict
+# certifies ready:false, and the run COMPLETES — an honest draft is a valid outcome.
+prime:
+  actions:
+    - { name: "look up order", effect: read, reversible: "yes" }
+    - { name: "send routine update email", effect: external, reversible: "yes" }
+    - { name: "issue refund", effect: external, reversible: "no" }
+  integrations: ["email", "payments API"]
+  audit_infrastructure: "stub: structured request logs only"
+  summary: "stub: three actions inventoried"
+  report: { type: archon_artifact, run_id: "fixture-run", path: "inventory.md" }
+intake: '{"state":"answered","blocking":"","answered":["business_owner","stakes"],"unresolved":["end_users","regulatory","rollout","tooling"]}'
+answers: '{"state":"answered","blocking":"","answered":["business_owner","stakes"],"unresolved":["end_users","regulatory","rollout","tooling"]}'
+authority:
+  commitments:
+    - { kind: tier, subject: "look up order", value: autonomous, source: stakeholder, evidence: "stakes answer: read-only" }
+    - { kind: tier, subject: "send routine update email", value: "", source: unresolved, evidence: "needs the recall window" }
+    - { kind: tier, subject: "issue refund", value: approval, source: stakeholder, evidence: "stakes answer: refunds cannot be undone" }
+    - { kind: threshold, subject: "refund amount for Review", value: "", source: unresolved, evidence: "needs a dollar figure" }
+    - { kind: accountable, subject: "incident response", value: "Head of Support", source: stakeholder, evidence: "business_owner answer" }
+  summary: "stub: two commitments unresolved"
+  report: { type: archon_artifact, run_id: "fixture-run", path: "authority.md" }
+audit:
+  commitments:
+    - { kind: retention, subject: "action logs", value: "", source: unresolved, evidence: "needs the regulatory retention window" }
+  summary: "stub: retention unresolved"
+  report: { type: archon_artifact, run_id: "fixture-run", path: "audit.md" }
+training:
+  commitments: []
+  summary: "stub: drafted"
+  report: { type: archon_artifact, run_id: "fixture-run", path: "training.md" }
+telemetry:
+  commitments: []
+  summary: "stub: drafted"
+  report: { type: archon_artifact, run_id: "fixture-run", path: "telemetry.md" }
+charter:
+  summary: "stub: charter with UNRESOLVED markers"
+  report: { type: archon_artifact, run_id: "fixture-run", path: "charter.md" }
+package:
+  summary: "stub: package with UNRESOLVED markers"
+  report: { type: archon_artifact, run_id: "fixture-run", path: "enablement-package.md" }
+fixture:
+  expect: completed
+  reached: [verdict, charter, package, outcome]
+exec-code: true

@@ -1,0 +1,291 @@
+name: archon-ship-figma
+description: |
+  A variation of archon-ship where an approved high-fidelity Figma prototype and
+  its linked design system are the source of truth for any UI/UX this work
+  produces, instead of letting implementation invent it. Grounds the item exactly
+  as archon-ship does (triage, then investigate/plan/deliver as its verdict
+  routes), then grounds the item's UI surface against Figma before delivery
+  spends anything: audits the target frame and design system, maps every element
+  to a design-system component, and blocks delivery on anything the frame leaves
+  ambiguous or unmapped rather than letting the implementer guess. Work with no
+  UI surface skips Figma entirely and behaves exactly like archon-ship.
+
+  Use when: a GitHub issue or request has an approved Figma high-fidelity
+  prototype that must dictate the frontend's look and feel — "build this screen
+  from Figma", "implement issue #123 to match the approved design".
+  NOT for: work with no UI surface (plain archon-ship costs less and skips a
+  node this pack has no use for), an unapproved or low-fidelity Figma file (get
+  it approved first, or say so explicitly in figma_frame's linked context and
+  accept that the run will ask more questions, never fewer), or bypassing triage
+  with already-prepared work (deliver directly, passing your own design brief in
+  `work`).
+
+# See the README shipped alongside this workflow if your Archon version rejects
+# an unrecognized `requires` entry: `figma` names the MCP connector this pack
+# expects, by analogy with the `github` entry archon-ship already declares. If
+# it is not a supported key, drop it here — figma-ground below checks for a
+# working connection itself and refuses cleanly when none exists.
+requires: [github, figma]
+
+inputs:
+  target:
+    default: ""
+    description: >-
+      What to take through the pipeline — an issue, document, plan, report, or
+      free-form request. When empty, the run's trigger message is the target.
+  figma_frame:
+    default: ""
+    description: >-
+      The approved high-fidelity Figma frame that dictates this work's look and
+      feel — a Figma file or node URL. Empty means no frame was supplied; a run
+      whose UI surface turns out to need one will stop and name the missing
+      input rather than implementing unstyled or invented UI.
+  design_system:
+    default: ""
+    description: >-
+      Optional. The Figma file for the linked design system (component
+      library, variables, styles) when it lives apart from figma_frame. Empty
+      means the frame is checked for an attached library first.
+  errors:
+    default: "auto"
+    description: Silent-failure lens — auto, true, or false.
+  publish:
+    default: "false"
+    description: >-
+      Let triage write its derived labels to the tracker item — true or false.
+      Off by default. Forwarded unchanged to triage; a scheduled run is the
+      only place an unattended intake can turn it on.
+
+# `delivered:false` is a valid completion: an honest "no work is owed", or a
+# UI that could not yet be grounded against Figma, is a successful run that
+# shipped nothing — lifecycle status and work outcome are separate facts.
+returns: outcome
+outcome_field: delivered
+
+nodes:
+  # Unmodified from archon-ship: the source is history, not a work order.
+  # Triage checks it against current code and direction before deciding which
+  # kind of reasoning is still owed.
+  - id: triage
+    include: archon-triage
+    with:
+      target: "$INPUTS.target"
+      publish: "$INPUTS.publish"
+
+  - id: inv
+    include: archon-investigate
+    with:
+      target: >-
+        Investigate the unresolved causal question recorded in
+        $ARTIFACTS_DIR/triage.md. Read that assessment first; its confirmed
+        facts are context, while its unknowns are the investigation target.
+    depends_on: [triage]
+    when: "$triage.output.route == 'investigate'"
+
+  # These three route markers form one join into figma-ground below, exactly
+  # as they form one join into deliver in plain archon-ship. Expected negative
+  # judgments skip their marker; contract failures inside the advisory package
+  # still fail normally.
+  - id: gate-direct
+    bash: echo '{"gate":"direct"}'
+    depends_on: [triage]
+    when: "$triage.output.route == 'deliver'"
+
+  - id: gate-rooted
+    bash: echo '{"gate":"rooted"}'
+    depends_on: [inv]
+    when: "$inv.output.rooted == true"
+
+  - id: planned
+    include: archon-plan
+    with:
+      work: >-
+        Plan the current work item from $ARTIFACTS_DIR/triage.md. Read that
+        assessment first, preserve its verified outcome and constraints, and
+        decide the implementation questions it identified.
+    depends_on: [triage]
+    when: "$triage.output.route == 'plan'"
+
+  - id: gate-planned
+    bash: echo '{"gate":"planned"}'
+    depends_on: [planned]
+    when: "$planned.output.ready == true"
+
+  # New. Runs once, however triage/investigate/plan routed here — the same
+  # join shape deliver itself uses on these three gates in plain archon-ship.
+  # Advisory on both counts, like triage/investigate/plan: it changes nothing
+  # in this repository, and it reads Figma but writes nothing there either.
+  - id: figma-ground
+    command: figma-ground
+    model: medium
+    mutates_checkout: false
+    depends_on: [gate-direct, gate-rooted, gate-planned]
+    trigger_rule: none_failed_min_one_success
+    with:
+      figma_frame: "$INPUTS.figma_frame"
+      design_system: "$INPUTS.design_system"
+    output_type: figma-design-brief
+    output_format:
+      type: object
+      properties:
+        ui_required:
+          type: boolean
+        # grounded is true only when ui_required is true, every element the
+        # audit found mapped to a design-system component, and no question
+        # remains open. A false here is a valid, honest completion — not a
+        # failure — the same shape as investigate's `rooted` and plan's
+        # `ready`.
+        grounded:
+          type: boolean
+        figma_frame:
+          type: [object, "null"]
+          properties:
+            url: { type: string }
+            node_id: { type: string }
+          required: [url, node_id]
+        design_system:
+          type: [object, "null"]
+          properties:
+            url: { type: string }
+          required: [url]
+        screens:
+          type: array
+          items: { type: string }
+        component_mapping:
+          type: array
+          items:
+            type: object
+            properties:
+              element: { type: string }
+              component: { type: string }
+              variant: { type: string }
+            required: [element, component, variant]
+        # Every element that did not clearly map to an existing design-system
+        # component, paired with the specific question that resolves it.
+        unmapped_elements:
+          type: array
+          items:
+            type: object
+            properties:
+              element: { type: string }
+              question: { type: string }
+            required: [element, question]
+        # Everywhere the frame or design system was ambiguous or silent —
+        # never filled with a guess. gate-design below refuses on a non-empty
+        # list exactly as it refuses on grounded:false.
+        open_questions:
+          type: array
+          items: { type: string }
+        summary:
+          type: string
+        # The evidence contract, enforced by the engine at this node: a
+        # pointer at a file this run's artifacts do not hold is refused
+        # before the node completes, so a verdict cannot arrive without its
+        # brief.
+        report:
+          type: object
+          properties:
+            type: { type: string, enum: [archon_artifact] }
+            run_id: { type: string }
+            path: { type: string, enum: [design-brief.md] }
+          required: [type, run_id, path]
+      required:
+        - ui_required
+        - grounded
+        - figma_frame
+        - design_system
+        - screens
+        - component_mapping
+        - unmapped_elements
+        - open_questions
+        - summary
+        - report
+
+  # Deterministic spend gate on figma-ground's certified verdict, not a
+  # re-judgment — the same shape as gate-ready and gate-green in
+  # archon-deliver. Passes on either fact figma-ground itself certified: no
+  # UI surface is in scope, or every element mapped with nothing left open.
+  # Refuses on everything else, naming what remains unanswered so a person
+  # can resolve it at the source (Figma, or the design system) and rerun —
+  # the same recovery path triage's BLOCKED and plan's ready:false already
+  # use elsewhere in this pack. Per this pack's own guard convention (see the
+  # pack README's "Guards" section): this protects delivery's spend on a
+  # question this run asked and could not get answered, where guessing is
+  # irreversible once implementation writes code from an invented reading of
+  # the frame — the stated "Keep" case, not a restated invariant.
+  - id: gate-design
+    script: gate-design
+    runtime: bun
+    depends_on: [figma-ground]
+    with:
+      ui_required: "$figma-ground.output.ui_required"
+      grounded: "$figma-ground.output.grounded"
+      open_questions: { from: "$figma-ground.output.open_questions" }
+      unmapped_elements: { from: "$figma-ground.output.unmapped_elements" }
+      summary: "$figma-ground.output.summary"
+    output_format:
+      type: object
+      properties:
+        gate: { type: string, enum: [design] }
+      required: [gate]
+
+  # Unmodified archon-deliver, composed exactly as plain archon-ship composes
+  # it — only the work order text changes, to point implementation at
+  # design-brief.md when one exists. No fork of deliver, review, validate, or
+  # pr was needed for this variation.
+  - id: deliver
+    include: archon-deliver
+    with:
+      errors: "$INPUTS.errors"
+      work: >-
+        Deliver the work prepared by this run. Read $ARTIFACTS_DIR/triage.md
+        first. When present, plan.md or investigation.md is the detailed work
+        order and must be read in full; triage.md records which path produced
+        it and which source assumptions were corrected. On the direct route,
+        triage.md itself is the verified work order.
+
+        This work has an approved Figma high-fidelity prototype governing any
+        UI it produces. When $ARTIFACTS_DIR/design-brief.md exists (it exists
+        whenever this run's UI was found to need grounding), read it in full
+        and treat it as binding on equal footing with the work order above:
+        every screen, state, component mapping, and design token it records
+        is a requirement, not a suggestion. Implement only the components,
+        variants, and tokens the brief maps — never invent a color, spacing
+        value, or one-off component the brief does not name. If reality
+        contradicts the brief (a mapped component no longer exists in the
+        codebase, say), stop honestly with green false and the contradiction
+        in your summary rather than improvising a replacement. If the project
+        has Playwright or another end-to-end framework configured, extend it
+        to cover every screen and state the brief enumerates — the primary
+        flow, loading and status states, error states, and empty states
+        alike; if none exists and one would need to be introduced, record
+        that as a decision for review rather than adding new tooling unasked.
+        Carry the brief's source (frame link, design-system link) and every
+        state it required into your report, so the reviewer can judge
+        fidelity against $ARTIFACTS_DIR/design-brief.md directly.
+
+        When this run found no UI surface in scope, this work has nothing to
+        ground against Figma — ignore it entirely and proceed exactly as a
+        plain archon-ship delivery would.
+    depends_on: [gate-design]
+    trigger_rule: none_failed_min_one_success
+
+  # Identical to archon-ship's own outcome node and script — see the README
+  # for why: `delivered` still means the same thing regardless of whether a
+  # design brief was involved, so this pack reuses ship's scripts/outcome.ts
+  # unchanged rather than forking it.
+  - id: outcome
+    script: outcome
+    runtime: bun
+    depends_on: [triage, deliver]
+    trigger_rule: none_failed_min_one_success
+    with:
+      route: "$triage.output.route"
+      summary: "$triage.output.summary"
+      delivered: { from: "$deliver.output.pr_url", if_skipped: null }
+    output_format:
+      type: object
+      properties:
+        delivered: { type: boolean }
+        summary: { type: string }
+      required: [delivered, summary]

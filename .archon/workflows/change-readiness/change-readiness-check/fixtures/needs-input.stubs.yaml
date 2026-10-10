@@ -1,0 +1,17 @@
+# Dry-run fixture: the stakeholder has not named a business owner. No accountable
+# party can be committed, so the run suspends at the interview pause instead of
+# drafting a governance document around a guess. Resume once the answers file is filled.
+prime:
+  actions:
+    - { name: "look up order", effect: read, reversible: "yes" }
+    - { name: "send routine update email", effect: external, reversible: "yes" }
+    - { name: "issue refund", effect: external, reversible: "no" }
+  integrations: ["email", "payments API"]
+  audit_infrastructure: "stub: structured request logs only"
+  summary: "stub: three actions inventoried"
+  report: { type: archon_artifact, run_id: "fixture-run", path: "inventory.md" }
+intake: '{"state":"blocked","blocking":"business_owner","answered":["stakes"],"unresolved":["business_owner","end_users","regulatory","rollout","tooling"]}'
+fixture:
+  expect: paused
+  reached: [prime, intake, interview-pause]
+exec-code: true

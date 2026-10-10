@@ -1,0 +1,421 @@
+name: archon-prototype-audit
+description: |
+  Audits an early-stage prototype for structural debt, missing test coverage,
+  fragile prompt/context handling, and non-deterministic behavior before it
+  moves into formal harness engineering. Primes the codebase, then runs two
+  parallel lenses — structural weaknesses, and context/state integrity — and
+  synthesizes their findings into a three-tier backlog: Release Blockers,
+  Parallel Feature Cleanups, Deferrable Debt. Produces an MVP Code Audit Report
+  and a Claude Code-sequenced remediation plan as companion documents. By
+  default also fixes the Release Blockers in this run (archon-implement,
+  scoped to Sprint 0 only) and revalidates; filing the rest as issues and
+  opening a PR for the fixes are both explicit opt-ins.
+
+  Advisory through synthesis: priming and both lenses leave the checkout
+  unchanged. Fixing Release Blockers is the one step that writes code, and it
+  can be turned off to get an audit-only run.
+
+  Use when: the user asks to check if a prototype is stable, "audit the
+  prototype", assess prototype/MVP readiness, wants a pre-harness or
+  pre-hardening review, asks about technical debt or refactoring priorities in
+  an early prototype, or wants prototype cleanup turned into a sequenced
+  sprint backlog.
+  NOT for: reviewing a single change (archon-review), a codebase that has
+  already passed this stage and just needs one item planned or built
+  (archon-plan / archon-ship), or a mature codebase where "is this stable"
+  really means "do the existing checks pass" (archon-validate).
+
+model: large
+
+inputs:
+  jira_issue_keys:
+    default: ""
+    description: >-
+      Optional Jira issue keys to load as context before auditing, forwarded
+      to priming exactly as /prime-codebase's own Step 0 would use them.
+  confluence_page_ids:
+    default: ""
+    description: >-
+      Optional Confluence page ids to load as context before auditing, same
+      handling as jira_issue_keys.
+  path_glob:
+    default: ""
+    description: >-
+      Optional subtree to scope the audit to (e.g. "src/agents/**"). Empty
+      means the whole primed codebase, weighted toward the core execution
+      path priming identifies.
+  fix_blockers:
+    default: "true"
+    description: >-
+      Fix the Release Blockers tier in this run (archon-implement, scoped to
+      Sprint 0 only) and revalidate — true or false. True matches this
+      workflow's source skill exactly. Set false for an audit-only run that
+      touches nothing.
+  open_pr:
+    default: "false"
+    description: >-
+      After fixing Release Blockers, open a draft PR for them (archon-pr) —
+      true or false. Not part of the source skill's own scope; off by
+      default. Has no effect when fix_blockers is false or there were no
+      blockers to fix.
+  file_issues:
+    default: "false"
+    description: >-
+      File one GitHub issue per backlog item not fixed in this run — Parallel
+      Feature Cleanups and Deferrable Debt always, plus Release Blockers too
+      when fix_blockers is false — true or false. Off by default, matching
+      this pack's own default for triage's publish input: advisory first,
+      tracker writes are an explicit choice. Needs a working github
+      connection; refuses cleanly if none is available.
+
+returns: outcome
+outcome_field: completed
+
+nodes:
+  # Step 0. Primes via /prime-codebase (forwarding Jira/Confluence context),
+  # resolves the audit's scope, and — this is the one place this workflow
+  # translates the source skill's "ask the user" instruction — declares an
+  # open question instead of guessing wherever the skill would have asked:
+  # deployment context and risk tolerance not evident from the repo, or the
+  # core execution path genuinely ambiguous. gate-scope below refuses on any
+  # open question, the same shape archon-triage's BLOCKED and
+  # archon-ship-figma's gate-design already use in this pack: an honest "not
+  # yet resolved" beats a confident guess, and a person resolves it and
+  # reruns.
+  - id: prime-scope
+    command: prime-scope
+    context: fresh
+    mutates_checkout: false
+    output_type: prototype-scope
+    with:
+      jira_issue_keys: "$INPUTS.jira_issue_keys"
+      confluence_page_ids: "$INPUTS.confluence_page_ids"
+      path_glob: "$INPUTS.path_glob"
+    output_format:
+      type: object
+      properties:
+        scope_resolved:
+          type: boolean
+        core_paths:
+          type: array
+          items: { type: string }
+        excluded:
+          type: array
+          items: { type: string }
+        deployment_context:
+          type: string
+        risk_tolerance:
+          type: string
+        open_questions:
+          type: array
+          items: { type: string }
+        summary:
+          type: string
+        report:
+          type: object
+          properties:
+            type: { type: string, enum: [archon_artifact] }
+            run_id: { type: string }
+            path: { type: string, enum: [scope.md] }
+          required: [type, run_id, path]
+      required:
+        - scope_resolved
+        - core_paths
+        - excluded
+        - deployment_context
+        - risk_tolerance
+        - open_questions
+        - summary
+        - report
+
+  - id: gate-scope
+    script: gate-scope
+    runtime: bun
+    depends_on: [prime-scope]
+    with:
+      scope_resolved: "$prime-scope.output.scope_resolved"
+      open_questions: { from: "$prime-scope.output.open_questions" }
+      summary: "$prime-scope.output.summary"
+    output_format:
+      type: object
+      properties:
+        gate: { type: string, enum: [scope] }
+      required: [gate]
+
+  # ── Parallel audit lenses (Steps 1–2) ──────────────────────────────
+  # Both always run once scope is resolved — nothing here is conditional the
+  # way review's errors/docs lenses are — so a plain join into synthesize is
+  # enough; no all_done barrier is needed.
+  - id: audit-structure
+    command: audit-structure
+    context: fresh
+    mutates_checkout: false
+    depends_on: [gate-scope]
+    retry:
+      max_attempts: 2
+      delay_ms: 20000
+    output_type: structural-findings
+    output_format:
+      type: object
+      properties:
+        findings:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              subcategory: { type: string }
+              file: { type: string }
+              line: { type: integer }
+              description: { type: string }
+              suggested_fix: { type: string }
+              effort: { type: string, enum: [S, M, L] }
+            required: [id, subcategory, file, description, suggested_fix, effort]
+        summary:
+          type: string
+        report:
+          type: object
+          properties:
+            type: { type: string, enum: [archon_artifact] }
+            run_id: { type: string }
+            path: { type: string, enum: [structural-findings.md] }
+          required: [type, run_id, path]
+      required: [findings, summary, report]
+
+  - id: audit-context-state
+    command: audit-context-state
+    context: fresh
+    mutates_checkout: false
+    depends_on: [gate-scope]
+    retry:
+      max_attempts: 2
+      delay_ms: 20000
+    output_type: context-state-findings
+    output_format:
+      type: object
+      properties:
+        findings:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              subcategory: { type: string }
+              file: { type: string }
+              line: { type: integer }
+              description: { type: string }
+              suggested_fix: { type: string }
+              effort: { type: string, enum: [S, M, L] }
+            required: [id, subcategory, file, description, suggested_fix, effort]
+        summary:
+          type: string
+        report:
+          type: object
+          properties:
+            type: { type: string, enum: [archon_artifact] }
+            run_id: { type: string }
+            path: { type: string, enum: [context-state-findings.md] }
+          required: [type, run_id, path]
+      required: [findings, summary, report]
+
+  # Step 3–4. Consolidates both lenses into the three-tier backlog and writes
+  # the MVP Code Audit Report. Per the source skill: where a finding could
+  # reasonably sit in either of two tiers, this records the ambiguity in the
+  # report rather than silently picking one.
+  - id: synthesize
+    command: synthesize-backlog
+    context: fresh
+    mutates_checkout: false
+    depends_on: [audit-structure, audit-context-state]
+    output_type: mvp-audit
+    output_format:
+      type: object
+      properties:
+        release_blocker_count: { type: integer }
+        parallel_cleanup_count: { type: integer }
+        deferrable_count: { type: integer }
+        backlog:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              title: { type: string }
+              category:
+                type: string
+                enum: [release_blocker, parallel_cleanup, deferrable]
+              files:
+                type: array
+                items: { type: string }
+              description: { type: string }
+              suggested_fix: { type: string }
+              effort: { type: string, enum: [S, M, L] }
+              ambiguous_note: { type: [string, "null"] }
+            required:
+              - id
+              - title
+              - category
+              - files
+              - description
+              - suggested_fix
+              - effort
+              - ambiguous_note
+        recommendation:
+          type: string
+        go_no_go:
+          type: string
+          enum: [go, no_go, conditional]
+        summary:
+          type: string
+        report:
+          type: object
+          properties:
+            type: { type: string, enum: [archon_artifact] }
+            run_id: { type: string }
+            path: { type: string, enum: [audit-report.md] }
+          required: [type, run_id, path]
+      required:
+        - release_blocker_count
+        - parallel_cleanup_count
+        - deferrable_count
+        - backlog
+        - recommendation
+        - go_no_go
+        - summary
+        - report
+
+  # Step 5. A distinct deliverable from the audit report on purpose — the
+  # source skill is explicit that the audit is the diagnosis and this is the
+  # treatment plan, meant to be reviewed as a pair but consumed differently
+  # (this one is what a future Claude Code session, or fix-blockers below,
+  # actually executes from).
+  - id: plan-remediation
+    command: plan-remediation
+    context: fresh
+    mutates_checkout: false
+    depends_on: [synthesize]
+    output_type: remediation-plan
+    output_format:
+      type: object
+      properties:
+        sprint0_item_ids:
+          type: array
+          items: { type: string }
+        summary:
+          type: string
+        report:
+          type: object
+          properties:
+            type: { type: string, enum: [archon_artifact] }
+            run_id: { type: string }
+            path: { type: string, enum: [remediation-plan.md] }
+          required: [type, run_id, path]
+      required: [sprint0_item_ids, summary, report]
+
+  # Step 6. Unmodified archon-implement, scoped by its work order to Sprint 0
+  # only — the same "compose, don't fork" choice archon-ship-figma made for
+  # its own delivery step. Skipped entirely when there is nothing to fix, or
+  # when the caller asked for an audit-only run.
+  - id: fix-blockers
+    include: archon-implement
+    depends_on: [plan-remediation]
+    when: "$INPUTS.fix_blockers == 'true' && $synthesize.output.release_blocker_count > 0"
+    with:
+      work: >-
+        Read $ARTIFACTS_DIR/remediation-plan.md and work through its Sprint 0
+        section only, in the dependency order it states. For each task: make
+        the fix exactly as scoped, and if a test framework already exists in
+        this project, add or update a test at the mock/fixture boundary the
+        task names rather than one that calls a real external service. If no
+        test framework exists in this project and a task's verification
+        needs one, do not silently introduce one and do not silently skip
+        testing that task — leave that specific task incomplete, name in
+        your summary that it needs a decision on adding a test framework, and
+        move on to the next Sprint 0 task rather than stopping the whole run
+        on it. Do not touch anything outside Sprint 0 — Parallel Feature
+        Cleanups and Deferrable Debt in $ARTIFACTS_DIR/audit-report.md are
+        explicitly out of scope for this run, even where a fix would be
+        easy or adjacent. If a Sprint 0 task turns out larger than its
+        remediation-plan.md estimate — needing an architectural decision only
+        a person can make — stop that task honestly rather than guessing,
+        and name exactly what decision is needed in your summary.
+
+  # Confirms the fixes actually hold, the same check the source skill's own
+  # Step 6.3 asks for ("run the existing test suite... after each fix").
+  # Skipped under the same condition as fix-blockers, so it never reports on
+  # a run that never happened.
+  - id: post-fix-validate
+    include: archon-validate
+    depends_on: [fix-blockers]
+    trigger_rule: none_failed_min_one_success
+    when: "$INPUTS.fix_blockers == 'true' && $synthesize.output.release_blocker_count > 0"
+
+  # Optional, and beyond the source skill's own stated scope (it says
+  # "execute... in this session", not "open a PR for it") — included because
+  # it composes for free from an unmodified archon-pr, and only runs when the
+  # fixes actually landed green.
+  - id: open-pr
+    include: archon-pr
+    depends_on: [post-fix-validate]
+    trigger_rule: none_failed_min_one_success
+    when: >-
+      $INPUTS.open_pr == 'true' && $INPUTS.fix_blockers == 'true' &&
+      $synthesize.output.release_blocker_count > 0 &&
+      $post-fix-validate.output.green == true
+    with:
+      draft: "true"
+
+  # Opt-in bridge back into the rest of the pack: each filed issue is shaped
+  # as a triage-ready contract (problem, why, why now, outcome, invariants,
+  # acceptance) referencing this run's audit-report.md and
+  # remediation-plan.md for the evidence, so archon-ship or
+  # archon-ship-figma can pick each one up directly with no re-derivation.
+  # Runs independently of the fix-blockers branch: it files whatever this run
+  # did not fix, which is everything when fix_blockers is false.
+  - id: file-issues
+    command: file-issues
+    context: fresh
+    mutates_checkout: false
+    depends_on: [plan-remediation]
+    when: "$INPUTS.file_issues == 'true'"
+    with:
+      fix_blockers: "$INPUTS.fix_blockers"
+    output_format:
+      type: object
+      properties:
+        issues_filed:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              title: { type: string }
+              url: { type: string }
+            required: [id, title, url]
+        summary:
+          type: string
+      required: [issues_filed, summary]
+
+  - id: outcome
+    script: outcome
+    runtime: bun
+    depends_on: [synthesize, fix-blockers, post-fix-validate, open-pr, file-issues]
+    trigger_rule: none_failed_min_one_success
+    with:
+      release_blocker_count: "$synthesize.output.release_blocker_count"
+      parallel_cleanup_count: "$synthesize.output.parallel_cleanup_count"
+      deferrable_count: "$synthesize.output.deferrable_count"
+      go_no_go: "$synthesize.output.go_no_go"
+      recommendation: "$synthesize.output.recommendation"
+      fix_done: { from: "$fix-blockers.output.done", if_skipped: null }
+      fix_green: { from: "$fix-blockers.output.green", if_skipped: null }
+      fix_summary: { from: "$fix-blockers.output.summary", if_skipped: null }
+      validate_green: { from: "$post-fix-validate.output.green", if_skipped: null }
+      pr_url: { from: "$open-pr.output.url", if_skipped: null }
+      issues_filed: { from: "$file-issues.output.issues_filed", if_skipped: null }
+    output_format:
+      type: object
+      properties:
+        completed: { type: boolean }
+        summary: { type: string }
+      required: [completed, summary]
