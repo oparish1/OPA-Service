@@ -117,7 +117,8 @@ nodes:
   # in this repository, and it reads Figma but writes nothing there either.
   - id: figma-ground
     command: figma-ground
-    model: medium
+    model: "@figma"
+    mcp: .mcp.json
     mutates_checkout: false
     depends_on: [gate-direct, gate-rooted, gate-planned]
     trigger_rule: none_failed_min_one_success

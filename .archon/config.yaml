@@ -1,4 +1,12 @@
-assistant: claude
+assistant: pi
+
+tiers:
+  small:  { provider: pi, model: openrouter/z-ai/glm-5.3-flash }
+  medium: { provider: pi, model: openrouter/deepseek/deepseek-v4.1-flash }
+  large:  { provider: pi, model: openrouter/deepseek/deepseek-v4.1-flash }
+
+aliases:
+  figma: { provider: claude, model: claude-sonnet-4-6 }
 workflows:
   folder: .archon/workflows          # additional workflows search path
 commands:
