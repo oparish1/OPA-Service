@@ -6,19 +6,14 @@ tiers:
   large:  { provider: pi, model: openrouter/deepseek/deepseek-v4.1-flash }
 
 aliases:
-'@mini': { provider: pi, model: minimax/MiniMax-M3 }
-  figma: { provider: claude, model: claude-sonnet-4-6 }
-workflows:
-  folder: .archon/workflows          # additional workflows search path
-commands:
-  folder: .archon/commands           # additional command search path
-skills:
-  folder: .claude/skills             # additional skills search path
+  '@mini':  { provider: pi, model: minimax/MiniMax-M3 }
+  '@figma': { provider: claude, model: claude-sonnet-4-6 }
+
 worktree:
   baseBranch: dev
-  copyFiles:                         # gitignored files/dirs to copy into worktrees
-    - .env                           # nothing is copied unless listed here
+  copyFiles:
+    - .env
     - plans/
 
 docs:
-  folder: /docs                     # additional docs search path
+  path: packages/docs-web/src/content/docs
