@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "codebase-search": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--script",
+        "tooling/mcp/codebase_search.py"
+      ]
+    },
+    "atlassian": {
+      "type": "http",
+      "url": "https://mcp.atlassian.com/v1/mcp/authv2"
+    },
+    "posthog": {
+      "type": "http",
+      "url": "https://mcp.posthog.com/mcp",
+      "headersHelper": "bash .claude/mcp-posthog-headers.sh"
+    },
+    "figma": {
+        "command": "npx",
+        "args": ["-y", "figma-developer-mcp", "--stdio"],
+        "env": { "FIGMA_API_KEY": "$FIGMA_API_KEY" }
+    }
+  }
+}
