@@ -1,1 +1,11 @@
-# test
+assistant: claude
+workflows:
+  folder: .archon/workflows          # additional workflows search path
+commands:
+  folder: .archon/commands           # additional command search path
+skills:
+  folder: .claude/skills             # additional skills search path
+worktree:
+  copyFiles:                         # gitignored files/dirs to copy into worktrees
+    - .env                           # nothing is copied unless listed here
+    - plans/
