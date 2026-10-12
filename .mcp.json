@@ -18,7 +18,7 @@
       "headersHelper": "bash .claude/mcp-posthog-headers.sh"
     },
     "figma": {
-        "command": "npx",
+        "command": "/home/orlando/.bun/bin/bunx",
         "args": ["-y", "figma-developer-mcp", "--stdio"],
         "env": { "FIGMA_API_KEY": "$FIGMA_API_KEY" }
     }
