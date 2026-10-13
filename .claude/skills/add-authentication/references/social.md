@@ -1,6 +1,6 @@
 # Social Login (Google, Apple, Facebook)
 
-Read this when consumers should sign in with an existing account from a public identity provider. Social login is OAuth 2.0/OpenID Connect delegated to a third party: it removes password handling, but adds account-linking, provider-availability, and privacy decisions.
+Read this when consumers should sign in with an existing account from a public identity provider. Social login is OAuth 2.0/OpenID Connect delegated to a third party: it removes password handling, but adds account-linking, provider-availability and privacy decisions.
 
 ## Contents
 1. Decide first
@@ -9,12 +9,12 @@ Read this when consumers should sign in with an existing account from a public i
 4. Apple
 5. Facebook (Meta)
 6. Account model and linking
-7. Deletion, revocation, and privacy
+7. Deletion, revocation and privacy
 8. Verify
 
 ## 1. Decide first (owner commitments)
 
-- Which providers, and the reason for each. More providers means more linking edge cases and more review processes.
+- Which providers and the reason for each. More providers means more linking edge cases and more review processes.
 - Social-only, or social plus email/password (then linking rules matter; see section 6).
 - What happens when a user loses access to their provider account or the provider is unavailable.
 - Whether the app needs anything beyond identity (profile fields, contacts). Request the minimum scopes.
@@ -28,9 +28,9 @@ Read this when consumers should sign in with an existing account from a public i
 - Validate ID tokens: signature against the provider's published keys, `iss`, `aud` equal to your client ID, `exp`, `nonce`.
 - Exchange the code on the server. Keep client secrets in the secrets manager.
 - **Identity is the provider's immutable subject ID (`sub` or the provider's user ID), never the email.**
-- Treat email as trustworthy only when the provider states it is verified, and never as the sole basis for linking accounts.
+- Treat email as trustworthy only when the provider states it is verified and never as the sole basis for linking accounts.
 - Request minimum scopes; add more later with explicit user consent when a feature needs them.
-- Provider consoles, review processes, and SDKs change often. Read the current documentation and cite it in the work order.
+- Provider consoles, review processes and SDKs change often. Read the current documentation and cite it in the work order.
 
 ## 3. Google
 
@@ -47,7 +47,7 @@ Read this when consumers should sign in with an existing account from a public i
   - The user's **name and email are returned only on the first authorization.** Store them then; you cannot fetch them again without the user revoking and re-consenting.
   - The user may choose to **hide their email** behind Apple's private relay address. Treat it as the contact address; to send email to it you must register your sending domain with Apple per their current instructions.
   - Native iOS apps and web use different identifiers and flows (a bundle ID versus a Services ID); confirm which you need and how the audience differs.
-- Identity is `sub`. Validate `iss` (Apple's issuer), `aud`, `exp`, and `nonce`.
+- Identity is `sub`. Validate `iss` (Apple's issuer), `aud`, `exp` and `nonce`.
 - Apple requires apps that support account creation to allow account deletion in-app and requires token revocation on deletion; see section 7.
 
 ## 5. Facebook (Meta)
@@ -67,16 +67,16 @@ Read this when consumers should sign in with an existing account from a public i
 - If the user has a local password and adds a social identity, or the reverse, keep at least one working way to sign in. Do not let the last identity be unlinked.
 - Decide the profile source of truth (provider data can change; avoid overwriting user-edited fields).
 
-## 7. Deletion, revocation, and privacy
+## 7. Deletion, revocation and privacy
 
 - Provide account deletion; on deletion revoke the provider tokens you hold (mandatory for Apple, good practice everywhere) and delete or anonymize stored data per policy.
-- Store as little provider data as needed; do not persist provider access or refresh tokens unless a feature calls the provider's API, and then store them encrypted.
+- Store as little provider data as needed; do not persist provider access or refresh tokens unless a feature calls the provider's API and then store them encrypted.
 - Update the privacy policy to name the providers and data received. Where regulations apply, capture consent as required.
-- Handle a user revoking your app inside the provider's settings: subsequent token refresh fails, and the user should be able to re-consent or use another sign-in method.
+- Handle a user revoking your app inside the provider's settings: subsequent token refresh fails and the user should be able to re-consent or use another sign-in method.
 
 ## 8. Verify
 
-- Tampered, expired, wrong-audience, and replayed tokens are rejected; `state` and redirect-URI checks fail closed.
+- Tampered, expired, wrong-audience and replayed tokens are rejected; `state` and redirect-URI checks fail closed.
 - Two accounts with the same email from different providers do not merge.
 - A provider returning no email, an unverified email, or a hidden (relay) email is handled.
 - Apple first-login data is captured on that first response and persisted.

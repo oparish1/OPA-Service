@@ -1,6 +1,6 @@
 ---
 name: prime-codebase
-description: Primes the agent with deep codebase understanding by analyzing structure, documentation, and key files. Use when starting work on a codebase, at the beginning of a session, or when you need a fast orientation before planning or implementing. Optionally pulls external task context from Jira issues and Confluence pages first.
+description: Primes the agent with deep codebase understanding by analyzing structure, documentation and key files. Use when starting work on a codebase, at the beginning of a session, or when you need a fast orientation before planning or implementing. Optionally pulls external task context from Jira issues and Confluence pages first.
 argument-hint: "[jira-issue-keys] [confluence-page-ids]"
 ---
 
@@ -8,7 +8,7 @@ argument-hint: "[jira-issue-keys] [confluence-page-ids]"
 
 ## Objective
 
-Build comprehensive understanding of the codebase by analyzing structure, documentation, and key files. If external task references are provided, load them first so the codebase analysis is anchored to the actual work.
+Build comprehensive understanding of the codebase by analyzing structure, documentation and key files. If external task references are provided, load them first so the codebase analysis is anchored to the actual work.
 
 ## Process
 
@@ -22,8 +22,8 @@ Build comprehensive understanding of the codebase by analyzing structure, docume
 **If Jira issue keys are provided:**
 
 1. Call `mcp__atlassian__getAccessibleAtlassianResources` to obtain the `cloudId`.
-2. For each Jira key, call `mcp__atlassian__getJiraIssue` with that `cloudId`, the issue key, and `responseContentFormat: "markdown"`.
-3. Treat the returned issue summary, description, and acceptance criteria as the task context for everything that follows.
+2. For each Jira key, call `mcp__atlassian__getJiraIssue` with that `cloudId`, the issue key and `responseContentFormat: "markdown"`.
+3. Treat the returned issue summary, description and acceptance criteria as the task context for everything that follows.
 
 **If Confluence page ids are provided:**
 

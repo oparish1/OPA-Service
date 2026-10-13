@@ -1,6 +1,6 @@
-# Checkout, Frontend, and Configuration
+# Checkout, Frontend and Configuration
 
-Read this for taking the payment: creating the Checkout Session on the server, the buy-tokens UI, the return pages, and environment setup. Crediting tokens is not done here; it happens only in the webhook (`webhooks.md`).
+Read this for taking the payment: creating the Checkout Session on the server, the buy-tokens UI, the return pages and environment setup. Crediting tokens is not done here; it happens only in the webhook (`webhooks.md`).
 
 ## Contents
 1. Decide first
@@ -16,7 +16,7 @@ Read this for taking the payment: creating the Checkout Session on the server, t
 - Packs: identifiers, token amounts, prices, currency. One source of truth on the server (config or database) maps pack id to price and tokens.
 - Hosted Checkout (redirect to Stripe) or embedded Checkout; default to hosted unless the owner wants the page to stay in the app.
 - Whether to create Stripe Products/Prices in Stripe and reference them by id, or define price inline per session. Prefer Stripe-side Prices when the owner will manage pricing in the dashboard; prefer inline when pricing lives in the app. Check current documentation for both and record the choice.
-- Whether users may buy custom amounts (then define minimum, maximum, and rounding, all owner commitments).
+- Whether users may buy custom amounts (then define minimum, maximum and rounding, all owner commitments).
 - Payment methods offered and whether delayed-notification methods (bank debits and similar) are allowed; they change fulfillment timing (see `webhooks.md`).
 - Tax collection and billing-address requirements.
 - Team or individual account as the purchaser.
@@ -24,9 +24,9 @@ Read this for taking the payment: creating the Checkout Session on the server, t
 ## 2. Server-side session creation
 
 - One authenticated endpoint, for example "create checkout session". It takes only a pack identifier (and quantity if allowed). It looks up price and tokens server-side and ignores any amount the client sends.
-- Create the session in payment mode with the pack's price, and attach the app's own identifiers so the webhook can find the account: the app user or team id via the session's client reference field, and the pack id and expected token amount in metadata. Look up the current field names and limits in Stripe's documentation.
+- Create the session in payment mode with the pack's price and attach the app's own identifiers so the webhook can find the account: the app user or team id via the session's client reference field and the pack id and expected token amount in metadata. Look up the current field names and limits in Stripe's documentation.
 - Attach or reuse a Stripe Customer for the purchaser (see section 5).
-- Success and cancel URLs come from server configuration, not from request input, and point at the app's own pages.
+- Success and cancel URLs come from server configuration, not from request input and point at the app's own pages.
 - Send an idempotency key derived from a client-generated attempt id so a double-click or retry does not create two sessions or two charges.
 - Rate-limit the endpoint per user. Return only the session URL (or client secret for embedded), never the secret key.
 - Do not write tokens to the ledger here. The pending purchase may be recorded as "started" for support purposes, but it grants nothing.
@@ -37,9 +37,9 @@ Match the app's framework and component conventions; the flow is the same everyw
 - A pack selector showing the tokens and price the server reports. Fetch pack data from the server rather than hardcoding prices in the client, so UI and charge never disagree.
 - A buy button that calls the create-session endpoint, disables itself while pending, then navigates to the returned Checkout URL (or mounts embedded Checkout with the returned secret).
 - A visible token balance and recent purchase history, refreshed after return.
-- Clear states: loading, error creating the session, and "payment processing".
+- Clear states: loading, error creating the session and "payment processing".
 - Low-balance and zero-balance messaging in the place tokens are consumed, with a path back to the buy flow.
-- The publishable key is the only Stripe key allowed in client code, and only if embedded Checkout or Stripe.js is used. Hosted redirect needs none.
+- The publishable key is the only Stripe key allowed in client code and only if embedded Checkout or Stripe.js is used. Hosted redirect needs none.
 
 ## 4. Return pages
 
@@ -56,8 +56,8 @@ Match the app's framework and component conventions; the flow is the same everyw
 
 ## 6. Environment configuration
 
-- Variables, names only in `.env.example`: the secret API key, the webhook signing secret, optionally the publishable key, the pinned API version, the success and cancel base URLs, and a mode indicator if useful. Real values live in the secrets manager or a git-ignored env file.
-- Separate test and live keys, and a separate webhook endpoint and signing secret per environment. A live secret in a dev environment, or the reverse, is a common outage.
+- Variables, names only in `.env.example`: the secret API key, the webhook signing secret, optionally the publishable key, the pinned API version, the success and cancel base URLs and a mode indicator if useful. Real values live in the secrets manager or a git-ignored env file.
+- Separate test and live keys and a separate webhook endpoint and signing secret per environment. A live secret in a dev environment, or the reverse, is a common outage.
 - Fail fast at startup if a required Stripe variable is missing or if the key's mode (test vs. live) does not match the environment.
 - Use restricted API keys with only the permissions the integration needs where the platform supports them; check current documentation.
 - Pin the Stripe API version in the client configuration so a Stripe-side upgrade cannot change behavior unannounced.

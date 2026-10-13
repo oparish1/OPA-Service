@@ -1,6 +1,6 @@
 # Context & State Integrity Audit
 
-Read `$ARTIFACTS_DIR/scope.md` first — it names the core execution path this audit covers and what's excluded. This is the category most specific to LLM and agentic prototypes: where per-request or per-user data leaks across boundaries it shouldn't, where state can end up inconsistent, and where the system has no defined, deterministic path when a model call doesn't behave. Read breadth-first across `core_paths`, and record every concrete finding with a real `file:line` reference.
+Read `$ARTIFACTS_DIR/scope.md` first — it names the core execution path this audit covers and what's excluded. This is the category most specific to LLM and agentic prototypes: where per-request or per-user data leaks across boundaries it shouldn't, where state can end up inconsistent and where the system has no defined, deterministic path when a model call doesn't behave. Read breadth-first across `core_paths` and record every concrete finding with a real `file:line` reference.
 
 Look for, in three sub-categories:
 
@@ -30,5 +30,5 @@ Write `$ARTIFACTS_DIR/context-state-findings.md`, grouped by the three sub-categ
 ## Declare
 
 - `findings` — the array, as recorded.
-- `summary` — a few sentences: what was covered, and the headline context/state risk if any.
+- `summary` — a few sentences: what was covered and the headline context/state risk if any.
 - `report` — the pointer to `context-state-findings.md`.

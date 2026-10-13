@@ -4,7 +4,7 @@ You are one lens of `archon-pre-multiagent-readiness-audit`. Advisory: never mod
 the checkout. Write only to `$ARTIFACTS_DIR/audit/coupling.md`.
 
 Read `$ARTIFACTS_DIR/audit/prime.md` first. It records the resolved multi-agent
-shape, the execution loop, tools, and state. Every finding needs a real `file:line`
+shape, the execution loop, tools and state. Every finding needs a real `file:line`
 that you have opened — no findings from structure alone.
 
 ## What to look for

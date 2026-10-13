@@ -1,4 +1,4 @@
-# Docker Build, Cache, Tags, Push, and Image Scanning
+# Docker Build, Cache, Tags, Push and Image Scanning
 
 Read this when the pipeline builds container images. If the repository has no Dockerfile, use the `containerize-application` skill first.
 
@@ -19,14 +19,14 @@ Read this when the pipeline builds container images. If the repository has no Do
 - Which refs push images: typically the default branch and release tags, never fork pull requests.
 - Tagging scheme (section 4) and retention: how long old images are kept and who cleans them up.
 - Target architectures: match the deploy host (amd64, arm64, or both).
-- Whether the scan blocks the build, and at what severity.
+- Whether the scan blocks the build and at what severity.
 
 ## 2. Build on every change, push only from trusted refs
 
 - On pull requests, **build without pushing** to prove the Dockerfile works and catch regressions. Load the image into the runner if a later job (e2e, scan) needs it.
 - On the default branch and tags, build and push.
 - Fork pull requests cannot push and have no registry credentials; the build-only path must work without them.
-- Use the Docker organization's official actions for buildx setup, registry login, metadata (tags and labels), and build/push. Look up the current version of each, pin, and cite.
+- Use the Docker organization's official actions for buildx setup, registry login, metadata (tags and labels) and build/push. Look up the current version of each, pin and cite.
 
 ## 3. Registry and authentication
 
@@ -71,7 +71,7 @@ Read this when the pipeline builds container images. If the repository has no Do
 
 - The Dockerfile builds locally with the same context and arguments.
 - The pull request path builds without pushing and without credentials.
-- The pushed tag is the commit SHA, and the deploy job consumes the digest or SHA tag, not `latest`.
+- The pushed tag is the commit SHA and the deploy job consumes the digest or SHA tag, not `latest`.
 - The job has only the permissions it needs.
 - The scan step fails on the agreed severity (reason through it or trigger it on a scratch branch).
-- State what only a real run proves: registry permissions, package visibility, and cache hit rates.
+- State what only a real run proves: registry permissions, package visibility and cache hit rates.

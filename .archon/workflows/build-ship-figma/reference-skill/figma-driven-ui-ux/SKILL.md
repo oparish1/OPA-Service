@@ -28,7 +28,7 @@ design-system component choice is never assumed.
 ## Process
 
 Full step-by-step instructions, including the connector setup flow, the
-design-system audit checklist, and the verification-report template, are in
+design-system audit checklist and the verification-report template, are in
 [references/procedure.md](references/procedure.md). Read it before starting
 work. In outline:
 
@@ -37,14 +37,14 @@ work. In outline:
 1. **Establish the Figma connection** (connector or MCP server).
 2. **Load and audit** the design system and target frame before writing any
    code — enumerate screens/states, map every element to a design-system
-   component, and confirm the plan with the user.
+   component and confirm the plan with the user.
 3. **Generate code** faithfully from that mapping, asking a specific question
    before filling any gap rather than guessing.
 4. **Test the integration** end-to-end against the real backend, extending
    the project's existing e2e framework if one exists.
 5. **Produce a design-fidelity verification report** (template in
    references/procedure.md) documenting what was built, every question asked
-   and answered, and any elements not mapped to the design system.
+   and answered and any elements not mapped to the design system.
 
 ## Output location
 

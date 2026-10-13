@@ -6,8 +6,8 @@ This covers Step 4 — the content that goes into the User Adoption Enablement P
 
 Not everyone needs the same depth. Build at least two tracks:
 
-- **End users** — people who interact with the system's outputs or receive its actions day to day. They need: what it does well, what it gets wrong and how often, how to spot a wrong answer, and exactly how to override or escalate.
-- **Approvers/reviewers** — anyone holding Review or Approval authority from the decision-authority mapping. They need everything end users get, plus: what the reasoning-path and confidence information actually means, how to read it quickly, and what "when in doubt" defaults to (usually: escalate, don't guess).
+- **End users** — people who interact with the system's outputs or receive its actions day to day. They need: what it does well, what it gets wrong and how often, how to spot a wrong answer and exactly how to override or escalate.
+- **Approvers/reviewers** — anyone holding Review or Approval authority from the decision-authority mapping. They need everything end users get, plus: what the reasoning-path and confidence information actually means, how to read it quickly and what "when in doubt" defaults to (usually: escalate, don't guess).
 
 If the org has a champions/admin layer, give them a third track covering the full decision-authority thresholds and how to adjust them.
 
@@ -17,7 +17,7 @@ If the org has a champions/admin layer, give them a third track covering the ful
 
 2. **Known edge cases and failure modes.** Document the situations where the system is known to struggle — ambiguous inputs, out-of-scope requests, data it wasn't trained/configured to handle well. If none are known yet because this is a new system, say so and commit to updating this section as real edge cases surface (tie this to the feedback loop in Step 6).
 
-3. **Override and rollback controls, as a walkthrough.** Not just "you can override it" — the actual click-by-click or step-by-step path: where the override button/command lives, what happens when you use it, whether it's logged, and whether it teaches the system anything (or whether that's a separate, explicit feedback step).
+3. **Override and rollback controls, as a walkthrough.** Not just "you can override it" — the actual click-by-click or step-by-step path: where the override button/command lives, what happens when you use it, whether it's logged and whether it teaches the system anything (or whether that's a separate, explicit feedback step).
 
 4. **"When in doubt" guidance.** A short, memorable rule for what a user should do when they're unsure whether to trust an output — usually pointing them to escalate rather than either blindly accept or blindly reject.
 

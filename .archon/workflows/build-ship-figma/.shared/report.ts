@@ -2,11 +2,11 @@
  * Everything a terminal report owes its reader beyond the result itself.
  *
  * Two sections, both existing because their channel is otherwise write-only: red a
- * green gate deliberately accepted, and discoveries a run recorded outside its own
+ * green gate deliberately accepted and discoveries a run recorded outside its own
  * scope. The engine collects neither. The terminal record it assembles is built from
- * the durable event log when a run reaches a terminal status, and is readable only
+ * the durable event log when a run reaches a terminal status and is readable only
  * after that, while these sections have to reach the reader from inside the run. So
- * composing them is the pack's, and this module is where all three SDLC tails
+ * composing them is the pack's and this module is where all three SDLC tails
  * compose them.
  *
  * Presentation only. Discoveries and caveats never gate readiness, so nothing here
@@ -25,7 +25,7 @@ const DISCOVERY_RELAY =
 
 const RED_CAUSE_CAVEAT =
   "The project's own checks did not pass locally on this branch. The pull request's " +
-  'own CI is the gate that still stands — read it before merging, and if the red is ' +
+  'own CI is the gate that still stands — read it before merging and if the red is ' +
   'inherited, the base branch is what needs the fix.';
 
 /**
@@ -134,7 +134,7 @@ function listingLimitation(message: string): string {
  * `artifactsByType['green-gate']` reads every gate that ran this run, loop
  * iterations included, with no directory walk and no filename guess; the engine has
  * already ordered them by production time. Lookup errors are shown here because a
- * corrupt sidecar could have been a gate, and it has no trustworthy type to hide
+ * corrupt sidecar could have been a gate and it has no trustworthy type to hide
  * behind. A missing or unreadable listing is a named limitation, never silence: the
  * reader is exactly the person who can go open the run's records.
  */

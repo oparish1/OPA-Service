@@ -1,6 +1,6 @@
 # Verification and the Production-Ready Rule
 
-Read this in Step 6, or whenever reviewing an existing integration. The purpose is to replace "it looks right" with evidence for the three properties that decide whether money code is safe: **signature verification, idempotency, and race-safe accounting.**
+Read this in Step 6, or whenever reviewing an existing integration. The purpose is to replace "it looks right" with evidence for the three properties that decide whether money code is safe: **signature verification, idempotency and race-safe accounting.**
 
 ## Contents
 1. Ground rules
@@ -41,7 +41,7 @@ Critical checks (C) must be proven before cutover; the rest (R) are strongly rec
 - R3. An event for an unknown account credits nothing and raises an alert.
 
 **Race-safe accounting**
-- C11. N parallel spends against balance B: total spent never exceeds B, and the balance never goes below zero (or the owner's limit).
+- C11. N parallel spends against balance B: total spent never exceeds B and the balance never goes below zero (or the owner's limit).
 - C12. Parallel spends interleaved with credits and refunds preserve: ledger sum equals cached balance.
 - C13. A replayed spend or settle keyed on the same request id applies once.
 - C14. A reservation abandoned by a crash is released by the sweeper without double charge.
@@ -52,7 +52,7 @@ Critical checks (C) must be proven before cutover; the rest (R) are strongly rec
 - C17. Partial refunds accumulate correctly; replay of any event is a no-op.
 - C18. Refund after spending follows the owner-approved policy and the resulting balance matches.
 - R4. Dashboard-originated refund (event with no matching app request) updates the ledger.
-- R5. Dispute open, won, and lost paths hold and release tokens once.
+- R5. Dispute open, won and lost paths hold and release tokens once.
 - C19. Only authorized roles can trigger refunds and adjustments.
 
 **Checkout and configuration**
@@ -69,12 +69,12 @@ Critical checks (C) must be proven before cutover; the rest (R) are strongly rec
 
 State plainly, in the report, which items need the owner's environment:
 - Real delivery from Stripe to the deployed endpoint (public URL, TLS, firewall, correct endpoint secret).
-- Behavior with delayed payment methods, real declines, and 3-D Secure flows, unless the owner exercises them in test mode.
+- Behavior with delayed payment methods, real declines and 3-D Secure flows, unless the owner exercises them in test mode.
 - Dispute evidence workflow and deadlines.
 - Production monitoring and paging paths.
 - Anything depending on the live account's settings (tax, payment methods, branding).
 
-Give each a concrete manual procedure: the Stripe CLI or dashboard steps to trigger it, and what result to expect. Look up the current CLI commands in Stripe's documentation rather than writing them from memory.
+Give each a concrete manual procedure: the Stripe CLI or dashboard steps to trigger it and what result to expect. Look up the current CLI commands in Stripe's documentation rather than writing them from memory.
 
 ## 4. Live cutover checklist
 
@@ -82,8 +82,8 @@ Owner-run, in order; each item is a yes/no in the report:
 1. Live keys installed in the production secret store; test keys removed from production.
 2. Live webhook endpoint registered with only the handled events; its signing secret installed.
 3. Pinned API version matches what was tested.
-4. Prices, packs, and tax settings in the live account match the work order's decisions table.
-5. A small real purchase completes, credits once, and appears in the ledger and reconciliation.
+4. Prices, packs and tax settings in the live account match the work order's decisions table.
+5. A small real purchase completes, credits once and appears in the ledger and reconciliation.
 6. A real refund of that purchase reverses the tokens once.
 7. Webhook delivery dashboard shows 2xx; alerts fire on a forced failure in a safe way.
 8. Rollback path tested: purchasing and spending can be disabled without corrupting balances.
@@ -108,7 +108,7 @@ Blocking items: <list, or none>
 ... one row per check ...
 
 ## Not verified here
-<each item, why, and the manual procedure to verify it>
+<each item, why and the manual procedure to verify it>
 
 ## Findings
 <severity, location, what is wrong, fix>
@@ -122,4 +122,4 @@ Blocking items: <list, or none>
 
 ## 6. The rule for saying "ready"
 
-The verdict may be **Ready for live cutover** only if every critical check (C1–C22 that apply) is **proven** by a test that actually ran against the real database engine, no finding above low severity is open, the work order's decisions are all resolved, and the manual items are listed with owners. If any critical check is partial, failed, or manual, the verdict is **Not yet**, with the blocking items named. Do not soften this to please a deadline; state the exposure in plain terms (for example, "concurrent spends can overspend by up to N tokens") so the owner can make the call knowingly.
+The verdict may be **Ready for live cutover** only if every critical check (C1–C22 that apply) is **proven** by a test that actually ran against the real database engine, no finding above low severity is open, the work order's decisions are all resolved and the manual items are listed with owners. If any critical check is partial, failed, or manual, the verdict is **Not yet**, with the blocking items named. Do not soften this to please a deadline; state the exposure in plain terms (for example, "concurrent spends can overspend by up to N tokens") so the owner can make the call knowingly.

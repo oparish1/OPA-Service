@@ -11,7 +11,7 @@ forwarding any `[jira-issue-keys]` and `[confluence-page-ids]` arguments given t
 1. If Jira keys or Confluence page ids were provided, follow `prime-codebase` Step 0 to load
    that external context (task goals, acceptance criteria, specs).
 2. Run `prime-codebase` Steps 1–4 in full: project structure (`git ls-files`, `tree`), core
-   docs (README/CLAUDE.md), key files (entry points, config, schemas), and current state
+   docs (README/CLAUDE.md), key files (entry points, config, schemas) and current state
    (`git log`, `git status`).
 3. If this session has already primed the codebase earlier in the conversation, you may reuse
    that context instead of re-running it — but confirm it's still fresh (no major commits
@@ -19,7 +19,7 @@ forwarding any `[jira-issue-keys]` and `[confluence-page-ids]` arguments given t
 
 If a `[path-glob]` argument is given (e.g. `src/agents/**`), scope the audit below to that
 subtree; otherwise audit the whole primed codebase, weighting effort toward the core execution
-path (the main entry point, the orchestration/agent loop, and anything the prime step flagged
+path (the main entry point, the orchestration/agent loop and anything the prime step flagged
 as central). If priming doesn't make the core execution path obvious (e.g. multiple plausible
 entry points, or an unclear boundary between prototype code and vendored/generated code), ask
 the user which subtree to focus on rather than guessing — an audit scoped to the wrong code
@@ -29,7 +29,7 @@ Also ask the user (briefly, before starting Step 1) what this prototype's deploy
 and risk tolerance are — e.g. internal demo vs. handling real user data vs. anything
 financial/medical/safety-relevant — if that isn't already stated or obvious from the codebase
 (README, domain, existing compliance code). This materially changes what counts as a "release
-blocker" in Step 3, and guessing it wrong either overstates risk on a throwaway prototype or
+blocker" in Step 3 and guessing it wrong either overstates risk on a throwaway prototype or
 understates it on something that actually matters.
 
 Do not proceed to Step 1 without having completed priming — the audit's findings need to be
@@ -99,7 +99,7 @@ This is the category most specific to LLM/agentic prototypes. Look for:
 
 ## Step 3: Prioritized Refactoring Backlog
 
-Consolidate every finding from Steps 1–2 into a single backlog, and classify each item into
+Consolidate every finding from Steps 1–2 into a single backlog and classify each item into
 exactly one of three categories:
 
 - **Release Blockers** — would cause data corruption, crashes in common paths, security
@@ -111,12 +111,12 @@ exactly one of three categories:
   let them block velocity.
 
 For each backlog item, capture: `title`, `category`, `file(s):line(s)`, `description` (what's
-wrong and why it matters), `suggested fix` (concrete, not vague), and `estimated effort`
+wrong and why it matters), `suggested fix` (concrete, not vague) and `estimated effort`
 (S/M/L).
 
 Order items within each category by risk × blast radius, highest first.
 
-Classification into these three categories is a judgment call, and the boundary between
+Classification into these three categories is a judgment call and the boundary between
 "Release Blocker" and "Parallel Feature Cleanup" is often genuinely unclear without knowing
 the user's priorities. Where a finding could reasonably sit in either of two categories, don't
 silently pick one — note the ambiguity in the report itself (e.g. "classified as Parallel
@@ -139,9 +139,9 @@ Structure it as a numbered sequence of Claude Code tasks, sprint by sprint. See
 `references/report-templates.md` for the exact template.
 
 Each task must be phrased so Claude Code can pick it up directly with minimal
-re-interpretation: concrete file paths, a clear definition of done, and explicit
+re-interpretation: concrete file paths, a clear definition of done and explicit
 test/verification criteria. Avoid vague instructions like "improve error handling" — say
-exactly what to catch, where, and what the resulting behavior should be.
+exactly what to catch, where and what the resulting behavior should be.
 
 ## Step 6: Execute Critical Structural Fixes
 
@@ -149,7 +149,7 @@ Before handing the rest of the plan off to be scheduled, execute the **Sprint 0 
 Blockers** now, in this session, so the prototype is stable enough for harness work to begin:
 
 1. Work through Sprint 0 tasks in dependency order.
-2. For each: make the fix, and if a test framework exists in the codebase, add or update a
+2. For each: make the fix and if a test framework exists in the codebase, add or update a
    test that exercises it (favor the mock/fixture boundaries identified in Step 1 rather than
    hitting real external services). If no test framework exists in the codebase, don't
    silently skip testing or silently introduce a new one — ask the user whether to add a
@@ -161,5 +161,5 @@ Blockers** now, in this session, so the prototype is stable enough for harness w
    intentionally left for the sequenced plan, not fixed inline, to avoid scope creep into
    feature-adjacent code the user hasn't asked you to touch yet.
 5. If a release blocker turns out to be larger than estimated (e.g. requires an architectural
-   decision only the user can make), stop, flag it clearly in your response, and leave it open
+   decision only the user can make), stop, flag it clearly in your response and leave it open
    in the plan rather than guessing.

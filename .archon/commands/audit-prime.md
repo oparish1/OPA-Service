@@ -17,27 +17,27 @@ every claim in it carries a real `file:line` reference.
 ## 1. Prime
 
 Read the repository the way a new maintainer would: project structure, core docs
-(README, architecture notes, ADRs, `AGENTS.md`/`CLAUDE.md`), the key files, and the
+(README, architecture notes, ADRs, `AGENTS.md`/`CLAUDE.md`), the key files and the
 current state (recent history, open work). If `$INPUTS.design` names a document or
 issue, read it in full.
 
-Locate, inside the scope, and record with `file:line`:
+Locate, inside the scope and record with `file:line`:
 
 1. **The agent's core execution loop** — where a turn or task starts, how the model
-   is called, and how the loop ends. If the scope contains more than one
+   is called and how the loop ends. If the scope contains more than one
    independent agent loop and `$INPUTS.scope` did not select one, do not pick: set
    `agent_found` to false and say which loops you found.
 2. **Every tool or function the agent can call**, with its implementation location.
 3. **All state read or written** — in-memory, cache, database, files, vector store —
    and who reads and writes each.
-4. **The test suite** — where it lives, its framework, and the coverage tool the
+4. **The test suite** — where it lives, its framework and the coverage tool the
    project already configures (if any). Do not run anything.
 5. **Model-call configuration** — retries, timeouts, temperature, model names.
 6. **Existing instrumentation** — logging, tracing, token counting.
 
 ## 2. Resolve the target shape
 
-Severity in every later step depends on the planned shape, and it cannot be
+Severity in every later step depends on the planned shape and it cannot be
 inferred from code. Resolve it in this order and stop at the first source that
 answers:
 
@@ -50,11 +50,11 @@ answers:
 
 Definitions: `orchestrator` — one agent delegating to sub-agents; `parallel` —
 concurrent worker agents; `handoff` — strictly sequential agent-to-agent handoffs;
-`other` — anything else (describe it in prime.md, and treat it as concurrent).
+`other` — anything else (describe it in prime.md and treat it as concurrent).
 
 ## 3. Write `$ARTIFACTS_DIR/audit/prime.md`
 
-Sections: **Scope**, **Resolved shape** (value, source, quoted evidence, and which
+Sections: **Scope**, **Resolved shape** (value, source, quoted evidence and which
 current boundaries the design would turn into agent boundaries), **Execution loop**,
 **Tools**, **State inventory** (one row per piece of state: name, location, readers,
 writers), **Tests** (location, framework, coverage tool or "none configured"),

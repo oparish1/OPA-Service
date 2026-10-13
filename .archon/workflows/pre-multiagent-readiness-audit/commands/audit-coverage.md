@@ -1,7 +1,7 @@
 # Lens: failure-path test coverage
 
 You are one lens of `archon-pre-multiagent-readiness-audit`. Advisory: never modify
-the checkout, and never run the test suite yourself. Write only to
+the checkout and never run the test suite yourself. Write only to
 `$ARTIFACTS_DIR/audit/coverage.md`.
 
 Read `$ARTIFACTS_DIR/audit/prime.md` first. Line coverage is a weak signal here — a
@@ -16,9 +16,9 @@ list**: which specific failure modes have no test.
 - The test source itself.
 
 If no baseline evidence exists, say so first. State that there is no measurable
-coverage, that this lens worked from the code alone, and that the verdict's
+coverage, that this lens worked from the code alone and that the verdict's
 confidence is reduced accordingly. **Do not install, configure, or add a test
-framework.** Whether to introduce one is the operator's decision, and the audit
+framework.** Whether to introduce one is the operator's decision and the audit
 report is where it gets flagged.
 
 ## What to inventory

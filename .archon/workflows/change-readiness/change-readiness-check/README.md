@@ -3,7 +3,7 @@
 Advisory workflow that runs before an AI system or agent is rolled out to a team. It
 primes on the real solution, gets the stakeholder's answers, drafts the
 decision-authority tiers, auditability standard, training content, accountability map
-and adoption telemetry, and composes a **Human-AI Collaboration Charter** and a
+and adoption telemetry and composes a **Human-AI Collaboration Charter** and a
 **User Adoption Enablement Package**. It leaves the checkout unchanged and writes
 nothing to a tracker.
 

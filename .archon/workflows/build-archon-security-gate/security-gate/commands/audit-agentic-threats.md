@@ -2,7 +2,7 @@
 
 Read `$ARTIFACTS_DIR/scope.md` first. Start from `$INPUTS.key_areas`'s `agent_loop` and `tool_defs`. This node only runs when the review is scoped as agentic or both, so you can assume there is at least one LLM-driven agent with tool-calling ability to model.
 
-Model each of the following as an explicit attack scenario: **actor → vector → target → impact.** Do not just list the category — write the specific scenario as it applies to this codebase's actual tools and data flows, cited to real files. Score each scenario by likelihood × impact, and record whether an existing control mitigates it, partially mitigates it, or leaves it fully open (`mitigation_status`).
+Model each of the following as an explicit attack scenario: **actor → vector → target → impact.** Do not just list the category — write the specific scenario as it applies to this codebase's actual tools and data flows, cited to real files. Score each scenario by likelihood × impact and record whether an existing control mitigates it, partially mitigates it, or leaves it fully open (`mitigation_status`).
 
 ## Direct prompt injection
 
@@ -22,11 +22,11 @@ Enumerate every tool the agent can call and its blast radius (read-only vs. writ
 
 ## Write the threat model report
 
-Write `$ARTIFACTS_DIR/agentic-threat-model.md`, one scenario per entry, each as actor → vector → target → impact, with likelihood, severity, and mitigation status.
+Write `$ARTIFACTS_DIR/agentic-threat-model.md`, one scenario per entry, each as actor → vector → target → impact, with likelihood, severity and mitigation status.
 
 ## Declare
 
 - `scenarios` — `id` (e.g. `AT-1`), `category` (one of the four sections above), `actor`, `vector`, `target`, `impact`, `likelihood`, `severity`, `mitigation_status`, `evidence` (the file(s) that ground this scenario in the real codebase, not a hypothetical).
 - `coverage_gaps` — any ingestion point or tool this lens could not fully trace and why.
-- `summary` — a few sentences: what was modeled, and the headline agentic risk if any.
+- `summary` — a few sentences: what was modeled and the headline agentic risk if any.
 - `report` — the pointer to `agentic-threat-model.md`.

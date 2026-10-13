@@ -1,6 +1,6 @@
 # Username/Password and Account Lifecycle
 
-Read this for any method that stores or verifies a local credential, and as the baseline for account recovery whatever else you add. It covers what to decide, how to build it, and what to verify.
+Read this for any method that stores or verifies a local credential and as the baseline for account recovery whatever else you add. It covers what to decide, how to build it and what to verify.
 
 ## Contents
 1. Decide first
@@ -18,16 +18,16 @@ Ask; do not default. Each is a number or policy someone will be held to.
 
 - Minimum password length and any maximum (a generous maximum, if any, only to bound hashing cost). Current NIST SP 800-63B guidance favours length and screening over composition rules and forced periodic rotation; look up the current revision for the exact figures and cite it.
 - Whether to screen new passwords against known-breached lists and common-password lists.
-- Lockout or backoff: attempts allowed, window, duration, and whether it is per account, per source, or both.
-- Session idle timeout, absolute timeout, and "remember me" duration.
-- Whether email verification is required before first use, and the token lifetime.
+- Lockout or backoff: attempts allowed, window, duration and whether it is per account, per source, or both.
+- Session idle timeout, absolute timeout and "remember me" duration.
+- Whether email verification is required before first use and the token lifetime.
 - Login identifier: email, username, or either; whether it is case-insensitive.
 - Whether passkeys or a second factor are on the roadmap (affects the account model; see `mfa.md`).
 
 ## 2. Registration and verification
 
-- Normalize the identifier (case, whitespace, Unicode) once, and enforce uniqueness on the normalized form in the database, not only in application code.
-- Verify email ownership before treating the address as trusted. Verification tokens are single-use, random, high-entropy, expire, and are stored hashed.
+- Normalize the identifier (case, whitespace, Unicode) once and enforce uniqueness on the normalized form in the database, not only in application code.
+- Verify email ownership before treating the address as trusted. Verification tokens are single-use, random, high-entropy, expire and are stored hashed.
 - Respond identically whether or not the address is already registered; deliver the difference by email ("you already have an account") so registration does not enumerate users.
 - Rate-limit registration and verification-resend.
 
@@ -49,11 +49,11 @@ Ask; do not default. Each is a number or policy someone will be held to.
 
 ## 5. Sessions and tokens
 
-- Prefer server-side sessions or opaque tokens with a server-side store for browser apps: revocation is trivial. If the stack uses stateless signed tokens, decide how logout, password change, and compromise revoke them (short TTL plus refresh rotation and a denylist or version claim).
-- Session cookie: `HttpOnly`, `Secure`, explicit `SameSite`, scoped path/domain as narrowly as the app allows, and a `__Host-` prefix where the deployment permits.
-- Session identifiers are random, from the platform CSPRNG, and never derived from user data.
+- Prefer server-side sessions or opaque tokens with a server-side store for browser apps: revocation is trivial. If the stack uses stateless signed tokens, decide how logout, password change and compromise revoke them (short TTL plus refresh rotation and a denylist or version claim).
+- Session cookie: `HttpOnly`, `Secure`, explicit `SameSite`, scoped path/domain as narrowly as the app allows and a `__Host-` prefix where the deployment permits.
+- Session identifiers are random, from the platform CSPRNG and never derived from user data.
 - Invalidate all sessions on password change and on factor change; offer "sign out other devices".
-- If signed tokens (JWT) are used: pin the accepted algorithm, verify signature, `exp`, `iss`, and `aud`; reject `alg: none`; keep the signing key in the secrets manager; never accept a token's own header to choose the key type.
+- If signed tokens (JWT) are used: pin the accepted algorithm, verify signature, `exp`, `iss` and `aud`; reject `alg: none`; keep the signing key in the secrets manager; never accept a token's own header to choose the key type.
 
 ## 6. Password reset and change
 
@@ -66,7 +66,7 @@ Ask; do not default. Each is a number or policy someone will be held to.
 
 ## 7. Migrating existing accounts
 
-- Identify the existing hash format. If it is weak (fast hash, unsalted), plan an on-login rehash into the new scheme, and optionally wrap the old hashes in the new one so they are protected immediately.
+- Identify the existing hash format. If it is weak (fast hash, unsalted), plan an on-login rehash into the new scheme and optionally wrap the old hashes in the new one so they are protected immediately.
 - Keep old logins working during migration; the invariant is "no user is locked out by the change".
 - Do not email users their passwords or send passwords in any migration step.
 
@@ -74,7 +74,7 @@ Ask; do not default. Each is a number or policy someone will be held to.
 
 - Wrong password, unknown user, locked account: same outward behaviour; timing checked.
 - Hash cost parameters recorded and reviewed against current OWASP guidance.
-- Reset and verification tokens: expired, reused, and tampered tokens all rejected.
+- Reset and verification tokens: expired, reused and tampered tokens all rejected.
 - Session fixation: the identifier changes at login; old sessions die on password change.
 - Cookie attributes confirmed in a real response.
 - Rate limits exercised by test, per account and per source.

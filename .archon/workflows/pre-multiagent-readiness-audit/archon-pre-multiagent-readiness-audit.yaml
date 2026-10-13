@@ -55,7 +55,7 @@ nodes:
   # Priming (skill Step 0). The agent locates every surface the lenses inspect
   # and writes them to prime.md, which is how the fresh-context lenses inherit
   # it. It also answers the two questions the audit's conclusions rest on and
-  # cannot infer from code alone — which shape, and whether a test suite exists.
+  # cannot infer from code alone — which shape and whether a test suite exists.
   - id: prime
     command: audit-prime
     mutates_checkout: false
@@ -77,9 +77,9 @@ nodes:
           type: string
       required: [shape, shape_source, agent_found, tests_present, summary]
 
-  # The skill asks for the shape rather than assuming it, and a run cannot ask,
+  # The skill asks for the shape rather than assuming it and a run cannot ask,
   # so this refuses. It protects the fan-out below: severity ratings for every
-  # lens are meaningless without a shape, and guessing one wastes the whole
+  # lens are meaningless without a shape and guessing one wastes the whole
   # paid analysis on a question that had no answer.
   - id: shape-gate
     script: shape-gate
@@ -117,7 +117,7 @@ nodes:
   # ── Specialist lenses (skill Steps 1, 2 and 4) ────────────────────
   # Each writes one file under $ARTIFACTS_DIR/audit/. A lens that dies after its
   # retries costs one file, not the audit: lens-check names the gap, synthesize
-  # discloses it, and the verdict script refuses to certify READY over it.
+  # discloses it and the verdict script refuses to certify READY over it.
   - id: coupling
     command: audit-coupling
     context: fresh
@@ -150,7 +150,7 @@ nodes:
 
   # The one lens that reads another's file: its gap list is the tools lens's
   # failure-mode inventory cross-referenced against the tests (skill Step 2), so
-  # it waits for `tools`. If `tools` fails, this is skipped with it, and
+  # it waits for `tools`. If `tools` fails, this is skipped with it and
   # lens-check reports both missing rather than a coverage claim with no inventory.
   - id: coverage
     command: audit-coverage

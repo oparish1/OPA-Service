@@ -1,6 +1,6 @@
 /**
  * The scope gate: prime-scope asked whether the audit's target, deployment
- * context, and risk tolerance are all resolved, before either audit lens
+ * context and risk tolerance are all resolved, before either audit lens
  * spends anything reading the codebase against them.
  *
  * Same shape as archon-deliver's gate-ready.ts/gate-green.ts and

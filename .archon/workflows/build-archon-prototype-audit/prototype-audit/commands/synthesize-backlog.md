@@ -1,6 +1,6 @@
 # Synthesize the Backlog and Write the Audit Report
 
-Read `$ARTIFACTS_DIR/scope.md`, `$ARTIFACTS_DIR/structural-findings.md`, and `$ARTIFACTS_DIR/context-state-findings.md` in full. Consolidate every finding from both into a single backlog and classify each into exactly one of three categories:
+Read `$ARTIFACTS_DIR/scope.md`, `$ARTIFACTS_DIR/structural-findings.md` and `$ARTIFACTS_DIR/context-state-findings.md` in full. Consolidate every finding from both into a single backlog and classify each into exactly one of three categories:
 
 - **`release_blocker`** — would cause data corruption, crashes in common paths, security exposure, or make the harness itself unreliable if left unfixed, given the deployment context and risk tolerance recorded in `scope.md`. Fix before anything else proceeds.
 - **`parallel_cleanup`** — real debt, but isolated enough to fix alongside ongoing feature work without blocking it.
@@ -39,13 +39,13 @@ Write `$ARTIFACTS_DIR/audit-report.md`:
 [same columns]
 
 ## Recommendation
-[go/no-go on proceeding to harness engineering, and what must be true first — present this as a recommendation grounded in the findings and scope.md's risk tolerance, not as an unchallengeable verdict; the reader may have context — deadline pressure, known-acceptable risk — that changes the call]
+[go/no-go on proceeding to harness engineering and what must be true first — present this as a recommendation grounded in the findings and scope.md's risk tolerance, not as an unchallengeable verdict; the reader may have context — deadline pressure, known-acceptable risk — that changes the call]
 ```
 
 ## Declare
 
 - `release_blocker_count`, `parallel_cleanup_count`, `deferrable_count` — the three counts.
-- `backlog` — every item, with its `id`, `title`, `category`, `files`, `description`, `suggested_fix`, `effort`, and `ambiguous_note` (or null).
+- `backlog` — every item, with its `id`, `title`, `category`, `files`, `description`, `suggested_fix`, `effort` and `ambiguous_note` (or null).
 - `recommendation` — the Recommendation section's text.
 - `go_no_go` — `go`, `no_go`, or `conditional`.
 - `summary` — a few sentences: the counts and the headline call.

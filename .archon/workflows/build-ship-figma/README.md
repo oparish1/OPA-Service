@@ -3,7 +3,7 @@
 A variation of `archon-ship` where an approved Figma high-fidelity prototype
 and its linked design system dictate any UI the workflow's delivery produces,
 instead of letting the implementing agent invent it. Everything triage,
-investigate, plan, implement, pr, review, and validate already do in the
+investigate, plan, implement, pr, review and validate already do in the
 [`sdlc` pack](https://github.com/coleam00/Archon/tree/dev/.archon/workflows/sdlc)
 is unmodified here — this adds one advisory node (`figma-ground`) and one
 deterministic gate (`gate-design`) in front of the existing, unmodified
@@ -11,11 +11,11 @@ deterministic gate (`gate-design`) in front of the existing, unmodified
 
 **Assumptions flagged up front.** I built this against the four `sdlc` pack
 files you shared earlier in this conversation (`archon-ship.yaml`,
-`archon-triage.yaml`, `archon-deliver.yaml`, and `.shared/io.ts`) and the
+`archon-triage.yaml`, `archon-deliver.yaml` and `.shared/io.ts`) and the
 `figma-driven-ui-ux` skill you just uploaded. I have not seen the Archon
 workflow engine's own source, so two things below are inferred by analogy
-rather than verified against the engine, and are called out again where they
-matter: the `requires: [figma]` declaration, and the exact resolution rule
+rather than verified against the engine and are called out again where they
+matter: the `requires: [figma]` declaration and the exact resolution rule
 for where a `script:` node's named target file lives. If your Archon version
 disagrees with either, the fixes are small and are noted inline.
 
@@ -30,9 +30,9 @@ disagrees with either, the fixes are small and are noted inline.
 | New requirement | `github` | `github`, `figma` |
 
 `figma-ground` runs once delivery would otherwise start (after whichever of
-the three route gates fired), reads the accepted work order, and — only when
+the three route gates fired), reads the accepted work order and — only when
 that work actually has a UI surface — audits the Figma frame and its design
-system, maps every visible element to a design-system component, and writes
+system, maps every visible element to a design-system component and writes
 `design-brief.md`. `gate-design` then either lets delivery proceed or refuses
 with the exact open questions, the same way `archon-triage`'s `BLOCKED` or
 `archon-plan`'s `ready: false` already stop this pack rather than guessing.
@@ -43,10 +43,10 @@ like plain `archon-ship`.
 ## 1. Where these files go
 
 Place this pack's `ship-figma/` directory **inside your existing `sdlc` pack**,
-as a sibling of `triage/`, `plan/`, `deliver/`, and so on — not as a separate
+as a sibling of `triage/`, `plan/`, `deliver/` and so on — not as a separate
 top-level pack. It needs to sit there to reuse `.shared/io.ts` and
 `.shared/report.ts` by the same relative path (`../../.shared/...`) every
-other component in the pack already uses, and to `include:` the pack's other
+other component in the pack already uses and to `include:` the pack's other
 workflows by name.
 
 ```
@@ -127,7 +127,7 @@ server's own configuration — this varies by how you host Archon, so check
 your Archon environment's MCP documentation for the exact mechanism).
 
 **`requires: [figma]` in the YAML.** `archon-ship.yaml` declares
-`requires: [github]`, and I've extended that pattern to
+`requires: [github]` and I've extended that pattern to
 `requires: [github, figma]` on the assumption that the engine's `requires:`
 mechanism accepts an arbitrary connector name and gates the run on it being
 connected. I have not seen this verified for any value besides `github`. If
@@ -144,7 +144,7 @@ guessing.
 | `figma_frame` | `""` | The approved high-fidelity frame — a Figma file or node URL. Required whenever the work has a UI surface; leave empty for backend-only work. |
 | `design_system` | `""` | The Figma file for the linked design system, when it lives apart from `figma_frame`. Leave empty to let the run find the library the frame itself links to. |
 
-`target`, `errors`, and `publish` are unchanged from `archon-ship`.
+`target`, `errors` and `publish` are unchanged from `archon-ship`.
 
 **Getting the frame URL.** In Figma, right-click the top-level frame of the
 approved prototype → Copy link. Paste that as `figma_frame`. Do the same for
@@ -178,7 +178,7 @@ than as a failure with no explanation:
 | UI in scope but not grounded | `gate-design` refused; message lists open questions | Resolve each question — in the Figma frame, the design system, or the issue itself — then rerun with the same inputs. |
 
 `design-brief.md` in the run's artifacts is the full audit: every screen and
-state found, the component mapping, and both lists (open questions, unmapped
+state found, the component mapping and both lists (open questions, unmapped
 elements) verbatim. When delivery does run, its implementation report cites
 this same file, so a reviewer can check the shipped UI against it directly.
 
@@ -197,7 +197,7 @@ this same file, so a reviewer can check the shipped UI against it directly.
 - **No design-specific review lens.** `archon-review`'s lenses (code, seams,
   simplify, tests, errors, docs) are unmodified and know nothing about
   `design-brief.md`. Fidelity checking currently happens only in
-  `figma-ground` before delivery, and in whatever a human reviewer checks by
+  `figma-ground` before delivery and in whatever a human reviewer checks by
   eye against the linked frame. A `review-design` lens that diffs the shipped
   UI against `design-brief.md` would need changes inside `archon-review`
   itself, which this variation deliberately left untouched.

@@ -1,6 +1,6 @@
 ---
 name: prototype-stability-check
-description: "Audits an early-stage prototype codebase for structural debt, missing test coverage, fragile prompt/context handling, and non-deterministic behavior, then produces a prioritized MVP Code Audit Report and a Claude Code-sequenced remediation plan. Use when the user asks to check if a prototype is stable, audit an MVP, assess pre-harness/pre-hardening readiness, or turn prototype cleanup into a sequenced sprint backlog. Optional arguments: jira-issue-keys, confluence-page-ids, path-glob, output-dir."
+description: "Audits an early-stage prototype codebase for structural debt, missing test coverage, fragile prompt/context handling and non-deterministic behavior, then produces a prioritized MVP Code Audit Report and a Claude Code-sequenced remediation plan. Use when the user asks to check if a prototype is stable, audit an MVP, assess pre-harness/pre-hardening readiness, or turn prototype cleanup into a sequenced sprint backlog. Optional arguments: jira-issue-keys, confluence-page-ids, path-glob, output-dir."
 ---
 
 # Prototype Stability Check
@@ -8,9 +8,9 @@ description: "Audits an early-stage prototype codebase for structural debt, miss
 ## Objective
 
 Early prototypes accumulate debt fast: hardcoded prompt strings, untested edge cases,
-global/shared state that leaks between calls, and "happy path only" logic with no
+global/shared state that leaks between calls and "happy path only" logic with no
 deterministic fallback. Before that prototype becomes the basis for a formal test harness or
-production hardening effort, this skill audits it, prioritizes what's found, and converts the
+production hardening effort, this skill audits it, prioritizes what's found and converts the
 findings into a remediation backlog that Claude Code can execute sprint-by-sprint — fixing the
 release-blocking issues immediately and scheduling the rest.
 
@@ -26,7 +26,7 @@ misjudges what actually blocks release, or fixes made to the wrong subsystem.
 ## Process
 
 Run `/prime-codebase` first (or reuse its output if already primed this session) so the audit
-is grounded in real codebase structure. Then work through the audit, backlog, reporting, and
+is grounded in real codebase structure. Then work through the audit, backlog, reporting and
 remediation steps in full detail in **`references/procedure.md`**. Report deliverable
 templates are in **`references/report-templates.md`**.
 
@@ -49,7 +49,7 @@ Determine the output directory in this order:
 
 Do not assume or hardcode a path (e.g. do not default to "the outputs directory" or
 `$ARTIFACTS_DIR`) — the right destination depends entirely on the context this skill is
-invoked from, and only the caller knows it.
+invoked from and only the caller knows it.
 
 Deliver, in this order, into the resolved output directory:
 
@@ -57,7 +57,7 @@ Deliver, in this order, into the resolved output directory:
 2. **Claude Code-Sequenced Remediation Plan** (markdown file) — this is the artifact meant to
    be dropped into the sprint backlog / fed to Claude Code in future sessions
 3. A short inline summary of which Sprint 0 fixes were completed in this session, which were
-   flagged as too large to execute unattended, and what the immediate next step is
+   flagged as too large to execute unattended and what the immediate next step is
 
 Present both files together — the audit and the plan are companion documents and should be
 reviewed as a pair.

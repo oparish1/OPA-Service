@@ -23,7 +23,7 @@ Look for, in three sub-categories:
 
 ## Record each finding
 
-For every finding: `id` (e.g. `S-1`, `S-2`, ...), `subcategory` (one of the three above), `file`, `line` when a specific line applies, `description` (what's wrong and why it matters), `suggested_fix` (concrete — say exactly what to catch, where, and what the resulting behavior should be, not "improve error handling"), `effort` (S/M/L).
+For every finding: `id` (e.g. `S-1`, `S-2`, ...), `subcategory` (one of the three above), `file`, `line` when a specific line applies, `description` (what's wrong and why it matters), `suggested_fix` (concrete — say exactly what to catch, where and what the resulting behavior should be, not "improve error handling"), `effort` (S/M/L).
 
 ## Write the findings report
 
@@ -32,5 +32,5 @@ Write `$ARTIFACTS_DIR/structural-findings.md`, grouped by the three sub-categori
 ## Declare
 
 - `findings` — the array, as recorded.
-- `summary` — a few sentences: what was covered, and the headline structural risk if any.
+- `summary` — a few sentences: what was covered and the headline structural risk if any.
 - `report` — the pointer to `structural-findings.md`.

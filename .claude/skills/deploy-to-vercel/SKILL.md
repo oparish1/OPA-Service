@@ -1,11 +1,11 @@
 ---
 name: deploy-to-vercel
-description: Deploy a frontend or full-stack JS/TS app (Next.js, React, Vite, Astro, SvelteKit, Nuxt, Remix, etc.) to Vercel - project linking, environment variables, build/output configuration, custom domains, and the deploy itself via CLI or Git integration. Use this whenever the user says "deploy to Vercel", "ship this to Vercel", "set up a Vercel project", "get this live on Vercel", "add a custom domain on Vercel", "push env vars to Vercel", or asks why a Vercel build or deployment is failing, even if they don't name the CLI or Git integration. Requires the app to build locally first. Runs the prime-codebase skill before touching any live deployment.
+description: Deploy a frontend or full-stack JS/TS app (Next.js, React, Vite, Astro, SvelteKit, Nuxt, Remix, etc.) to Vercel - project linking, environment variables, build/output configuration, custom domains and the deploy itself via CLI or Git integration. Use this whenever the user says "deploy to Vercel", "ship this to Vercel", "set up a Vercel project", "get this live on Vercel", "add a custom domain on Vercel", "push env vars to Vercel", or asks why a Vercel build or deployment is failing, even if they don't name the CLI or Git integration. Requires the app to build locally first. Runs the prime-codebase skill before touching any live deployment.
 ---
 
 # Deploy to Vercel
 
-Get an app live on Vercel safely: confirm what the project is, prove it builds, deploy a preview, verify it, and only then promote to production. Production deploys, env var writes and domain changes are public or hard-to-reverse writes, so each one needs the user's explicit go-ahead.
+Get an app live on Vercel safely: confirm what the project is, prove it builds, deploy a preview, verify it and only then promote to production. Production deploys, env var writes and domain changes are public or hard-to-reverse writes, so each one needs the user's explicit go-ahead.
 
 ## Ground rules
 
@@ -44,13 +44,13 @@ Run the `prime-codebase` skill first, then `scripts/preflight.sh` from the app d
 | Client vs server vars | Browser-exposed prefixes (`NEXT_PUBLIC_`, `VITE_`, `PUBLIC_`, etc.) are baked into the bundle and are public |
 | Existing `.vercel/`, `vercel.json`, or Git remote | Tells you whether the project is already linked |
 
-If `prime-codebase` is not available, gather the same facts by reading `package.json`, lockfiles, framework config, `vercel.json`, and grepping for `process.env` / `import.meta.env` usage.
+If `prime-codebase` is not available, gather the same facts by reading `package.json`, lockfiles, framework config, `vercel.json` and grepping for `process.env` / `import.meta.env` usage.
 
 ## Step 2: Prove the local build
 
 Vercel cannot fix an app that doesn't build. Run the project's real build command (from `package.json` scripts, using the project's package manager and a frozen/locked install) and confirm exit 0 and that the expected output directory exists.
 
-If it fails, **stop and fix or report that first**; do not deploy hoping the remote environment differs. Common causes that only differ remotely are listed in `references/troubleshooting.md`: Node version mismatch, case-sensitive paths, missing env vars at build time, and dev-only dependencies.
+If it fails, **stop and fix or report that first**; do not deploy hoping the remote environment differs. Common causes that only differ remotely are listed in `references/troubleshooting.md`: Node version mismatch, case-sensitive paths, missing env vars at build time and dev-only dependencies.
 
 ## Step 3: Choose the deploy path
 
@@ -59,28 +59,28 @@ Ask the user, or infer from the repo, then confirm:
 - **Git integration (recommended for ongoing work).** Every push builds a preview; the production branch builds production. Best when the code is on GitHub/GitLab/Bitbucket and the team wants PR previews.
 - **CLI (good for first deploys, no remote, or CI control).** `vercel` from the machine or CI. Best when the repo isn't hosted yet or the user wants a one-off.
 
-Do not mix them without saying so: CLI deploys and Git deploys both appear in the same project, and it confuses "what is live".
+Do not mix them without saying so: CLI deploys and Git deploys both appear in the same project and it confuses "what is live".
 
 ## Step 4: Link the project
 
 Check first: `ls .vercel/project.json` (report only that it exists and the project name; the file holds IDs, not secrets, but don't dump the whole thing needlessly).
 
 - **CLI:** confirm auth with `vercel whoami`, then `vercel link`. For monorepos run it from the repo root and set the Root Directory when prompted, or link from the app directory if the project is configured that way. Verify with `vercel project ls` or `vercel inspect` after.
-- **Git integration:** the user imports the repo in the Vercel dashboard (or `vercel git connect` from a linked project). Confirm the Root Directory, framework preset, and production branch match Step 1. Walk the user through this; you cannot click the dashboard.
+- **Git integration:** the user imports the repo in the Vercel dashboard (or `vercel git connect` from a linked project). Confirm the Root Directory, framework preset and production branch match Step 1. Walk the user through this; you cannot click the dashboard.
 - **CI/headless:** use `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` from the environment. Never write them to files that get committed.
 
 ## Step 5: Configure build and output
 
-Only add `vercel.json` when auto-detection is wrong or extra behavior is needed. Fewer overrides means fewer surprises. Start from `assets/vercel.spa.json` or `assets/vercel.monorepo.json` when they fit. See `references/config.md` for framework notes, monorepo settings, redirects/rewrites, function region and duration, and `ignoreCommand`.
+Only add `vercel.json` when auto-detection is wrong or extra behavior is needed. Fewer overrides means fewer surprises. Start from `assets/vercel.spa.json` or `assets/vercel.monorepo.json` when they fit. See `references/config.md` for framework notes, monorepo settings, redirects/rewrites, function region and duration and `ignoreCommand`.
 
-If you override `buildCommand`, `outputDirectory` or `installCommand`, say why, and confirm they match Step 2.
+If you override `buildCommand`, `outputDirectory` or `installCommand`, say why and confirm they match Step 2.
 
 ## Step 6: Environment variables
 
 1. Run `python3 scripts/env_diff.py <app_dir>`. It lists what Vercel already has (`vercel env ls`, names only) and diffs it against the names the code reads.
-2. Report: missing, present, and present-but-unused, plus any public-prefix secret warning.
+2. Report: missing, present and present-but-unused, plus any public-prefix secret warning.
 3. For each missing one, ask the user which environments it belongs to (Development / Preview / Production) and whether it is sensitive. Add with `vercel env add NAME <environment>`, letting the user supply the value at the prompt or piping it from their own secret source. Mark sensitive values as sensitive so they can't be read back.
-4. Client-exposed prefixes are public. Refuse to put a secret behind one, and tell the user why.
+4. Client-exposed prefixes are public. Refuse to put a secret behind one and tell the user why.
 5. Env vars are captured **at build time** for client bundles. Changing one requires a redeploy to take effect.
 6. Verify with `vercel env ls` (names only).
 
@@ -93,7 +93,7 @@ Then verify, do not assume:
 
 1. `vercel inspect <deployment-url>` and confirm state is `READY`.
 2. Fetch the URL (`curl -sI`) and confirm a 2xx/3xx response. Note that preview deployments may sit behind Vercel Authentication and return 401 to unauthenticated requests; that is protection working, not a failure.
-3. If it failed, read the build log (`vercel inspect <url> --logs` or `vercel logs <url>`), fix the cause, and redeploy. See `references/troubleshooting.md`.
+3. If it failed, read the build log (`vercel inspect <url> --logs` or `vercel logs <url>`), fix the cause and redeploy. See `references/troubleshooting.md`.
 
 ## Step 8: Promote to production
 
@@ -104,7 +104,7 @@ Ask for explicit confirmation: "Deploy `<project>` to production from `<branch/c
 
 Prefer promoting the verified preview over rebuilding, so what was tested is what ships. Read back the production deployment state and URL afterwards.
 
-## Step 9: Custom domains (last, and only if asked)
+## Step 9: Custom domains (last and only if asked)
 
 Domains change live traffic and DNS, so do this after production is healthy. See `references/domains.md`.
 

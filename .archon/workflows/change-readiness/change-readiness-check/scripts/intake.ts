@@ -13,9 +13,9 @@ import { artifactsDir, emit, trimmed } from '../../.shared/io.ts';
 import { BLOCKING, DIMENSIONS, readAnswers } from '../../.shared/answers.ts';
 
 const QUESTION: Record<string, string> = {
-  business_owner: 'Who is the business owner (name/title), and who are the AI/system owner and compliance/legal contacts?',
+  business_owner: 'Who is the business owner (name/title) and who are the AI/system owner and compliance/legal contacts?',
   end_users: 'Who are the end users and the approvers/reviewers, by role and headcount?',
-  stakes: 'What is the worst realistic outcome of a wrong action, and which actions cannot be undone? Give numbers (money, records, customers).',
+  stakes: 'What is the worst realistic outcome of a wrong action and which actions cannot be undone? Give numbers (money, records, customers).',
   regulatory: 'Which regulations or retention rules apply, with the required retention window if one exists?',
   rollout: 'What is the rollout scope, timeline and pilot size?',
   tooling: 'Where do reviewers already work (inbox, Slack, queue, dashboard) and what logging/monitoring exists?',

@@ -1,6 +1,6 @@
 # Prime the Codebase and Resolve the Audit's Scope
 
-Ground this audit in the actual codebase before either lens starts, and resolve exactly what they should audit and against what standard. No one watches this run. Where the source skill this workflow is built from would ask you a question in conversation, you instead record it as an open question and declare `scope_resolved: false` — an honest "not yet resolved" that stops the run here, the same shape `archon-triage`'s `BLOCKED` uses elsewhere in this pack. Never guess at deployment context, risk tolerance, or which code is the core path and proceed anyway.
+Ground this audit in the actual codebase before either lens starts and resolve exactly what they should audit and against what standard. No one watches this run. Where the source skill this workflow is built from would ask you a question in conversation, you instead record it as an open question and declare `scope_resolved: false` — an honest "not yet resolved" that stops the run here, the same shape `archon-triage`'s `BLOCKED` uses elsewhere in this pack. Never guess at deployment context, risk tolerance, or which code is the core path and proceed anyway.
 
 ## Step 1: Prime
 
@@ -13,7 +13,7 @@ Follow `/prime-codebase`'s own Step 0 to load that context first when either is 
 
 ## Step 2: Resolve what to audit
 
-If `$INPUTS.path_glob` is given, scope to that subtree and record it as `core_paths`. Otherwise, from what priming found, identify the core execution path — the main entry point, the orchestration or agent loop, and anything priming flagged as central — and record that as `core_paths`; record what you're deliberately excluding (vendored code, generated code, clearly peripheral subsystems) as `excluded`.
+If `$INPUTS.path_glob` is given, scope to that subtree and record it as `core_paths`. Otherwise, from what priming found, identify the core execution path — the main entry point, the orchestration or agent loop and anything priming flagged as central — and record that as `core_paths`; record what you're deliberately excluding (vendored code, generated code, clearly peripheral subsystems) as `excluded`.
 
 If priming leaves the core execution path genuinely ambiguous — several plausible entry points, no clear boundary between prototype code and vendored or generated code — do not guess. Add a specific question to `open_questions`, for example: "This repository has two plausible entry points, `src/cli.py` and `src/server.py` — which is the prototype's actual core path to audit?"
 
@@ -41,10 +41,10 @@ Write `$ARTIFACTS_DIR/scope.md`:
 [excluded, with a one-line reason each]
 
 ## Deployment context
-[deployment_context, and how it was determined]
+[deployment_context and how it was determined]
 
 ## Risk tolerance
-[risk_tolerance, and how it was determined]
+[risk_tolerance and how it was determined]
 
 ## Open questions
 [open_questions verbatim, or "None."]
@@ -53,5 +53,5 @@ Write `$ARTIFACTS_DIR/scope.md`:
 ## Declare
 
 - `scope_resolved`, `core_paths`, `excluded`, `deployment_context`, `risk_tolerance`, `open_questions` — as above.
-- `summary` — a few sentences: what will be audited, and if not yet resolved, the single most important open question.
+- `summary` — a few sentences: what will be audited and if not yet resolved, the single most important open question.
 - `report` — the pointer to `scope.md`.

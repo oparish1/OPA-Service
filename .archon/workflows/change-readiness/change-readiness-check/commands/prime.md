@@ -2,7 +2,7 @@
 
 Establish what this system can actually do, so every later step works from the real action inventory rather than a generic description of "an AI assistant". Write it to `$ARTIFACTS_DIR/inventory.md`. You read and report only: the repository must be exactly as you found it when you finish. No one watches the run; the report and your declared fields are all that persist.
 
-The solution being deployed — a description, a path, and any Jira issue keys or Confluence page ids (may be empty — empty means the run's trigger message is the target):
+The solution being deployed — a description, a path and any Jira issue keys or Confluence page ids (may be empty — empty means the run's trigger message is the target):
 
 $INPUTS.target
 
@@ -22,7 +22,7 @@ Also record the integrations the system touches and the **existing audit infrast
 
 ## Write the inventory
 
-Sections, omitting any that do not apply: **Solution** (what it does, in plain terms, grounded in what you read), **Action inventory** (one row per action with effect, reversibility, and the file that implements it), **Integrations**, **Existing audit infrastructure**, **Edge cases the code already reveals** (unhandled inputs, silent fallbacks, hard-coded limits), and **Unknowns**. Cite code by repository-relative path; the checkout is temporary.
+Sections, omitting any that do not apply: **Solution** (what it does, in plain terms, grounded in what you read), **Action inventory** (one row per action with effect, reversibility and the file that implements it), **Integrations**, **Existing audit infrastructure**, **Edge cases the code already reveals** (unhandled inputs, silent fallbacks, hard-coded limits) and **Unknowns**. Cite code by repository-relative path; the checkout is temporary.
 
 ## Not your job
 
@@ -40,4 +40,4 @@ Do not classify tiers, draft policy, or interview anyone. Do not modify source f
   {"type": "archon_artifact", "run_id": "$WORKFLOW_ID", "path": "inventory.md"}
   ```
 
-Before declaring, re-read the inventory: confirm each action names a file that exists, and `git status` matches what you started with.
+Before declaring, re-read the inventory: confirm each action names a file that exists and `git status` matches what you started with.

@@ -6,7 +6,7 @@ description: |
   as archon-ship does (triage, then investigate/plan/deliver as its verdict
   routes), then grounds the item's UI surface against Figma before delivery
   spends anything: audits the target frame and design system, maps every element
-  to a design-system component, and blocks delivery on anything the frame leaves
+  to a design-system component and blocks delivery on anything the frame leaves
   ambiguous or unmapped rather than letting the implementer guess. Work with no
   UI surface skips Figma entirely and behaves exactly like archon-ship.
 
@@ -101,7 +101,7 @@ nodes:
     with:
       work: >-
         Plan the current work item from $ARTIFACTS_DIR/triage.md. Read that
-        assessment first, preserve its verified outcome and constraints, and
+        assessment first, preserve its verified outcome and constraints and
         decide the implementation questions it identified.
     depends_on: [triage]
     when: "$triage.output.route == 'plan'"
@@ -114,7 +114,7 @@ nodes:
   # New. Runs once, however triage/investigate/plan routed here — the same
   # join shape deliver itself uses on these three gates in plain archon-ship.
   # Advisory on both counts, like triage/investigate/plan: it changes nothing
-  # in this repository, and it reads Figma but writes nothing there either.
+  # in this repository and it reads Figma but writes nothing there either.
   - id: figma-ground
     command: figma-ground
     model: "@figma"
@@ -132,7 +132,7 @@ nodes:
         ui_required:
           type: boolean
         # grounded is true only when ui_required is true, every element the
-        # audit found mapped to a design-system component, and no question
+        # audit found mapped to a design-system component and no question
         # remains open. A false here is a valid, honest completion — not a
         # failure — the same shape as investigate's `rooted` and plan's
         # `ready`.
@@ -249,16 +249,16 @@ nodes:
         UI it produces. When $ARTIFACTS_DIR/design-brief.md exists (it exists
         whenever this run's UI was found to need grounding), read it in full
         and treat it as binding on equal footing with the work order above:
-        every screen, state, component mapping, and design token it records
+        every screen, state, component mapping and design token it records
         is a requirement, not a suggestion. Implement only the components,
-        variants, and tokens the brief maps — never invent a color, spacing
+        variants and tokens the brief maps — never invent a color, spacing
         value, or one-off component the brief does not name. If reality
         contradicts the brief (a mapped component no longer exists in the
         codebase, say), stop honestly with green false and the contradiction
         in your summary rather than improvising a replacement. If the project
         has Playwright or another end-to-end framework configured, extend it
         to cover every screen and state the brief enumerates — the primary
-        flow, loading and status states, error states, and empty states
+        flow, loading and status states, error states and empty states
         alike; if none exists and one would need to be introduced, record
         that as a decision for review rather than adding new tooling unasked.
         Carry the brief's source (frame link, design-system link) and every

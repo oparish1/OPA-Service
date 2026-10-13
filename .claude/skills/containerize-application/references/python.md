@@ -1,6 +1,6 @@
 # Python
 
-Covers web APIs (FastAPI, Flask, Django), workers, and scripts/agents.
+Covers web APIs (FastAPI, Flask, Django), workers and scripts/agents.
 
 ## Contents
 1. What to read in the project
@@ -16,7 +16,7 @@ Covers web APIs (FastAPI, Flask, Django), workers, and scripts/agents.
 - Python version from `.python-version`, `pyproject`'s `requires-python`, or CI config. If unclear, ask.
 - Entry point: the real module and app object (`app.main:app`), `manage.py` for Django, or the script/CLI the agent runs. Never guess module paths.
 - Port and bind: many dev servers bind `127.0.0.1` (Flask's default, `uvicorn` default). The production command must bind `0.0.0.0`.
-- System libraries needed at build or run time (`libpq`, `libjpeg`, `ffmpeg`, `poppler`) — read the imports and the docs, and confirm by building.
+- System libraries needed at build or run time (`libpq`, `libjpeg`, `ffmpeg`, `poppler`) — read the imports and the docs and confirm by building.
 - Django: `ALLOWED_HOSTS`, static files (collectstatic and who serves them), database, migrations.
 
 ## 2. Base image
@@ -26,9 +26,9 @@ Covers web APIs (FastAPI, Flask, Django), workers, and scripts/agents.
 
 ## 3. Dockerfile pattern
 
-- Environment: `PYTHONDONTWRITEBYTECODE=1`, `PYTHONUNBUFFERED=1` (logs appear immediately), and `PIP_NO_CACHE_DIR=1` where pip is used.
+- Environment: `PYTHONDONTWRITEBYTECODE=1`, `PYTHONUNBUFFERED=1` (logs appear immediately) and `PIP_NO_CACHE_DIR=1` where pip is used.
 - Builder stage creates a virtual environment (or uses `uv` to sync from the lockfile with dev groups excluded) and installs dependencies from the lockfile **before** copying source, so dependency layers cache. Use a cache mount for the installer's cache.
-- Runtime stage copies the virtual environment and the application source only, puts the venv's `bin` on `PATH`, creates and switches to a non-root user with a fixed UID/GID, and owns only the state directories.
+- Runtime stage copies the virtual environment and the application source only, puts the venv's `bin` on `PATH`, creates and switches to a non-root user with a fixed UID/GID and owns only the state directories.
 - Use the exec form: `CMD ["gunicorn", ...]` or `CMD ["uvicorn", ..., "--host", "0.0.0.0"]`. The Python process must be PID 1 or run under `init: true` so signals arrive.
 - Install the project itself in non-editable mode; do not ship `pip`/`uv` caches, tests, or docs.
 - For agents/scripts with no server, the `CMD` is the actual entry command; see `agent.md`.

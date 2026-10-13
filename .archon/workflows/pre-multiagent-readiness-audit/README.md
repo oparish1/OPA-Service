@@ -59,7 +59,7 @@ raises a verdict.
 |---|---|
 | any `critical` finding (multi-agent severity) | NOT_READY |
 | any `high` finding | READY_WITH_CONDITIONS |
-| unsafe (shared, unsynchronized) state, and the shape is not `handoff` | READY_WITH_CONDITIONS |
+| unsafe (shared, unsynchronized) state and the shape is not `handoff` | READY_WITH_CONDITIONS |
 | high-risk failure modes with no test | READY_WITH_CONDITIONS |
 | no green baseline suite (absent, red or unfinished) | READY_WITH_CONDITIONS |
 | structural metrics wholly unmeasured | READY_WITH_CONDITIONS |
@@ -67,7 +67,7 @@ raises a verdict.
 | any listed prerequisite | READY_WITH_CONDITIONS |
 
 `ready` is true only for an unconditional READY. `confidence` is `low` when there is no
-green baseline, no metrics, or a lens is missing, and `medium` when metrics are partial.
+green baseline, no metrics, or a lens is missing and `medium` when metrics are partial.
 A non-READY verdict must name at least one prerequisite, or the node refuses.
 
 ## Deliberate departures from the skill
@@ -87,10 +87,10 @@ A non-READY verdict must name at least one prerequisite, or the node refuses.
 ## Template lineage (all from this pack)
 
 - `investigate` / `plan` / `triage`: advisory agent node, `mutates_checkout: false`,
-  `output_type`, and an engine-certified artifact pointer to the report.
+  `output_type` and an engine-certified artifact pointer to the report.
 - `triage`: a `verdict` script node that derives the outcome from the agent's fields
   rather than trusting them.
-- `review`: parallel `context: fresh` lenses with `retry`, an `all_done` barrier, and a
+- `review`: parallel `context: fresh` lenses with `retry`, an `all_done` barrier and a
   deciding node that discloses a lens that never finished.
 - `deliver`: `include: archon-validate` for the deterministic suite run.
 
@@ -107,10 +107,10 @@ assumptions I could not check:
    picks up the project's coverage command; otherwise the coverage lens reports what
    the logs contain.
 3. **Checkout hygiene.** The baseline runs before the lenses because a test run can
-   write to the checkout, and the lenses declare it unchanged.
+   write to the checkout and the lenses declare it unchanged.
 4. **Fixtures.** Not authored, since the format was not visible. Cases the fixture
    suite should cover:
-   - `shape-gate`: unknown shape, agent not found, declared/resolved mismatch, and both
+   - `shape-gate`: unknown shape, agent not found, declared/resolved mismatch and both
      accepted shapes (`concurrent` true for `parallel`, false for `handoff`).
    - `lens-check`: all present, one empty, one missing.
    - `verdict`: clean READY; each floor rule alone; `handoff` ignoring unsafe state;

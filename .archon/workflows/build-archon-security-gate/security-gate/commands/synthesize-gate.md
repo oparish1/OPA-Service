@@ -1,6 +1,6 @@
 # Write the Security Assessment & Threat Gate Approval Sign-off
 
-Read `$ARTIFACTS_DIR/scope.md` and every lens report that exists: `identity-access-findings.md`, `api-data-findings.md`, `agentic-threat-model.md` (when the review was scoped as agentic or both), `dependency-scan.md`, `sast-dast-results.md`. If `agentic-threat-model.md` does not exist because that lens legitimately did not run (a non-agentic review), that is not a coverage gap — note it as an explicit scope exclusion instead. If any other report is missing because its lens failed rather than legitimately skipped, that **is** a coverage gap, and a significant one: record it and weigh it in the decision below exactly as you would an unmitigated finding of unknown severity.
+Read `$ARTIFACTS_DIR/scope.md` and every lens report that exists: `identity-access-findings.md`, `api-data-findings.md`, `agentic-threat-model.md` (when the review was scoped as agentic or both), `dependency-scan.md`, `sast-dast-results.md`. If `agentic-threat-model.md` does not exist because that lens legitimately did not run (a non-agentic review), that is not a coverage gap — note it as an explicit scope exclusion instead. If any other report is missing because its lens failed rather than legitimately skipped, that **is** a coverage gap and a significant one: record it and weigh it in the decision below exactly as you would an unmitigated finding of unknown severity.
 
 **This is the one instruction in this whole workflow that must never bend: the gate decision is never softened or guessed to be agreeable.** Apply the rules below exactly as written, on the actual severities the lenses reported — not on what would be convenient, not on what the person running this would rather hear.
 
@@ -14,7 +14,7 @@ Pull every finding from every lens report and every scenario from the threat mod
 - **CONDITIONAL PASS** — no unmitigated Critical findings, but High findings exist with a credible remediation plan and timeline; deployment can proceed if the conditions are tracked and enforced.
 - **PASS** — no unmitigated Critical or High findings; any Medium/Low findings are documented with accepted-risk sign-off or a remediation plan.
 
-**If evidence is incomplete** — a coverage gap exists anywhere (no scanner available, no SAST tool configured, DAST not performed, a lens failed) — do not default to PASS. Reflect the gap in the decision and rationale, and lean toward CONDITIONAL PASS with the gap itself named as a condition, even if every finding actually found was Medium or lower.
+**If evidence is incomplete** — a coverage gap exists anywhere (no scanner available, no SAST tool configured, DAST not performed, a lens failed) — do not default to PASS. Reflect the gap in the decision and rationale and lean toward CONDITIONAL PASS with the gap itself named as a condition, even if every finding actually found was Medium or lower.
 
 ## Write the sign-off document
 
@@ -26,7 +26,7 @@ Write `$ARTIFACTS_DIR/security-assessment-signoff.md`:
 ## Gate Decision: [PASS | CONDITIONAL PASS | FAIL]
 
 - **Rationale:** [1-3 sentences — why this decision, citing the specific findings/gaps that drove it]
-- **Conditions for approval (if CONDITIONAL PASS):** [explicit list of what must be remediated, and whether before or shortly after deployment]
+- **Conditions for approval (if CONDITIONAL PASS):** [explicit list of what must be remediated and whether before or shortly after deployment]
 - **Blocking issues (if FAIL):** [explicit list of the Critical findings that must be resolved and re-reviewed]
 - **Sign-off required from:** [role(s), e.g. security lead, engineering lead — if the appropriate approving role isn't evident from the codebase or org context, leave this blank for the reader to fill in rather than guessing a generic title]
 - **Review scope & date:** [agentic_scope and multi_tenant from scope.md, what was and wasn't in scope, today's date]

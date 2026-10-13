@@ -17,10 +17,10 @@ Read this when the project contains JavaScript or TypeScript. The commands come 
 
 - Package manager from the lockfile: npm, Yarn, pnpm, or Bun. Install with the frozen-lockfile form of that manager (`npm ci` and equivalents); never a plain install that can rewrite the lockfile.
 - Node version from `.nvmrc`, `.node-version`, `engines`, or `volta`. Use the version file where the setup action supports it.
-- Scripts in `package.json`: lint, typecheck, test, build, and e2e. Use the project's script names.
+- Scripts in `package.json`: lint, typecheck, test, build and e2e. Use the project's script names.
 - ESLint configuration format: flat config (`eslint.config.*`) or legacy (`.eslintrc*`). The two are run and extended differently; match the project and its installed ESLint major version.
-- Test runner (Jest, Vitest, others), whether it needs a browser environment, and coverage configuration.
-- Framework build (Vite, Next.js, Angular, and so on) and its output directory.
+- Test runner (Jest, Vitest, others), whether it needs a browser environment and coverage configuration.
+- Framework build (Vite, Next.js, Angular and so on) and its output directory.
 
 ## 2. Setup and caching
 
@@ -33,7 +33,7 @@ Read this when the project contains JavaScript or TypeScript. The commands come 
 - Scope to the source directories; respect the project's ignore configuration.
 - Existing debt: same policy question as any linter. Options: fix first, lint only changed files on pull requests, or set an agreed warning ceiling that ratchets down.
 - Prettier or another formatter: check-only mode, only if the project uses it.
-- Important honesty note for the owner: **ESLint is a linter.** It catches security problems only if security-focused plugins and rules are configured (for example a security plugin). If the owner counts ESLint as their frontend security scan, say what it does and does not cover, and offer the checks in section 5.
+- Important honesty note for the owner: **ESLint is a linter.** It catches security problems only if security-focused plugins and rules are configured (for example a security plugin). If the owner counts ESLint as their frontend security scan, say what it does and does not cover and offer the checks in section 5.
 
 ## 4. Type checking
 
@@ -42,7 +42,7 @@ Run the type checker (`tsc --noEmit` or the project's script) as its own step if
 ## 5. Security checks
 
 Frontend security scanning is mostly about dependencies and code patterns:
-- **Dependency audit:** the package manager's audit command with a severity threshold the owner chooses. Audits can be noisy and flag unreachable paths; agree whether to fail or report, and how exceptions are recorded.
+- **Dependency audit:** the package manager's audit command with a severity threshold the owner chooses. Audits can be noisy and flag unreachable paths; agree whether to fail or report and how exceptions are recorded.
 - **Automated dependency updates:** Dependabot version and security updates for the ecosystem.
 - **Dependency review on pull requests:** GitHub's dependency review action flags newly added vulnerable dependencies; check availability for the repository's plan and visibility.
 - **Code scanning (CodeQL):** covers JavaScript/TypeScript and Python; availability depends on repository visibility and plan. Check current documentation and ask the owner.
@@ -57,7 +57,7 @@ Frontend security scanning is mostly about dependencies and code patterns:
 
 ## 7. Build
 
-- Run the production build. A build step catches type, bundler, and environment errors that tests do not.
+- Run the production build. A build step catches type, bundler and environment errors that tests do not.
 - Values injected at build time (public environment variables) are visible in the shipped bundle; never pass real secrets to a frontend build.
 - Upload the build output as an artifact when a later job (e2e, deploy, image build) needs it, rather than rebuilding.
 - If the app is built into a Docker image, the image build is the authoritative build; do not build twice without a reason.
@@ -70,7 +70,7 @@ Frontend security scanning is mostly about dependencies and code patterns:
 
 ## 9. Verify
 
-- Run install, lint, typecheck, tests, and build locally with the workflow's exact commands.
-- Confirm the lockfile does not change after install, and the cache key includes it.
+- Run install, lint, typecheck, tests and build locally with the workflow's exact commands.
+- Confirm the lockfile does not change after install and the cache key includes it.
 - Confirm each check can fail: reason through or trigger a deliberate violation on a scratch branch.
-- Record which security checks are enabled, which are report-only, and which need repository settings the owner controls.
+- Record which security checks are enabled, which are report-only and which need repository settings the owner controls.

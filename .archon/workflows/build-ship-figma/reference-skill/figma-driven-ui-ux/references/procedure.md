@@ -21,7 +21,7 @@ conventions already in use (so generated components match, rather than
 introducing a second styling system alongside an existing one), any existing
 design-system integration (a shared component library, Tailwind config,
 design tokens file), the routing structure (where new pages/components
-should live), and the backend API/webhook endpoints the frontend will need
+should live) and the backend API/webhook endpoints the frontend will need
 to call.
 
 ## Step 0.5: Confirm UI/UX Is Actually Warranted — and That a Design Already Exists
@@ -65,7 +65,7 @@ unilaterally — the user may already have a preferred setup:
   `claude mcp add --scope user --transport http figma https://mcp.figma.com/mcp`
   (global) or without `--scope user` for project-local.
 - Either path requires a Figma API key (Figma → Settings → Security) to
-  authorize read access, and the Figma desktop app's MCP server enabled if
+  authorize read access and the Figma desktop app's MCP server enabled if
   using the local server variant rather than the remote one.
 
 Since Figma is a consumer-style connector, follow the standard connector
@@ -74,18 +74,18 @@ connect, rather than connecting on their behalf.
 
 ## Step 2: Load the Design System and Target Frame — Audit Before Generating
 
-Once connected, load context in this order, and do not skip the audit step
+Once connected, load context in this order and do not skip the audit step
 to jump straight to code generation:
 
 1. **Design system first.** Fetch the design system Figma file/frame (the
    shared component library — variants, variables, styles, tokens) before
    the target screen. Confirm you can enumerate its actual components,
-   variants, and design tokens (colors, spacing, typography scale) rather
+   variants and design tokens (colors, spacing, typography scale) rather
    than proceeding on an assumed or partial read.
 2. **Target frame second.** Fetch the specific high-fidelity frame(s) for the
    screen(s) being implemented.
 3. **Audit and map explicitly**, in this order, before writing any code:
-   - **Audit**: what screens, states, and components does the frame contain?
+   - **Audit**: what screens, states and components does the frame contain?
      Enumerate them plainly (don't summarize loosely — list every distinct
      screen/state visible: default, loading/agent-status states like
      thinking/working/complete, error states, empty states).
@@ -168,7 +168,7 @@ treating the work as done:
   npx playwright test --debug
   ```
 - Cover at minimum: the primary user workflow, input validation, each
-  agent-status/loading state implemented in Step 3, and each error state
+  agent-status/loading state implemented in Step 3 and each error state
   implemented in Step 3 — since these were explicit requirements from the
   audited frame, not optional extras.
 - If no e2e framework exists yet and the user wants one introduced, confirm
@@ -197,21 +197,21 @@ file, ask where to save it before writing.
 - Design-system components used: [list, with any variant notes]
 
 ## Questions Asked & Gaps Resolved
-[every place the frame was ambiguous/silent, the specific question asked, and the answer
+[every place the frame was ambiguous/silent, the specific question asked and the answer
 received — this section should not be empty for anything but a fully-unambiguous,
 fully-covered frame. If the user was unavailable and explicitly authorized a placeholder,
 record that explicitly, including where the placeholder marker was left in the code.]
 
 ## Elements Not Mapped to the Design System
 [anything in the frame that didn't clearly correspond to an existing design-system
-component, the question asked about it, and how the user decided it should be handled]
+component, the question asked about it and how the user decided it should be handled]
 
 ## Backend Wiring
 - Endpoint(s) connected: [list]
-- Confirmed functional end-to-end: [yes/no, and how verified]
+- Confirmed functional end-to-end: [yes/no and how verified]
 
 ## Test Coverage Added
-[Playwright specs added/modified, and what states/flows they cover]
+[Playwright specs added/modified and what states/flows they cover]
 ```
 
 ## Delivery Checklist
@@ -224,7 +224,7 @@ Deliver, in this order:
 3. The Design-Fidelity Verification Report (inline, or written to the
    supplied output directory — see Step 5).
 4. A short summary leading with any questions that were asked and answered
-   during the work, and any that remain open — these need stakeholder or
+   during the work and any that remain open — these need stakeholder or
    design input before this can be considered a faithful implementation, not
    just a working one.
 

@@ -15,7 +15,7 @@ import { PROFILE_ENDPOINT } from '../mocks/data';
 import type { ApiResponse } from '../mocks/types';
 import { body, color, font } from '../styles/tokens';
 
-/** Profile API — idle shell, successful response, errors, and 401 recovery. */
+/** Profile API — idle shell, successful response, errors and 401 recovery. */
 export function ProfileAPI() {
   const { navigate, signOut } = useApp();
   const { state, reload } = useAsyncData(getSession);

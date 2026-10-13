@@ -1,6 +1,6 @@
 # Docker on the Droplet and the Stack Deployment
 
-Stages 2 and 4. Install Docker cleanly, prepare the deploy directory, and start the stack from a pinned image with secrets created on the server.
+Stages 2 and 4. Install Docker cleanly, prepare the deploy directory and start the stack from a pinned image with secrets created on the server.
 
 ## Contents
 1. Install Docker
@@ -28,17 +28,17 @@ Stages 2 and 4. Install Docker cleanly, prepare the deploy directory, and start 
 ## 3. Deploy directory and files
 
 - Create a directory for the application (path from the owner, commonly under `/opt`), owned by the user that operates it, mode restrictive.
-- Copy only what the server needs: the production compose file(s), the proxy configuration (for example a Caddyfile), and any config files the stack mounts. Do not copy source code or `.git` if images are pulled from a registry.
+- Copy only what the server needs: the production compose file(s), the proxy configuration (for example a Caddyfile) and any config files the stack mounts. Do not copy source code or `.git` if images are pulled from a registry.
 - Transfer files over SSH with the owner's key; never commit server-specific files.
 - Validate the merged configuration with the Compose config command before starting; read the resolved ports and volumes and compare to the confirmed list from Step 0.
 - Ensure only the reverse proxy publishes ports; databases and internal services use the internal network.
 
 ## 4. Environment file and secrets
 
-- The `.env` (or secret files) is created **on the server**, by the owner, with values the owner generates. Give the owner the list of variable names from Step 0, mark which are secrets, and show how to create the file so values do not land in shell history: write it with an editor, or read values from a prompt, not with the value in a command line.
+- The `.env` (or secret files) is created **on the server**, by the owner, with values the owner generates. Give the owner the list of variable names from Step 0, mark which are secrets and show how to create the file so values do not land in shell history: write it with an editor, or read values from a prompt, not with the value in a command line.
 - Permissions: readable by the operating user only. Confirm the file is excluded from any repository and from image builds.
 - Generate strong random values for passwords and keys with a cryptographically secure generator; do not reuse local development values.
-- Production-only values: the public URL, the allowed hosts, database connection strings, and provider keys should differ from development. Confirm each is set before the first start; a missing variable often produces a subtle failure rather than a clear one.
+- Production-only values: the public URL, the allowed hosts, database connection strings and provider keys should differ from development. Confirm each is set before the first start; a missing variable often produces a subtle failure rather than a clear one.
 - Record where the secrets are backed up (a password manager, a secrets service) so a rebuilt droplet can be restored. The skill does not hold them.
 
 ## 5. Registry access
@@ -52,7 +52,7 @@ Stages 2 and 4. Install Docker cleanly, prepare the deploy directory, and start 
 1. Snapshot the droplet if the owner wants a restore point.
 2. Pull the images (pinned tags or digests) and confirm the digests are what was built and scanned.
 3. Start database and dependencies first if they are in the stack, wait for their health checks, run migrations as agreed (one-off, not on every start), then start the application and proxy.
-4. Watch the logs of the first start for missing variables, permission errors, and port conflicts.
+4. Watch the logs of the first start for missing variables, permission errors and port conflicts.
 5. Check container health and that restart policies are set so the stack returns after a reboot.
 6. Test the app through the server's local address first, before DNS and TLS are in place, then proceed to `dns-and-tls.md`.
 

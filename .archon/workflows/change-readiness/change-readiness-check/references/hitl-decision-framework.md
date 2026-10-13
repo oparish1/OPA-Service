@@ -1,6 +1,6 @@
-# HITL Decision Framework: Authority Boundaries, Hand-offs, and Accountability
+# HITL Decision Framework: Authority Boundaries, Hand-offs and Accountability
 
-This is the core framework for Steps 2 and 5 of the readiness check. It has two parts: classifying actions into authority tiers with real thresholds, and mapping who's accountable when things go right or wrong.
+This is the core framework for Steps 2 and 5 of the readiness check. It has two parts: classifying actions into authority tiers with real thresholds and mapping who's accountable when things go right or wrong.
 
 ## Part 1: The three authority tiers
 
@@ -28,9 +28,9 @@ Write the thresholds as concrete, testable rules. "Escalate to Approval when con
 
 For every tier boundary, define the mechanics of the hand-off, not just the trigger:
 
-- **What does the human actually see** when an action reaches them? (The proposed action, the AI's reasoning, the confidence score, and what happens if they do nothing.)
+- **What does the human actually see** when an action reaches them? (The proposed action, the AI's reasoning, the confidence score and what happens if they do nothing.)
 - **What happens if nobody responds** within the expected window — does the action expire, escalate further, or proceed with a safe default?
-- **Can the human delegate or re-escalate** the decision, and to whom?
+- **Can the human delegate or re-escalate** the decision and to whom?
 - **Where does this show up** — an inbox, a dashboard, a Slack channel, an in-app queue? Match this to tools the org already uses (see Step 0's priming output) rather than inventing a new surface.
 
 ## Part 2: Accountability framework (RACI)

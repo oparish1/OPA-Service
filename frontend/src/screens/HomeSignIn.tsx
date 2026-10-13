@@ -73,7 +73,7 @@ export function HomeSignIn() {
     <PublicLayout
       brandLabel="AGENTIC ADVANTAGE / DEVELOPER WORKSPACE"
       brandHeading={'Your identity.\nYour advantage.'}
-      brandBody="Connect securely, understand your session, and put your APIs to work."
+      brandBody="Connect securely, understand your session and put your APIs to work."
       step="01"
       section="CONNECT"
       subtitle="One trusted identity. A clear path from sign-in to your next API call."

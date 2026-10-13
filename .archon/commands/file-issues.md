@@ -17,11 +17,11 @@ Use the same six-part shape `archon-triage` looks for, so a subsequent triage ru
 - **Invariants**: anything from `scope.md`'s deployment context or risk tolerance that bears on this specific item.
 - **Acceptance**: the corresponding remediation-plan.md task's verification criteria, when one exists for this item; otherwise a concrete check derived from the finding itself.
 
-Append a line to every issue body: "From the prototype audit — see `$ARTIFACTS_DIR/audit-report.md` (item `[id]`) and `$ARTIFACTS_DIR/remediation-plan.md` for full detail." Label each issue with its category (`release-blocker`, `parallel-cleanup`, or `deferrable-debt`) if the repository's label set allows creating labels, and skip labeling rather than fail the issue if it doesn't.
+Append a line to every issue body: "From the prototype audit — see `$ARTIFACTS_DIR/audit-report.md` (item `[id]`) and `$ARTIFACTS_DIR/remediation-plan.md` for full detail." Label each issue with its category (`release-blocker`, `parallel-cleanup`, or `deferrable-debt`) if the repository's label set allows creating labels and skip labeling rather than fail the issue if it doesn't.
 
 If you do not have a working GitHub connection, do not guess at issue numbers or fabricate URLs — declare `issues_filed` as an empty array and say so plainly in `summary`.
 
 ## Declare
 
-- `issues_filed` — one entry per issue actually created: the backlog `id` it came from, its `title`, and the real `url` GitHub returned.
-- `summary` — how many issues were filed, in which categories, and any item that could not be filed and why.
+- `issues_filed` — one entry per issue actually created: the backlog `id` it came from, its `title` and the real `url` GitHub returned.
+- `summary` — how many issues were filed, in which categories and any item that could not be filed and why.

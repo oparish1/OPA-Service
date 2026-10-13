@@ -9,7 +9,7 @@
 - Credential storage: hardcoded secrets, API keys committed to the repo, secrets logged in plaintext, or secrets passed via command-line args (visible in process lists).
 
 **Session lifecycle**
-- Session creation, expiry, renewal, and invalidation (logout, password change, privilege change) — confirm each exists and actually revokes access, not just clears a client-side flag.
+- Session creation, expiry, renewal and invalidation (logout, password change, privilege change) — confirm each exists and actually revokes access, not just clears a client-side flag.
 - Session fixation risk (does the session ID change on privilege escalation, e.g. login?).
 - Idle/absolute timeout enforcement, especially for long-running agent sessions or conversations that may stay "open" far longer than a typical web session.
 
@@ -20,7 +20,7 @@
 - For multi-tenant systems: can context/tool calls from one tenant's agent session reach another tenant's data, either via shared caches, shared vector stores, or a tool that doesn't scope its query by tenant/user ID?
 - Least privilege: do tool credentials (DB connections, API keys the agent's tools use) have broader scope than the tools actually need?
 
-Record each finding with file:line, a description of the exploit scenario, and severity (Critical/High/Medium/Low, using exploitability × impact).
+Record each finding with file:line, a description of the exploit scenario and severity (Critical/High/Medium/Low, using exploitability × impact).
 
 ### Step 2: API & Data Exposure Review
 
@@ -30,7 +30,7 @@ Record each finding with file:line, a description of the exploit scenario, and s
 - Verbose logging that captures full request/response bodies including PII, credentials, or full model context windows, especially if logs are broadly readable.
 
 **Unvalidated inputs**
-- Missing input validation/sanitization on API boundaries: type, length, format, and allow-list checks (not just presence checks).
+- Missing input validation/sanitization on API boundaries: type, length, format and allow-list checks (not just presence checks).
 - Injection classes: SQL/NoSQL injection, command injection, path traversal, SSRF (especially relevant if a tool fetches URLs supplied by the model or user) — check that user- or model-supplied strings are never concatenated directly into queries, shell commands, or fetch targets.
 - Deserialization of untrusted input (pickle, unsafe YAML load, etc.).
 
@@ -59,23 +59,23 @@ Model each of the following as an explicit attack scenario: *actor → vector �
 - For every high-blast-radius tool: is there human-in-the-loop confirmation, a hard allow-list, or rate/scope limiting independent of model judgment? "The system prompt tells it not to" is not a control.
 - Chained tool calls: can a sequence of individually-authorized tool calls be combined to achieve something no single call would be authorized to do?
 
-Score each scenario by likelihood × impact, and note whether an existing control mitigates it, partially mitigates it, or leaves it fully open.
+Score each scenario by likelihood × impact and note whether an existing control mitigates it, partially mitigates it, or leaves it fully open.
 
 ### Step 4: Dependency & Model Integration Vulnerability Scan
 
 - Enumerate dependency manifests found during priming (`package.json`/`package-lock.json`, `requirements.txt`/`poetry.lock`/`Pipfile.lock`, `pyproject.toml`, `go.mod`/`go.sum`, `Cargo.toml`/`Cargo.lock`, etc.).
 - Run whatever dependency-vulnerability tooling is available in the environment against these manifests (e.g. `npm audit`, `pip-audit`, `osv-scanner`, `cargo audit`, or equivalent) if the tool and network access are available. If no scanner tool is available, don't silently fall back to the lighter-weight spot-check — tell the user the proper scanner isn't available and ask whether they want to proceed with a manual spot-check now (auth libraries, serialization libraries, the LLM SDK itself, checked against known CVE databases via web search) or hold the review until scanning access is arranged, since a spot-check has materially lower coverage than an automated scan and that tradeoff is the user's to make, not a default to assume.
-- For model integrations specifically: identify which LLM/embedding providers and SDK versions are in use, and check for known vulnerabilities or advisories in that SDK version (e.g. deserialization issues, SSRF in provider clients, known prompt-injection-adjacent CVEs in agent frameworks like LangChain, AutoGPT-style loops, etc.).
+- For model integrations specifically: identify which LLM/embedding providers and SDK versions are in use and check for known vulnerabilities or advisories in that SDK version (e.g. deserialization issues, SSRF in provider clients, known prompt-injection-adjacent CVEs in agent frameworks like LangChain, AutoGPT-style loops, etc.).
 - Flag any dependency that is unpinned, uses a wildcard version range, or is pulled from an unofficial/unverified source.
-- Classify each finding by CVSS severity where available, and by whether a patched version is currently available.
+- Classify each finding by CVSS severity where available and by whether a patched version is currently available.
 
 ### Step 5: Static & Dynamic Security Analysis (SAST/DAST)
 
 **Static analysis (SAST)**
 - Run available static analysis tooling against agent tool code and UI/API code (e.g. `bandit` for Python, `semgrep`, `eslint` with security plugins for JS/TS, or language-appropriate equivalents found in the repo's existing tooling/CI config). Prefer whatever the repo already uses (check CI config found during priming) before introducing a new tool. If none is configured and none is available, don't silently drop straight to a manual pass — flag the gap to the user first and confirm whether a manual pass is an acceptable substitute for this review, or whether proper tooling should be arranged first.
-- If no SAST tool is configured or available in this environment, perform a manual pass focused on the OWASP Top 10 categories plus the agentic-specific classes above, and note the tooling gap explicitly in the report.
+- If no SAST tool is configured or available in this environment, perform a manual pass focused on the OWASP Top 10 categories plus the agentic-specific classes above and note the tooling gap explicitly in the report.
 
 **Dynamic analysis (DAST)**
-- If the application exposes running API/UI endpoints reachable in this environment (e.g. a local dev server), and dynamic scanning tooling is available, run it against those endpoints — but only with the user's explicit confirmation before sending any traffic, since DAST is an active/intrusive test even in dev.
-- If no live environment or DAST tooling is available/authorized in this session, state this as a gap in the report rather than fabricating results, and recommend it be performed by the appropriate team before the gate is finalized.
+- If the application exposes running API/UI endpoints reachable in this environment (e.g. a local dev server) and dynamic scanning tooling is available, run it against those endpoints — but only with the user's explicit confirmation before sending any traffic, since DAST is an active/intrusive test even in dev.
+- If no live environment or DAST tooling is available/authorized in this session, state this as a gap in the report rather than fabricating results and recommend it be performed by the appropriate team before the gate is finalized.
 - Never run SAST/DAST-style probing against systems the user doesn't own or hasn't explicitly authorized testing against.

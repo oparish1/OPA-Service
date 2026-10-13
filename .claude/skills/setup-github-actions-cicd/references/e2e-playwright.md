@@ -8,14 +8,14 @@ Read this when the project has, or should get, browser-based end-to-end tests. E
 3. Browsers and caching
 4. Running the tests
 5. Artifacts and diagnosis
-6. Speed, sharding, and flakiness
+6. Speed, sharding and flakiness
 7. Test data and secrets
 8. Gating
 9. Verify
 
 ## 1. Detect
 
-- Playwright config (`playwright.config.*`): projects (which browsers), `baseURL`, `webServer` (a command Playwright starts and waits on), retries, workers, reporters, and trace settings.
+- Playwright config (`playwright.config.*`): projects (which browsers), `baseURL`, `webServer` (a command Playwright starts and waits on), retries, workers, reporters and trace settings.
 - The test command from `package.json` or the docs; the Playwright version from the lockfile.
 - How the app is started for tests today: a dev server, a production build, or a compose stack. CI should test what ships, so prefer a production build or the built container over a dev server.
 - Services the app needs (database, cache, mock APIs) and how they are seeded.
@@ -39,17 +39,17 @@ Never run e2e against production. Point the tests at an isolated, seeded environ
 
 - Set the CI flag so the config's CI branches apply (forbid `test.only`, enable retries, limit workers).
 - Wait for readiness properly: a health-check URL, not a fixed sleep.
-- Run with the reporters CI needs: a concise console reporter plus the HTML report, and optionally a machine-readable one for annotations.
-- Give the job a generous but bounded `timeout-minutes`, and a per-test timeout in the config.
+- Run with the reporters CI needs: a concise console reporter plus the HTML report and optionally a machine-readable one for annotations.
+- Give the job a generous but bounded `timeout-minutes` and a per-test timeout in the config.
 
 ## 5. Artifacts and diagnosis
 
 - Upload the HTML report and traces **even when tests fail**: use an always-run condition that still respects cancellation. A failed e2e without a trace is nearly undebuggable.
-- Configure traces, screenshots, and video to capture on failure or first retry, not for every test (storage and time cost).
+- Configure traces, screenshots and video to capture on failure or first retry, not for every test (storage and time cost).
 - Set a short artifact retention to avoid storage bloat.
 - Add the run link and failing test names to the job summary if practical.
 
-## 6. Speed, sharding, and flakiness
+## 6. Speed, sharding and flakiness
 
 - Split slow suites across parallel jobs with Playwright's sharding option and a matrix; merge reports afterward if a single report is wanted.
 - Retries: allow a small number in CI to survive infrastructure noise, but **track flaky tests** (tests that pass only on retry) and fix or quarantine them. Retries that hide flakiness forever are a debt.
@@ -65,8 +65,8 @@ Never run e2e against production. Point the tests at an isolated, seeded environ
 
 ## 8. Gating
 
-- E2E is commonly a required check on the default branch merge, and optionally on pull requests if fast enough. Agree with the owner: block always, block only on main, or report only. Slow, flaky required checks cause people to bypass protection.
-- Deploy depends on e2e passing if the owner wants that gate; otherwise the deploy depends on lint, tests, and the image build only, and e2e runs against the deployed staging environment afterward.
+- E2E is commonly a required check on the default branch merge and optionally on pull requests if fast enough. Agree with the owner: block always, block only on main, or report only. Slow, flaky required checks cause people to bypass protection.
+- Deploy depends on e2e passing if the owner wants that gate; otherwise the deploy depends on lint, tests and the image build only and e2e runs against the deployed staging environment afterward.
 
 ## 9. Verify
 
@@ -74,4 +74,4 @@ Never run e2e against production. Point the tests at an isolated, seeded environ
 - Confirm the browser cache key or container tag matches the Playwright version.
 - Confirm reports and traces upload on failure.
 - Confirm the readiness wait uses a health check.
-- State which behaviors only a real run can show: runner timing, browser dependencies, and flakiness.
+- State which behaviors only a real run can show: runner timing, browser dependencies and flakiness.

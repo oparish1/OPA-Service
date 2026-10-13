@@ -5,7 +5,7 @@
  * them — both change what counts as a Critical finding downstream.
  *
  * Same shape as archon-deliver's gate-ready.ts/gate-green.ts,
- * archon-ship-figma's gate-design.ts, and archon-prototype-audit's
+ * archon-ship-figma's gate-design.ts and archon-prototype-audit's
  * gate-scope.ts: a deterministic join on a verdict the producing node
  * already certified, not a re-judgment. It passes on scope_resolved:true and
  * refuses on everything else, naming exactly what remains unanswered so a
@@ -45,7 +45,7 @@ if (scopeResolved === 'true') {
 } else {
   const sections = [
     'refusing to spend on any audit lens: this review\'s scope (agentic / ' +
-      'non-agentic / both) or its multi-tenancy is not yet resolved, and ' +
+      'non-agentic / both) or its multi-tenancy is not yet resolved and ' +
       'both change how a Critical finding is scored.',
     summary ? `prime-scope-security's summary: ${summary}` : '',
     openQuestions.length

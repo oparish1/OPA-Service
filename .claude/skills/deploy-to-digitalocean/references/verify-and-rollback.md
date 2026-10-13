@@ -1,4 +1,4 @@
-# Verification, Rollback, and Cleanup
+# Verification, Rollback and Cleanup
 
 Stage 6 and the report. The purpose is evidence: for each claim about the server, a check that was actually run. Mark each **verified** (a command ran and the output was seen) or **instructed** (the owner was told what to do and has not reported the result).
 
@@ -35,8 +35,8 @@ Stage 6 and the report. The purpose is evidence: for each claim about the server
 
 **Application**
 - C10. All containers are running and healthy.
-- C11. The app responds correctly over HTTPS on each planned hostname, and HTTP redirects to HTTPS.
-- C12. The certificate is valid, matches the hostname, and its storage persists across a proxy restart.
+- C11. The app responds correctly over HTTPS on each planned hostname and HTTP redirects to HTTPS.
+- C12. The certificate is valid, matches the hostname and its storage persists across a proxy restart.
 - C13. The deployed images are the pinned tags or digests in the plan, not `latest`.
 - C14. No secret appears in the repository, the image, container inspect output shared for review, or logs.
 - R2. Logs are rotated and disk usage is sane.
@@ -44,7 +44,7 @@ Stage 6 and the report. The purpose is evidence: for each claim about the server
 **Persistence and recovery**
 - C15. The server reboots and the whole stack returns without manual steps.
 - C16. Data survives a container recreate (a test record persists).
-- C17. A database backup ran on schedule, is stored off the droplet, and a restore drill succeeded.
+- C17. A database backup ran on schedule, is stored off the droplet and a restore drill succeeded.
 - C18. Rollback to the previous image tag works (section 3).
 - R3. Monitoring and alerts (CPU, memory, disk, certificate expiry, backup failure) reach a human.
 - R4. Automatic security updates are on and the reboot policy is understood.
@@ -64,9 +64,9 @@ Stage 6 and the report. The purpose is evidence: for each claim about the server
 ## 4. Operations and cost
 
 Give the owner a short operations sheet:
-- Deploy a new tag; roll back; view logs; restart a service; where env files, compose files, and backups are.
-- Routine tasks: applying updates and reboots, rotating credentials, renewing nothing manually (with certificate expiry alerts), reviewing backups monthly, and running the restore drill on schedule.
-- Cost: list every billing item (droplet, backups, snapshots, block storage volumes, reserved IP, managed database, object storage, bandwidth overage). State plainly that **destroying a droplet does not stop billing for its snapshots, volumes, or reserved IPs**, and give the cleanup order if the project is retired: export data, remove DNS, then delete resources and confirm the billing view.
+- Deploy a new tag; roll back; view logs; restart a service; where env files, compose files and backups are.
+- Routine tasks: applying updates and reboots, rotating credentials, renewing nothing manually (with certificate expiry alerts), reviewing backups monthly and running the restore drill on schedule.
+- Cost: list every billing item (droplet, backups, snapshots, block storage volumes, reserved IP, managed database, object storage, bandwidth overage). State plainly that **destroying a droplet does not stop billing for its snapshots, volumes, or reserved IPs** and give the cleanup order if the project is retired: export data, remove DNS, then delete resources and confirm the billing view.
 
 ## 5. Report template
 
@@ -90,7 +90,7 @@ Blocking items: <list, or none>
 <from the plan's decisions table>
 
 ## Not verified here
-<each item, why, and the steps to verify>
+<each item, why and the steps to verify>
 
 ## Findings
 <severity, location, what is wrong, fix>
@@ -102,4 +102,4 @@ Cost items and cleanup notes: <...>
 
 ## 6. The rule for saying "live and hardened"
 
-The verdict may be **Live and hardened** only if every critical check (C1–C18) is **verified**, no finding above low severity is open, the restore drill has succeeded, and the plan's decisions are resolved. If any critical check is instructed-only, failed, or unresolved, the verdict is **Not yet**, naming the blockers and the exposure in plain terms (for example, "the database backup has never been restored, so recovery is unproven"). Do not soften this to meet a launch date.
+The verdict may be **Live and hardened** only if every critical check (C1–C18) is **verified**, no finding above low severity is open, the restore drill has succeeded and the plan's decisions are resolved. If any critical check is instructed-only, failed, or unresolved, the verdict is **Not yet**, naming the blockers and the exposure in plain terms (for example, "the database backup has never been restored, so recovery is unproven"). Do not soften this to meet a launch date.

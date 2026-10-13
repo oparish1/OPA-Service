@@ -5,7 +5,7 @@
  * Every write here is performed and then read back before it is reported as
  * applied. On the forge path the plugin owns that verification and reports which
  * of the four outcomes happened; on `gh` this module performs the same read-back
- * and raises the failure itself. Neither path falls back to the other, and an
+ * and raises the failure itself. Neither path falls back to the other and an
  * operation whose outcome could not be established is never retried here.
  *
  * Authored content — a pull-request body, a review report — is passed by file
@@ -48,7 +48,7 @@ interface Ran {
   readonly stderr: string;
 }
 
-// Every gh call is captured: a node's stderr reaches the operator, and gh is
+// Every gh call is captured: a node's stderr reaches the operator and gh is
 // chatty there (update notices), so only this pack's own messages may.
 function gh(...args: string[]): Ran {
   const result = Bun.spawnSync(['gh', ...args], { stdout: 'pipe', stderr: 'pipe' });
@@ -257,7 +257,7 @@ export function createPr(intent: CreatePrIntent, source: ForgeSource): PrRecord 
   return view.pr;
 }
 
-/** Replace the pull request body, and prove the replacement landed. */
+/** Replace the pull request body and prove the replacement landed. */
 export function editPrBody(ref: QualifiedPr, bodyPath: string, source: ForgeSource): PrRecord {
   const body = readFileSync(bodyPath, 'utf8');
   if (source === 'forge') {
@@ -279,7 +279,7 @@ export function editPrBody(ref: QualifiedPr, bodyPath: string, source: ForgeSour
   return after.pr;
 }
 
-/** Take the pull request out of draft, and prove it is no longer a draft. */
+/** Take the pull request out of draft and prove it is no longer a draft. */
 export function markPrReady(ref: QualifiedPr, source: ForgeSource): PrRecord {
   if (source === 'forge') {
     const value = forgeResult('pr.ready', { ref: { repo: ref.repo, number: ref.number } });
@@ -386,7 +386,7 @@ export function upsertComment(
   const previous = marked[0];
   if (previous?.body === body) return { url: previous.url };
   // gh reads the body from a JSON request file: `-f body=@path` would post the
-  // literal string, and argv is not where authored content belongs.
+  // literal string and argv is not where authored content belongs.
   const directory = mkdtempSync(join(tmpdir(), 'archon-comment-'));
   let written: Ran;
   try {

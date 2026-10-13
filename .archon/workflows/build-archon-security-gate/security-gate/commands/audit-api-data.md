@@ -1,6 +1,6 @@
 # API & Data Exposure Review
 
-Read `$ARTIFACTS_DIR/scope.md` first. This review's scope is `$INPUTS.agentic_scope`. Start from `$INPUTS.key_areas` — `api_routes`, and (when the scope is agentic or both) `agent_loop` and `tool_defs`. Record every finding with a real `file:line` reference, a description of the exposure, and a severity (Critical/High/Medium/Low, by exploitability × impact).
+Read `$ARTIFACTS_DIR/scope.md` first. This review's scope is `$INPUTS.agentic_scope`. Start from `$INPUTS.key_areas` — `api_routes` and (when the scope is agentic or both) `agent_loop` and `tool_defs`. Record every finding with a real `file:line` reference, a description of the exposure and a severity (Critical/High/Medium/Low, by exploitability × impact).
 
 ## Excessive data exposure
 
@@ -10,9 +10,9 @@ Read `$ARTIFACTS_DIR/scope.md` first. This review's scope is `$INPUTS.agentic_sc
 
 ## Unvalidated inputs
 
-- Missing input validation or sanitization at API boundaries — type, length, format, and allow-list checks, not just presence checks.
+- Missing input validation or sanitization at API boundaries — type, length, format and allow-list checks, not just presence checks.
 - Injection classes: SQL/NoSQL injection, command injection, path traversal, SSRF (especially relevant if a tool fetches URLs supplied by the model or user). Confirm user- or model-supplied strings are never concatenated directly into queries, shell commands, or fetch targets.
-- Deserialization of untrusted input (`pickle`, unsafe YAML load, and equivalents).
+- Deserialization of untrusted input (`pickle`, unsafe YAML load and equivalents).
 
 ## Data leakage in model contexts — run only when `$INPUTS.agentic_scope` is `agentic` or `both`
 
@@ -24,11 +24,11 @@ If `$INPUTS.agentic_scope` is `non_agentic`, skip this sub-section entirely and 
 
 ## Write the findings report
 
-Write `$ARTIFACTS_DIR/api-data-findings.md`, grouped by the three sub-sections above, each finding with its `file:line`, description, and severity.
+Write `$ARTIFACTS_DIR/api-data-findings.md`, grouped by the three sub-sections above, each finding with its `file:line`, description and severity.
 
 ## Declare
 
 - `findings` — `id` (e.g. `AD-1`), `subcategory`, `file`, `line`, `description`, `severity`, `recommended_fix`.
 - `coverage_gaps` — anything this lens could not evaluate and why.
-- `summary` — a few sentences: what was covered, and the headline exposure risk if any.
+- `summary` — a few sentences: what was covered and the headline exposure risk if any.
 - `report` — the pointer to `api-data-findings.md`.

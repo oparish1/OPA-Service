@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 
 /**
  * Shared listbox behavior: while open, Escape closes it and returns focus to the
- * trigger, and a mousedown outside the wrapper closes it. Owns the two refs the
+ * trigger and a mousedown outside the wrapper closes it. Owns the two refs the
  * markup needs so callers only provide their open state and close action.
  */
 export function useListbox(open: boolean, close: () => void) {

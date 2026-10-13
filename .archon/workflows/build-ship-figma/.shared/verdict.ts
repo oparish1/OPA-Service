@@ -24,7 +24,7 @@ export function passesRed(cause: string): boolean {
  */
 export function unfinishedValidation(stage: string, summary: string): string {
   return (
-    `${stage}: validation didn't finish. Not every check ran, and none that ran ` +
+    `${stage}: validation didn't finish. Not every check ran and none that ran ` +
     `failed.${summary === '' ? '' : ` ${summary}`} Resume the run once whatever ` +
     'stopped it is cleared, so validation can finish. An unfinished validation ' +
     'never passes this gate.'

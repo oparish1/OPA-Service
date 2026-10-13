@@ -1,6 +1,6 @@
 # Review and Hardening Checklist
 
-Use this when the user asks to review, harden, slim, or fix an existing Dockerfile or compose file. Read the artifacts against the project's code first (entry point, port, bind address, env, state paths); then walk this list. Report findings grouped by severity with the line, the reason, and the fix, and change nothing until the user agrees (unless they asked you to harden directly).
+Use this when the user asks to review, harden, slim, or fix an existing Dockerfile or compose file. Read the artifacts against the project's code first (entry point, port, bind address, env, state paths); then walk this list. Report findings grouped by severity with the line, the reason and the fix and change nothing until the user agrees (unless they asked you to harden directly).
 
 ## Contents
 1. Critical
@@ -21,12 +21,12 @@ Use this when the user asks to review, harden, slim, or fix an existing Dockerfi
 
 ## 2. High
 
-- Single-stage build carrying compilers, package managers, tests, and source into the final image.
+- Single-stage build carrying compilers, package managers, tests and source into the final image.
 - `CMD` through a shell or package-manager script (`npm start`, `sh -c`), so SIGTERM never reaches the app; no init when the app spawns children.
 - No health check, or a health check that only tests that a process exists, or that calls a tool absent from the image (`curl` in a distroless image).
 - Development server, debug mode, or reloader in the production command.
 - Dependencies installed without the lockfile (`npm install`, unpinned `requirements.txt`), so builds are not reproducible.
-- Missing `.dockerignore`, so `.git`, `node_modules`, `.env`, and local databases enter the build context.
+- Missing `.dockerignore`, so `.git`, `node_modules`, `.env` and local databases enter the build context.
 - No restart policy, or a restart loop masking a failing service.
 - State written into the container filesystem with no volume, so data disappears on recreate.
 
@@ -62,4 +62,4 @@ Use this when the user asks to review, harden, slim, or fix an existing Dockerfi
 
 ## 6. Reporting format
 
-For each finding: severity, location (`Dockerfile:14`), what is wrong, why it matters in one sentence, and the exact fix. Then a short summary: what is already good (so the user keeps it), the top three fixes by impact, any behavior change a fix would cause, and what you could not verify. After the user agrees, apply the fixes and verify as in SKILL.md Step 4, reporting the before/after image size and what the checks showed.
+For each finding: severity, location (`Dockerfile:14`), what is wrong, why it matters in one sentence and the exact fix. Then a short summary: what is already good (so the user keeps it), the top three fixes by impact, any behavior change a fix would cause and what you could not verify. After the user agrees, apply the fixes and verify as in SKILL.md Step 4, reporting the before/after image size and what the checks showed.

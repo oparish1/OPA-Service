@@ -5,7 +5,7 @@ you attached, following the same authoring conventions used for
 `archon-ship-figma` and `archon-prototype-audit`: composed from
 existing/new advisory nodes with a deterministic gate protecting the one
 place a wrong guess would matter, `context: fresh` and retries on every
-judgment lens, and structured `output_format` schemas everywhere a
+judgment lens and structured `output_format` schemas everywhere a
 downstream node or script needs to act on a field rather than re-read prose.
 
 It runs a pre-production security audit — classical app security (authn/
@@ -19,13 +19,13 @@ decision.
 which fixes Release Blockers in the same run, nothing here writes code, runs
 a scanner's autofix, or opens a PR — the source skill never asks it to
 remediate, only to judge and hand off. The one opt-in mutation is filing
-findings as GitHub issues (`file_issues`), and even that only tracks, it
+findings as GitHub issues (`file_issues`) and even that only tracks, it
 doesn't fix.
 
 ## Where these files go
 
 Same placement as the other two: put `security-gate/` inside your existing
-`sdlc` pack, as a sibling of `triage/`, `deliver/`, `ship/`, and so on, so it
+`sdlc` pack, as a sibling of `triage/`, `deliver/`, `ship/` and so on, so it
 can reuse `.shared/io.ts` by the same relative path every other component
 uses.
 
@@ -57,7 +57,7 @@ adaptations of it, not a runtime reference to the skill file, for the same
 reason noted in the other two READMEs: no evidence the engine loads external
 skill files into a `command:` node's prompt.
 
-## The five audit lenses, and how they map to the skill
+## The five audit lenses and how they map to the skill
 
 Modeled on `archon-review`'s parallel-lens-then-synthesize shape, pointed at
 a whole codebase instead of a diff, with one lens per step of the skill's
@@ -84,10 +84,10 @@ is the one you'd have made:
 
 - **"Ask the user" becomes two tiers, not one**, matching the skill's own
   distinction rather than flattening it. The skill actually treats its
-  ambiguities two different ways, and this workflow preserves both:
+  ambiguities two different ways and this workflow preserves both:
   - **Hard-gated** (declare an open question, `gate-scope` refuses, the run
     stops): whether the review is agentic, non-agentic, or both; whether the
-    system is multi-tenant. Both change how a Critical is scored, and I
+    system is multi-tenant. Both change how a Critical is scored and I
     chose to gate the *entire* run on the tenancy question, not just the
     tenant-isolation findings the skill's own text scopes it to — a security
     gate should not proceed on an unresolved input that changes its own
@@ -144,7 +144,7 @@ exact CLI invocation syntax your Archon build uses.)
 
 ## Reading the result
 
-`passed` collapses PASS and CONDITIONAL_PASS into `true`, and FAIL alone
+`passed` collapses PASS and CONDITIONAL_PASS into `true` and FAIL alone
 into `false` — see the comment at the top of `outcome.ts` for exactly why,
 and read `summary` (or the sign-off document itself) for the real three-way
 `gate_decision`, since a caller that only checks `passed` would otherwise
@@ -154,12 +154,12 @@ miss the difference between "clear" and "clear with tracked conditions."
 |---|---|---|
 | Sign-off document | `$ARTIFACTS_DIR/security-assessment-signoff.md` | The artifact that gets signed off: gate decision, rationale, conditions/blocking issues, sign-off role, findings by category, residual risk, full appendix. |
 | Per-lens findings | `identity-access-findings.md`, `api-data-findings.md`, `agentic-threat-model.md`, `dependency-scan.md`, `sast-dast-results.md` | Backing evidence, if you want the unconsolidated detail from a specific lens. |
-| Scope note | `scope.md` | The resolved review scope and tenancy, and how each was determined. |
+| Scope note | `scope.md` | The resolved review scope and tenancy and how each was determined. |
 
 If `gate-scope` refused, only `scope.md` exists — read its Open Questions
-section, resolve them, and rerun.
+section, resolve them and rerun.
 
-## What I did not build, and why
+## What I did not build and why
 
 - **No fixtures.** Same caveat as the other two workflows in this family:
   the `sdlc` pack's own README states its bar for a real guard is that the

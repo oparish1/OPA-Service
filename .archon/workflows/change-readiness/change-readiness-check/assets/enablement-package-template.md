@@ -12,7 +12,7 @@ This is the practitioner-facing document, meant to be handed to end users and ch
 
 ## 2. How Decisions Get Made
 - Simple, user-facing version of the decision-authority tiers: what the system just does, what it asks you to review, what it asks you to approve — skip the internal threshold numbers unless the audience is approvers/admins
-- What you'll see when something needs your review or approval, and where
+- What you'll see when something needs your review or approval and where
 
 ## 3. Known Edge Cases & Limitations
 - Scannable list of situations where the system is known to struggle
@@ -27,14 +27,14 @@ This is the practitioner-facing document, meant to be handed to end users and ch
 
 ## 6. Role-Based Tracks (if applicable)
 - End users: sections 1–5 above
-- Approvers/reviewers: sections 1–5 plus how to read reasoning paths and confidence scores, and default-to-escalate guidance
+- Approvers/reviewers: sections 1–5 plus how to read reasoning paths and confidence scores and default-to-escalate guidance
 - Champions/admins: full decision-authority thresholds and how to flag them for adjustment
 
 ## 7. Giving Feedback
 - The specific, low-friction channel for flagging friction or bad outputs in the moment
 - What happens to feedback and how you'll know it was acted on
 
-## 8. Adoption Metrics (what we're watching, and why it matters to you)
+## 8. Adoption Metrics (what we're watching and why it matters to you)
 - Brief, human framing of override rate / trust metrics from the telemetry plan — enough that users understand the system is being watched and improved, not a dashboard dump
 
-**Appendix (optional):** Quick-reference one-pager suitable for printing or pinning, summarizing sections 1, 3, 4, and 5 only.
+**Appendix (optional):** Quick-reference one-pager suitable for printing or pinning, summarizing sections 1, 3, 4 and 5 only.

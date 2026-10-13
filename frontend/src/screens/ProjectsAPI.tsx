@@ -30,7 +30,7 @@ function projectsCount(body: unknown): number | null {
   return null;
 }
 
-/** Projects API — idle shell, 401 token recovery, refresh, and success/empty. */
+/** Projects API — idle shell, 401 token recovery, refresh and success/empty. */
 export function ProjectsAPI() {
   const { signOut } = useApp();
   const { state, reload } = useAsyncData(getSession);

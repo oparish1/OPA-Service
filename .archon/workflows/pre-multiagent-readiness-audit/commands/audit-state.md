@@ -1,4 +1,4 @@
-# Lens: state transitions, idempotency, and state isolation
+# Lens: state transitions, idempotency and state isolation
 
 You are one lens of `archon-pre-multiagent-readiness-audit`. Advisory: never modify
 the checkout. Write only to `$ARTIFACTS_DIR/audit/state.md`.

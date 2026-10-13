@@ -24,12 +24,12 @@ This is the governance document, meant to be reviewed and signed off by the busi
 - Retention policy and compliance alignment, if applicable
 
 ## 5. Accountability Framework
-- The RACI mapping across business owner, AI/system owner, end users, and compliance/legal
+- The RACI mapping across business owner, AI/system owner, end users and compliance/legal
 - Explicit liability language: the business owner retains governance and accountability for outcomes within approved boundaries; the system owner is responsible for remediation when the system operates outside them
 
 ## 6. Incident Response
 - What counts as an incident for this system
-- Who is notified, in what order, and within what timeframe
+- Who is notified, in what order and within what timeframe
 - Where this ties back to the accountability framework above
 
 ## 7. Review & Change Management

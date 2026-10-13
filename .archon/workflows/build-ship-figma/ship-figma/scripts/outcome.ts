@@ -4,7 +4,7 @@
  * Negative advisory verdicts complete with the report that explains them; delivery is
  * accepted when the deliver branch actually ran and handed back the pull request it
  * opened. `delivered` is this workflow's authored outcome: an honest "no work is
- * owed" is a successful run that shipped nothing, and the two facts are separate.
+ * owed" is a successful run that shipped nothing and the two facts are separate.
  *
  * Bound inputs (`with:` bindings, canonical text in env):
  * - INPUTS_ROUTE / INPUTS_SUMMARY: triage's verdict.
@@ -14,7 +14,7 @@
  *   for URL shape.
  *
  * A delivery that STARTED and died no longer reaches this node at all: the failure
- * cascades an `upstream_failed` skip that blocks this join, and the run's terminal
+ * cascades an `upstream_failed` skip that blocks this join and the run's terminal
  * record names the node that actually failed. The spend gates' outputs used to be
  * bound here purely to tell that case apart from an advisory stop.
  */

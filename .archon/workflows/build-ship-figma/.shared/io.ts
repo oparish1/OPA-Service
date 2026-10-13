@@ -2,7 +2,7 @@
  * The process contract every deterministic script in this pack shares.
  *
  * A node's `with:` bindings arrive as `INPUTS_<UPPER_SNAKE>` environment text and
- * are always strings: a bound boolean arrives as `"true"`/`"false"`, and a skipped
+ * are always strings: a bound boolean arrives as `"true"`/`"false"` and a skipped
  * producer bound with `if_skipped: null` arrives as `"null"`. Nothing here
  * interprets those spellings — what a value means belongs to the script that knows
  * what it is for.
@@ -10,7 +10,7 @@
  * Read every binding as a literal `process.env.INPUTS_<NAME>` at its own call site
  * and pass the value in. The engine scans each script's source at workflow load and
  * refuses a workflow whose script reads a binding no `with:` clause or declared
- * input provides. It matches the literal form only, and it reads the entry script
+ * input provides. It matches the literal form only and it reads the entry script
  * alone, never its imports — so a helper that composed the key from a name would
  * hide every read in this pack from that check.
  *
@@ -24,7 +24,7 @@
  *
  * Bun 1.4.2 exits without draining stdout: a 500 KB write to a pipe arrives as
  * exactly 131072 bytes, silently. A truncated terminal report reads as a complete
- * one, and a truncated JSON document fails its node's certification with a message
+ * one and a truncated JSON document fails its node's certification with a message
  * about the schema rather than about the truncation. Setting `process.exitCode` and
  * returning lets the runtime flush before it leaves, which is why every helper here
  * sets the code instead of forcing the exit.

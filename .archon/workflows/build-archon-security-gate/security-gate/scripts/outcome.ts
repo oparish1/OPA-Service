@@ -16,7 +16,7 @@
  * while keeping the full detail in `summary`.
  *
  * Like archon-ship-figma's and archon-prototype-audit's outcome scripts:
- * synthesize is this workflow's load-bearing node, and a failure there
+ * synthesize is this workflow's load-bearing node and a failure there
  * blocks this node's dependency entirely — the run never reaches here to
  * emit anything — so every path this script actually executes already has
  * a real gate_decision behind it.

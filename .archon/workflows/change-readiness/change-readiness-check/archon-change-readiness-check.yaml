@@ -1,7 +1,7 @@
 name: archon-change-readiness-check
 description: |
   Before an AI system or agent is rolled out to a team, close the gap between
-  "technically correct" and "adopted": who may act, who can see why it acted, and
+  "technically correct" and "adopted": who may act, who can see why it acted and
   whether the people expected to use it were taught its edges. Primes on the
   solution actually being deployed, gets the stakeholder's answers, then drafts the
   decision-authority tiers, auditability standard, training material, accountability
@@ -187,7 +187,7 @@ nodes:
 
   # The prompts judge; this boundary verifies the relations a schema cannot — that no
   # commitment was invented, every action has a tier, nothing irreversible runs
-  # unattended, and each decision has exactly one accountable role.
+  # unattended and each decision has exactly one accountable role.
   - id: verdict
     script: verdict
     runtime: bun

@@ -1,9 +1,9 @@
 name: archon-prototype-audit
 description: |
   Audits an early-stage prototype for structural debt, missing test coverage,
-  fragile prompt/context handling, and non-deterministic behavior before it
+  fragile prompt/context handling and non-deterministic behavior before it
   moves into formal harness engineering. Primes the codebase, then runs two
-  parallel lenses — structural weaknesses, and context/state integrity — and
+  parallel lenses — structural weaknesses and context/state integrity — and
   synthesizes their findings into a three-tier backlog: Release Blockers,
   Parallel Feature Cleanups, Deferrable Debt. Produces an MVP Code Audit Report
   and a Claude Code-sequenced remediation plan as companion documents. By
@@ -12,7 +12,7 @@ description: |
   opening a PR for the fixes are both explicit opt-ins.
 
   Advisory through synthesis: priming and both lenses leave the checkout
-  unchanged. Fixing Release Blockers is the one step that writes code, and it
+  unchanged. Fixing Release Blockers is the one step that writes code and it
   can be turned off to get an audit-only run.
 
   Use when: the user asks to check if a prototype is stable, "audit the
@@ -73,14 +73,14 @@ outcome_field: completed
 
 nodes:
   # Step 0. Primes via /prime-codebase (forwarding Jira/Confluence context),
-  # resolves the audit's scope, and — this is the one place this workflow
+  # resolves the audit's scope and — this is the one place this workflow
   # translates the source skill's "ask the user" instruction — declares an
   # open question instead of guessing wherever the skill would have asked:
   # deployment context and risk tolerance not evident from the repo, or the
   # core execution path genuinely ambiguous. gate-scope below refuses on any
   # open question, the same shape archon-triage's BLOCKED and
   # archon-ship-figma's gate-design already use in this pack: an honest "not
-  # yet resolved" beats a confident guess, and a person resolves it and
+  # yet resolved" beats a confident guess and a person resolves it and
   # reruns.
   - id: prime-scope
     command: prime-scope
@@ -324,13 +324,13 @@ nodes:
       work: >-
         Read $ARTIFACTS_DIR/remediation-plan.md and work through its Sprint 0
         section only, in the dependency order it states. For each task: make
-        the fix exactly as scoped, and if a test framework already exists in
+        the fix exactly as scoped and if a test framework already exists in
         this project, add or update a test at the mock/fixture boundary the
         task names rather than one that calls a real external service. If no
         test framework exists in this project and a task's verification
         needs one, do not silently introduce one and do not silently skip
         testing that task — leave that specific task incomplete, name in
-        your summary that it needs a decision on adding a test framework, and
+        your summary that it needs a decision on adding a test framework and
         move on to the next Sprint 0 task rather than stopping the whole run
         on it. Do not touch anything outside Sprint 0 — Parallel Feature
         Cleanups and Deferrable Debt in $ARTIFACTS_DIR/audit-report.md are
@@ -350,9 +350,9 @@ nodes:
     trigger_rule: none_failed_min_one_success
     when: "$INPUTS.fix_blockers == 'true' && $synthesize.output.release_blocker_count > 0"
 
-  # Optional, and beyond the source skill's own stated scope (it says
+  # Optional and beyond the source skill's own stated scope (it says
   # "execute... in this session", not "open a PR for it") — included because
-  # it composes for free from an unmodified archon-pr, and only runs when the
+  # it composes for free from an unmodified archon-pr and only runs when the
   # fixes actually landed green.
   - id: open-pr
     include: archon-pr

@@ -18,8 +18,8 @@ survives.
 ## Write `audit/report-body.md`
 
 Use exactly these `##` sections, in this order. **Do not write a
-"Readiness Verdict" or "Recommendation" section, and do not write a Refactors
-section** — the verdict node renders the first two from the final verdict, and
+"Readiness Verdict" or "Recommendation" section and do not write a Refactors
+section** — the verdict node renders the first two from the final verdict and
 refactoring is outside this workflow.
 
 1. `## Structural Stability Metrics` — the table from `metrics.md` and the
@@ -38,7 +38,7 @@ refactoring is outside this workflow.
 2. `## Verified Code Coverage` — the coverage table and gap list from `coverage.md`.
 3. `## Findings: Coupling, State & Tool Failure Handling` — findings from the three
    Step 1 lenses, each with `file:line`, why it is tolerable today, why it is
-   dangerous under delegation, and its **multi-agent** severity from `compounding.md`.
+   dangerous under delegation and its **multi-agent** severity from `compounding.md`.
 4. `## Findings: Compounding Risk Under Delegation` — the ranked list from
    `compounding.md`: single-agent shortcut → specific multi-agent failure → severity.
 5. `## Open Architectural Decisions (not resolved unilaterally)` — every decision a

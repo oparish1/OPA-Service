@@ -1,10 +1,10 @@
 /**
  * The environment an exec node receives from the engine as its run contract: where
- * this run keeps its artifacts, which run it is, and the node's bound inputs.
+ * this run keeps its artifacts, which run it is and the node's bound inputs.
  *
  * A project command a node runs on the project's behalf, such as its test gate, is
  * not part of the run and must not see these. A gate that sees `WORKFLOW_ID` believes
- * it is inside the run, and any Archon command it starts then acts for that run.
+ * it is inside the run and any Archon command it starts then acts for that run.
  *
  * The engine owns the list as `EXEC_NODE_ENVIRONMENT_NAMES`. A pack script cannot
  * import engine code, so a conformance test beside the engine holds this copy to it.

@@ -23,7 +23,7 @@ Read this when the project contains Python. Commands come from the project's own
 
 ## 2. Setup and caching
 
-- Set up Python with the version the project declares, and use the setup action's built-in dependency cache keyed on the lockfile. Look up the current action and its cache inputs in its documentation.
+- Set up Python with the version the project declares and use the setup action's built-in dependency cache keyed on the lockfile. Look up the current action and its cache inputs in its documentation.
 - Install with the project's installer from the lockfile; include the dev/test group but not unrelated extras.
 - Do not install tools globally that the project already pins; run them from the environment the project defines.
 
@@ -39,7 +39,7 @@ Read this when the project contains Python. Commands come from the project's own
 - Run Bandit recursively over the source directory only (exclude tests and virtual environments unless the owner wants tests scanned; test code triggers noise such as assert use).
 - Severity and confidence thresholds are owner decisions: options are report-only, fail on medium and above, or fail on high. Bandit returns a non-zero status when it finds issues at or above the selected levels, which is what fails the job.
 - On an existing codebase, generate a baseline file of accepted findings and run against it so only **new** findings fail; keep the baseline in the repository and review changes to it.
-- Suppress a specific finding in code with a justification comment, not a blanket exclusion, and expect reviewers to question each one.
+- Suppress a specific finding in code with a justification comment, not a blanket exclusion and expect reviewers to question each one.
 - Output a machine-readable report (JSON or SARIF) and upload it as an artifact; upload SARIF to code scanning only if the repository has that feature (check plan availability).
 - Bandit finds Python code smells that are commonly insecure. It does not scan dependencies. For that, add a dependency audit (for example `pip-audit` or the ecosystem's equivalent) as a separate step, or use GitHub's dependency review and Dependabot alerts; ask the owner which.
 
@@ -67,6 +67,6 @@ Read this when the project contains Python. Commands come from the project's own
 
 ## 8. Verify
 
-- Run the lint, Bandit, and test commands locally exactly as the workflow does; record the outcome.
+- Run the lint, Bandit and test commands locally exactly as the workflow does; record the outcome.
 - Introduce a deliberate violation on a scratch branch (or reason through it) to confirm each step can fail.
 - Confirm the matrix versions match the declared support range and the cache key uses the lockfile.

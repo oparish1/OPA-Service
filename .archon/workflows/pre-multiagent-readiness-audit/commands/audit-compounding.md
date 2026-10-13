@@ -33,8 +33,8 @@ Consider specifically:
   three assumptions.
 
 The resolved shape matters concretely. Races and retry amplification are severe under
-`parallel` and `orchestrator`, and much weaker under strictly sequential `handoff`
-(where error propagation and context bleed dominate). Rate accordingly, and say so.
+`parallel` and `orchestrator` and much weaker under strictly sequential `handoff`
+(where error propagation and context bleed dominate). Rate accordingly and say so.
 
 ## Severity — the multi-agent blast radius
 
@@ -62,5 +62,5 @@ A **ranked list**, most severe first, one block each:
 ```
 
 Then a table of counts by multi-agent severity, a **single-caller assumptions**
-list, and a list of every item that needs an architectural decision. A local
+list and a list of every item that needs an architectural decision. A local
 refactor must not make those decisions; they are recorded for a human.

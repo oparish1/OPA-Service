@@ -49,7 +49,7 @@ interface Ran {
   readonly stderr: string;
 }
 
-// Every gh call is captured: a node's stderr reaches the operator, and gh is
+// Every gh call is captured: a node's stderr reaches the operator and gh is
 // chatty there (update notices), so only this pack's own messages may.
 function gh(...args: string[]): Ran {
   const result = Bun.spawnSync(['gh', ...args], { stdout: 'pipe', stderr: 'pipe' });
@@ -92,7 +92,7 @@ const GH_RUNNING: readonly string[] = [
  * Classify one gh row. Once a check concludes, gh's `state` is the check run's
  * conclusion or the commit status's state, classified through the forge table
  * so gh and forge agree. gh's `bucket` is not used: it calls ACTION_REQUIRED a
- * failure, and STALE, STARTUP_FAILURE and any state it does not know pending.
+ * failure and STALE, STARTUP_FAILURE and any state it does not know pending.
  * A state this reader does not know is unknown, which the gate treats as red.
  */
 export function ghCheckUnit(check: GhCheck): CheckUnit {
@@ -119,7 +119,7 @@ function readGhChecks(pr: QualifiedPr): readonly CheckUnit[] {
     parsed = JSON.parse(result.stdout) as unknown;
   } catch {
     // No document at all: either the pull request has no checks or the read
-    // failed, and gh says which only in prose. The rollup count answers that as
+    // failed and gh says which only in prose. The rollup count answers that as
     // a number. A failed observation is never evidence that no CI exists.
     const counted = gh(
       'pr',
@@ -166,7 +166,7 @@ export function readPrChecks(pr: QualifiedPr): CheckRead {
  * this: it lets a repository without CI skip the registration grace.
  */
 export function hasActiveWorkflows(pr: QualifiedPr): boolean | undefined {
-  // Every page: the default read stops at thirty workflows, and an active one on a
+  // Every page: the default read stops at thirty workflows and an active one on a
   // later page would otherwise read as "no CI configured". gh applies --jq to each
   // page and refuses --slurp with --jq, so the filter prints one id per active
   // workflow and the lines are counted here.

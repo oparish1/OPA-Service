@@ -1,6 +1,6 @@
 # Node.js / TypeScript
 
-Covers plain Node servers and workers, and build-then-run frameworks (Next.js, Nest, Remix, Vite SSR). Static-only builds go to `static-frontend.md`.
+Covers plain Node servers and workers and build-then-run frameworks (Next.js, Nest, Remix, Vite SSR). Static-only builds go to `static-frontend.md`.
 
 ## Contents
 1. What to read in the project
@@ -39,14 +39,14 @@ Points that matter:
 
 ## 4. Framework notes
 
-- **Next.js:** if `output: 'standalone'` is configured (or the owner agrees to enable it), copy `.next/standalone`, `.next/static`, and `public` into the runtime stage and run the generated `server.js`; this shrinks the image greatly. Set `HOSTNAME` so it binds to all interfaces. Variables prefixed `NEXT_PUBLIC_` are inlined into the client bundle at build time: they are public and must be passed as build args, never secrets.
+- **Next.js:** if `output: 'standalone'` is configured (or the owner agrees to enable it), copy `.next/standalone`, `.next/static` and `public` into the runtime stage and run the generated `server.js`; this shrinks the image greatly. Set `HOSTNAME` so it binds to all interfaces. Variables prefixed `NEXT_PUBLIC_` are inlined into the client bundle at build time: they are public and must be passed as build args, never secrets.
 - **Vite/CRA/SPA builds:** build in a stage and serve with a web server (`static-frontend.md`). Build-time env vars are baked into the JS and visible to every user.
 - **NestJS / Express / Fastify:** compile TypeScript in `build`, run compiled JS from `dist`. Confirm the server listens on `0.0.0.0` (Fastify defaults to localhost).
 - **Prisma / ORMs:** generate the client in the build stage and ensure the query-engine binary matches the runtime OS and libc. Do not run migrations at container start silently; ask how migrations are applied (separate job, entrypoint step, or release command).
 
 ## 5. Health check
 
-Slim and distroless images have no `curl`. Use Node itself, for example an HTTP request with the built-in `fetch` (Node 18+) or `http` module against the app's health route, exiting non-zero on failure. Point it at a real health route; if none exists, propose adding a minimal one and ask, rather than checking `/`. Set interval, timeout, start period (long enough for startup), and retries.
+Slim and distroless images have no `curl`. Use Node itself, for example an HTTP request with the built-in `fetch` (Node 18+) or `http` module against the app's health route, exiting non-zero on failure. Point it at a real health route; if none exists, propose adding a minimal one and ask, rather than checking `/`. Set interval, timeout, start period (long enough for startup) and retries.
 
 ## 6. Pitfalls
 

@@ -19,7 +19,7 @@ Read this for returning money and for chargebacks. The ledger must stay correct 
 - If tokens are spent: refuse, refund only the unspent portion, refund fully and allow a negative balance (debt), or refund fully and suspend the account until repaid.
 - Refund window and reasons required.
 - What a user sees when refunded (email, in-app message).
-- How disputes are handled: who responds with evidence, and what happens to the balance while a dispute is open (freeze the disputed tokens, suspend spending, or nothing).
+- How disputes are handled: who responds with evidence and what happens to the balance while a dispute is open (freeze the disputed tokens, suspend spending, or nothing).
 - Whether a lost dispute triggers account action.
 
 ## 2. Design principle: Stripe events drive the ledger
@@ -31,7 +31,7 @@ Money moved by Stripe is the fact; the ledger follows. Reverse tokens when the *
 
 ## 3. Issuing a refund from the app
 
-- An authenticated, authorized endpoint (staff role, or user self-service under the owner's rules), which records the request, actor, and reason.
+- An authenticated, authorized endpoint (staff role, or user self-service under the owner's rules), which records the request, actor and reason.
 - Identify the payment to refund by the stored payment intent or charge id from the purchase, never from a client-supplied id.
 - Compute the refund amount server-side under the owner's policy (full, or proportional to unspent tokens); enforce that it cannot exceed what remains refundable.
 - Call Stripe's refund API with an **idempotency key** derived from the refund request, so a double-click or retry cannot refund twice. Look up the current call in Stripe's documentation.
@@ -42,8 +42,8 @@ Money moved by Stripe is the fact; the ledger follows. Reverse tokens when the *
 
 In the webhook path (`webhooks.md` rules apply: signature, event ledger, atomic transaction):
 1. Fetch or read the cumulative refunded amount for the charge, not just the delta in the event.
-2. Compute the tokens to reverse for the **newly refunded** portion: cumulative refunded value converted to tokens under the pack's rate, minus tokens already reversed for this payment. This makes duplicate, partial, and out-of-order refund events converge.
-3. Insert the refund entry keyed on the refund id (or payment id and cumulative step) under the ledger's unique constraint, and update the cached balance atomically.
+2. Compute the tokens to reverse for the **newly refunded** portion: cumulative refunded value converted to tokens under the pack's rate, minus tokens already reversed for this payment. This makes duplicate, partial and out-of-order refund events converge.
+3. Insert the refund entry keyed on the refund id (or payment id and cumulative step) under the ledger's unique constraint and update the cached balance atomically.
 4. Apply the owner's spent-token policy (section 5).
 5. Notify the user after commit.
 

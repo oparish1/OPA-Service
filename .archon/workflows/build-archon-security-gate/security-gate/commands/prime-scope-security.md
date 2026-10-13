@@ -1,6 +1,6 @@
 # Prime the Codebase and Resolve the Security Review's Scope
 
-Ground this security review in the actual codebase before any lens starts, and resolve the two facts that change how findings downstream are scored: whether this is an agentic review, a non-agentic review, or both, and whether the system is multi-tenant. No one watches this run. Where the source skill this workflow is built from would ask you a question in conversation, you instead record it as an open question and declare `scope_resolved: false` — the same shape `archon-triage`'s `BLOCKED` uses elsewhere in this pack. Never guess at either fact and proceed anyway; both change what counts as a Critical finding, and a security gate should not stand on an unresolved input that changes its own scoring.
+Ground this security review in the actual codebase before any lens starts and resolve the two facts that change how findings downstream are scored: whether this is an agentic review, a non-agentic review, or both and whether the system is multi-tenant. No one watches this run. Where the source skill this workflow is built from would ask you a question in conversation, you instead record it as an open question and declare `scope_resolved: false` — the same shape `archon-triage`'s `BLOCKED` uses elsewhere in this pack. Never guess at either fact and proceed anyway; both change what counts as a Critical finding and a security gate should not stand on an unresolved input that changes its own scoring.
 
 ## Step 1: Prime
 
@@ -9,7 +9,7 @@ Run `/prime-codebase` (or reuse its output if this session already primed this r
 - Jira issue keys: $INPUTS.jira_issue_keys
 - Confluence page ids: $INPUTS.confluence_page_ids
 
-Follow `/prime-codebase`'s own Step 0 to load that context first when either is given — prior findings, security requirements, and compliance obligations often live there — then its Steps 1–4 in full.
+Follow `/prime-codebase`'s own Step 0 to load that context first when either is given — prior findings, security requirements and compliance obligations often live there — then its Steps 1–4 in full.
 
 ## Step 2: Locate the key areas
 
@@ -20,7 +20,7 @@ While priming, specifically find and record file paths for each of these into `k
 - `agent_loop` — the agent orchestration loop, if one exists.
 - `tool_defs` — tool/function-calling definitions the agent can invoke.
 - `api_routes` — API route definitions.
-- `dependency_manifests` — `package.json`/`package-lock.json`, `requirements.txt`/`poetry.lock`/`Pipfile.lock`, `pyproject.toml`, `go.mod`/`go.sum`, `Cargo.toml`/`Cargo.lock`, and equivalents.
+- `dependency_manifests` — `package.json`/`package-lock.json`, `requirements.txt`/`poetry.lock`/`Pipfile.lock`, `pyproject.toml`, `go.mod`/`go.sum`, `Cargo.toml`/`Cargo.lock` and equivalents.
 - `ci_config` — CI/CD configuration.
 - `secrets_locations` — where `.env` files or other secrets-adjacent config are expected to live and how they're loaded. Record the **location and loading mechanism only** — never read or record an actual secret value.
 
@@ -48,10 +48,10 @@ Write `$ARTIFACTS_DIR/scope.md`:
 # Security review scope
 
 ## Review scope
-[agentic_scope, and how it was determined]
+[agentic_scope and how it was determined]
 
 ## Multi-tenancy
-[multi_tenant, and how it was determined]
+[multi_tenant and how it was determined]
 
 ## Key areas located
 [key_areas, each category with its file list or "None found."]
@@ -63,5 +63,5 @@ Write `$ARTIFACTS_DIR/scope.md`:
 ## Declare
 
 - `scope_resolved`, `agentic_scope`, `multi_tenant`, `key_areas`, `open_questions` — as above.
-- `summary` — a few sentences: what will be reviewed, and if not yet resolved, the single most important open question.
+- `summary` — a few sentences: what will be reviewed and if not yet resolved, the single most important open question.
 - `report` — the pointer to `scope.md`.

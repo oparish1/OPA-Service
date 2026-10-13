@@ -1,6 +1,6 @@
 # Dry-run fixture: the owner and stakes are known but no refund threshold or
 # retention window was given. Those stay unresolved with no value, the verdict
-# certifies ready:false, and the run COMPLETES — an honest draft is a valid outcome.
+# certifies ready:false and the run COMPLETES — an honest draft is a valid outcome.
 prime:
   actions:
     - { name: "look up order", effect: read, reversible: "yes" }

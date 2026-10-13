@@ -1,6 +1,6 @@
 # Dependency & Model Integration Vulnerability Scan
 
-Read `$ARTIFACTS_DIR/scope.md` first. The dependency manifests this run's priming located are `$INPUTS.key_areas`'s `dependency_manifests`. This is a read-only scan: never run a scanner's `--fix` or equivalent autofix option, and never modify a lockfile.
+Read `$ARTIFACTS_DIR/scope.md` first. The dependency manifests this run's priming located are `$INPUTS.key_areas`'s `dependency_manifests`. This is a read-only scan: never run a scanner's `--fix` or equivalent autofix option and never modify a lockfile.
 
 ## Run a real scanner if one is available
 
@@ -10,7 +10,7 @@ If no scanner tool is available, do not silently fall back to a lighter-weight s
 
 ## Model integration versions
 
-Identify which LLM/embedding providers and SDK versions are in use, and check for known vulnerabilities or advisories in that SDK version — deserialization issues, SSRF in provider clients, known prompt-injection-adjacent CVEs in agent frameworks (LangChain, AutoGPT-style loops, and equivalents).
+Identify which LLM/embedding providers and SDK versions are in use and check for known vulnerabilities or advisories in that SDK version — deserialization issues, SSRF in provider clients, known prompt-injection-adjacent CVEs in agent frameworks (LangChain, AutoGPT-style loops and equivalents).
 
 ## Flag risky dependency practices
 
@@ -27,6 +27,6 @@ Write `$ARTIFACTS_DIR/dependency-scan.md`: one section for automated/manual scan
 ## Declare
 
 - `findings` — `id` (e.g. `DEP-1`), `package`, `current_version`, `patched_version` (or null), `cve_id` (or null), `severity` (Critical/High/Medium/Low/Unknown), `description`.
-- `coverage_gaps` — whether an automated scanner ran, and if not, what was substituted and its lower coverage named explicitly.
-- `summary` — a few sentences: what was scanned, tool used or gap noted, and the headline dependency risk if any.
+- `coverage_gaps` — whether an automated scanner ran and if not, what was substituted and its lower coverage named explicitly.
+- `summary` — a few sentences: what was scanned, tool used or gap noted and the headline dependency risk if any.
 - `report` — the pointer to `dependency-scan.md`.

@@ -6,7 +6,7 @@
 # MVP Code Audit Report — [project name]
 
 ## Summary
-- Scope audited (files/paths, and what was excluded)
+- Scope audited (files/paths and what was excluded)
 - Headline risk assessment (1–2 sentences: is this prototype safe to build a harness on top
   of as-is?)
 - Counts: N release blockers, N parallel cleanups, N deferrable items
@@ -26,7 +26,7 @@
 [same columns]
 
 ## Recommendation
-[go/no-go on proceeding to harness engineering, and what must be true first — present this as
+[go/no-go on proceeding to harness engineering and what must be true first — present this as
 a recommendation grounded in the findings and the risk tolerance established in Step 0, not as
 an unchallengeable verdict; the user may have context (deadline pressure, known-acceptable
 risk) that changes the call]
@@ -41,7 +41,7 @@ risk) that changes the call]
 1. [Release blocker title] — /path/to/file
    - Task for Claude Code: <imperative, self-contained instruction Claude Code can execute
      directly, including acceptance criteria, e.g. "Add a try/except around the LLM call in
-     agent.py:42 that catches TimeoutError and APIError, logs the failure, and returns a typed
+     agent.py:42 that catches TimeoutError and APIError, logs the failure and returns a typed
      Fallback result instead of raising. Add a unit test using a mocked client that asserts
      this behavior.">
    - Depends on: [none | task N]

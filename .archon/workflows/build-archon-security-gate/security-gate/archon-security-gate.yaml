@@ -12,7 +12,7 @@ description: |
   Read-only throughout: no node in this workflow writes code, runs a
   scanner's autofix, or performs DAST probing without an explicit prior
   authorization input. This workflow judges; it does not remediate — filing
-  findings as tracked issues is an explicit opt-in, and nothing here opens a
+  findings as tracked issues is an explicit opt-in and nothing here opens a
   PR.
 
   Use when: the user asks for a "security review", "threat model",
@@ -32,7 +32,7 @@ inputs:
     default: ""
     description: >-
       Optional Jira issue keys to load as context before auditing — prior
-      findings, security requirements, and compliance obligations often live
+      findings, security requirements and compliance obligations often live
       there. Forwarded to priming exactly as /prime-codebase's own Step 0
       would use them.
   confluence_page_ids:
@@ -45,7 +45,7 @@ inputs:
       against a locally reachable dev server this run finds, if one exists —
       true or false. DAST is active, intrusive testing; the source skill is
       explicit that it must never run without the user's explicit
-      confirmation, and a workflow run has no one to confirm with mid-run, so
+      confirmation and a workflow run has no one to confirm with mid-run, so
       this defaults to false and DAST is recorded as a coverage gap instead
       of attempted. Never authorizes testing anything beyond a server this
       run itself finds running locally.
@@ -66,10 +66,10 @@ nodes:
   # Step 0. Primes via /prime-codebase (forwarding Jira/Confluence context),
   # locates the specific areas Step 0 calls out (authn/authz, session
   # management, the agent loop, tool/function definitions, API routes,
-  # dependency manifests, CI/CD config, and where secrets are expected to
-  # live — never their values), and resolves the two inputs that change what
+  # dependency manifests, CI/CD config and where secrets are expected to
+  # live — never their values) and resolves the two inputs that change what
   # "Critical" means downstream: whether this review is scoped as agentic,
-  # non-agentic, or both, and whether the system is multi-tenant. Both are
+  # non-agentic, or both and whether the system is multi-tenant. Both are
   # hard-gated here rather than left to each lens to assume, because both
   # change finding severity and therefore the gate decision itself — a
   # security gate should not proceed on an unresolved input that changes how

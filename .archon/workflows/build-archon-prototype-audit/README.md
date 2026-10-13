@@ -3,18 +3,18 @@
 A new top-level workflow — not a variation of an existing one — built from the
 `prototype-stability-check` skill you attached. It audits an early-stage
 prototype for structural debt, missing test coverage, fragile prompt/context
-handling, and non-deterministic behavior, then produces two companion
-deliverables: an MVP Code Audit Report, and a Claude Code-sequenced
+handling and non-deterministic behavior, then produces two companion
+deliverables: an MVP Code Audit Report and a Claude Code-sequenced
 remediation plan. By default it also fixes the Release Blockers tier in the
 same run and revalidates, matching the source skill's own Step 6; filing the
 rest as GitHub issues and opening a PR for the fixes are both explicit
 opt-ins.
 
 Like `archon-ship-figma`, this composes rather than forks: it includes
-`archon-implement`, `archon-validate`, and `archon-pr` unmodified for the
-three steps that need them, and adds new nodes only for the parts nothing in
+`archon-implement`, `archon-validate` and `archon-pr` unmodified for the
+three steps that need them and adds new nodes only for the parts nothing in
 the pack already does — priming and scoping the audit, the two parallel
-audit lenses, and turning their findings into a backlog and a plan.
+audit lenses and turning their findings into a backlog and a plan.
 
 ## Is this worth a new workflow, or should an existing one do it?
 
@@ -25,13 +25,13 @@ one of them returns a single verdict or a single PR:
 | Workflow | What it judges | Why it doesn't cover this |
 |---|---|---|
 | `archon-triage` | Whether one work item is a ready contract | One item, not a codebase; a verdict, not a backlog. |
-| `archon-review` | A diff or PR, through parallel lenses | Closest shape — parallel lenses, one synthesis — but bounded to a change under review, and it judges correctness, not accumulated debt. |
+| `archon-review` | A diff or PR, through parallel lenses | Closest shape — parallel lenses, one synthesis — but bounded to a change under review and it judges correctness, not accumulated debt. |
 | `archon-validate` | Whether the project's own checks pass | Runs what's already there; doesn't judge whether coverage is adequate or prompt/context handling is fragile. |
 | `archon-plan` | How to build one already-decided thing | Needs a decided outcome to plan against — this workflow produces the list of things that still need deciding. |
 
 This workflow reuses `archon-review`'s parallel-lens-then-synthesize shape
 (the one genuinely reusable pattern among them) but points it at a whole
-codebase instead of a diff, and its terminal output is a backlog, not a
+codebase instead of a diff and its terminal output is a backlog, not a
 ready/not-ready verdict.
 
 ## Where it sits in the pipeline
@@ -46,10 +46,10 @@ triage-ready contract shape those workflows already expect — see
 ## 1. Where these files go
 
 Same placement logic as `archon-ship-figma`: put `prototype-audit/` inside
-your existing `sdlc` pack, as a sibling of `triage/`, `deliver/`, `ship/`, and
+your existing `sdlc` pack, as a sibling of `triage/`, `deliver/`, `ship/` and
 so on, so it can reuse `.shared/io.ts` by the same relative path
-(`../../.shared/io.ts`) every other component uses, and `include:`
-`archon-implement`, `archon-validate`, and `archon-pr` by name.
+(`../../.shared/io.ts`) every other component uses and `include:`
+`archon-implement`, `archon-validate` and `archon-pr` by name.
 
 ```
 .archon/workflows/sdlc/
@@ -89,7 +89,7 @@ had to ask for:
   information only the user has (deployment context, risk tolerance, which
   code is the core path, whether to introduce new tooling). A workflow run
   has no one to ask mid-run. `prime-scope` declares `scope_resolved: false`
-  with the specific open questions instead, and `gate-scope` refuses on it —
+  with the specific open questions instead and `gate-scope` refuses on it —
   the same shape `archon-triage`'s `BLOCKED` and `archon-ship-figma`'s
   `gate-design` already use in this pack. You answer by rerunning with more
   context (an explicit `path_glob`, or the deployment context stated
@@ -101,14 +101,14 @@ had to ask for:
 - **No `output-dir` input.** The skill asks where to save its deliverables
   because a skill invoked in chat has no fixed destination. A workflow run
   always has one: `$ARTIFACTS_DIR`. `scope.md`, `structural-findings.md`,
-  `context-state-findings.md`, `audit-report.md`, and `remediation-plan.md`
+  `context-state-findings.md`, `audit-report.md` and `remediation-plan.md`
   all go there, the same place `triage.md`/`plan.md`/`review/report.md` go
   elsewhere in this pack.
 - **Step 6 ("execute Release Blockers now") is opt-out, not hardwired.** The
   skill always executes Sprint 0 in the same session. That's a materially
   bigger blast radius than every other node this workflow adds — priming and
   both lenses are `mutates_checkout: false`, matching `archon-triage`,
-  `archon-investigate`, and `archon-plan`'s own advisory shape; fixing
+  `archon-investigate` and `archon-plan`'s own advisory shape; fixing
   blockers is the one step that writes code. `fix_blockers` defaults to
   `"true"` to match the skill's own default behavior exactly, but can be set
   `"false"` for an audit-only run that touches nothing — the same
@@ -150,17 +150,17 @@ there were or whether any optional branch ran, the same "a negative finding
 is still a successful run" shape `archon-ship`'s `delivered: false` uses.
 Read `summary` for the actual news: backlog counts, the go/no-go
 recommendation, whether Sprint 0 was fixed and stayed green, whether a PR
-was opened, and how many issues were filed.
+was opened and how many issues were filed.
 
 | Deliverable | Path | What it's for |
 |---|---|---|
 | MVP Code Audit Report | `$ARTIFACTS_DIR/audit-report.md` | The diagnosis: findings, the three-tier backlog, a go/no-go call. |
 | Remediation plan | `$ARTIFACTS_DIR/remediation-plan.md` | The treatment plan: sprint-sequenced, Claude Code-ready tasks. |
 | Raw lens findings | `structural-findings.md`, `context-state-findings.md` | Backing evidence for the audit report, if you want the unconsolidated detail. |
-| Scope note | `scope.md` | What was audited, and the deployment context / risk tolerance the classification was judged against. |
+| Scope note | `scope.md` | What was audited and the deployment context / risk tolerance the classification was judged against. |
 
 If `gate-scope` refused, none of the above exist except `scope.md` — read its
-Open Questions section, resolve them, and rerun.
+Open Questions section, resolve them and rerun.
 
 ## 6. Composing with the rest of the pack
 
@@ -174,15 +174,15 @@ that purpose. If you'd rather review and edit the backlog by hand before
 anything is filed, leave `file_issues` at its default `false` and convert
 `remediation-plan.md`'s Sprint 1 and Backlog sections into issues yourself.
 
-## 7. What I did not build, and why
+## 7. What I did not build and why
 
 - **No `review-design`-style lens for prompt/context specifically beyond
   what's here.** The skill's own Step 1/Step 2 split is exactly two
-  categories — structural, and context/state — so this workflow builds
+  categories — structural and context/state — so this workflow builds
   exactly two lenses. I considered a third lens pulling real coverage
   numbers from `archon-validate`'s discovery step rather than a lens's
   impression of coverage, but `archon-validate` has no documented
-  "discover only, don't run" mode, and running it in full before priming
+  "discover only, don't run" mode and running it in full before priming
   even finishes would duplicate work the skill doesn't ask for. If your
   Archon version does expose a discovery-only mode, wiring its output into
   `audit-structure`'s missing-mock-boundary findings would be the natural

@@ -1,6 +1,6 @@
 # File Critical/High Findings as Issues
 
-Read `$ARTIFACTS_DIR/security-assessment-signoff.md`. File one GitHub issue per Critical or High finding listed in Conditions for Approval or Blocking Issues — Medium and Low findings stay in the report's Residual Risk Accepted section for a human approver to decide, and are not filed here.
+Read `$ARTIFACTS_DIR/security-assessment-signoff.md`. File one GitHub issue per Critical or High finding listed in Conditions for Approval or Blocking Issues — Medium and Low findings stay in the report's Residual Risk Accepted section for a human approver to decide and are not filed here.
 
 ## Shape every issue as a triage-ready contract
 
@@ -20,5 +20,5 @@ If you do not have a working GitHub connection, do not guess at issue numbers or
 
 ## Declare
 
-- `issues_filed` — one entry per issue actually created: the finding `id` it came from, its `title`, and the real `url` GitHub returned.
-- `summary` — how many issues were filed, split by severity, and any finding that could not be filed and why.
+- `issues_filed` — one entry per issue actually created: the finding `id` it came from, its `title` and the real `url` GitHub returned.
+- `summary` — how many issues were filed, split by severity and any finding that could not be filed and why.

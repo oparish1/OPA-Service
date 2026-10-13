@@ -8,7 +8,7 @@
  *          reached through the host command (`ARCHON_CLI_COMMAND`) the CLI and
  *          server publish.
  *
- * The source is never inferred from what happens to be installed, and a selected
+ * The source is never inferred from what happens to be installed and a selected
  * source that cannot answer fails the operation rather than falling back to the
  * other. A container execution receives neither variable, so it uses `gh`.
  */
@@ -197,7 +197,7 @@ export function record(value: unknown): Record<string, unknown> | undefined {
  * A forge operation that did not produce a verified result.
  *
  * `mutation` carries the evidence a write owes its caller: which of `refused`,
- * `verification_failed` or `outcome_unknown` happened, and what may remain on the
+ * `verification_failed` or `outcome_unknown` happened and what may remain on the
  * forge. A caller may report it; it may never retry past an unknown outcome.
  */
 export class ForgeOperationError extends Error {
