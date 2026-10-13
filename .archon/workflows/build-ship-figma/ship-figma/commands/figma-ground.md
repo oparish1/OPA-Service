@@ -40,6 +40,8 @@ Before reading the target frame, load the design system: the shared component li
 
 Also load every additional Figma node URL given in `design_system` or named in the work item (for example a States and New Components node), and treat the components and states it defines as part of the design system. Confirm you fetched each such node before declaring grounded.
 
+Also read `.archon/design-decisions.md` in this repository. Every decision there is an approved answer: treat any question it answers as resolved and do not re-ask it. Elements it lists as local-implementation components are mapped: record them in component_mapping as "Local: <name>" and never in unmapped_elements. Add to open_questions only gaps that this file and the Figma sources leave genuinely unanswered.
+
 ## Step 5: Load and audit the target frame
 
 Fetch the specific frame(s) for the screen(s) in scope. Enumerate every distinct screen and state it shows plainly — default, loading or in-progress, error, empty, and any validation states on inputs — into `screens`. A frame that shows these states is specifying required behavior, not decoration; do not summarize loosely or collapse states together.
