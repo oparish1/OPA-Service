@@ -38,6 +38,8 @@ Otherwise, load the frame and judge by inspection whether it is a high-fidelity,
 
 Before reading the target frame, load the design system: the shared component library the frame draws from — its components, variants, and tokens (color, spacing, typography scale). Use `$INPUTS.design_system` when given; otherwise use the library the frame itself links to. Confirm you can enumerate its actual components and variants rather than proceeding from a partial or assumed read. If no design system can be found at all — the frame uses only local, one-off styles — declare `grounded: false` and add "No linked design system was found for this frame; supply `design_system`, or confirm the frame is meant to define its own one-off styles for this work." to `open_questions`.
 
+Also load every additional Figma node URL given in `design_system` or named in the work item (for example a States and New Components node), and treat the components and states it defines as part of the design system. Confirm you fetched each such node before declaring grounded.
+
 ## Step 5: Load and audit the target frame
 
 Fetch the specific frame(s) for the screen(s) in scope. Enumerate every distinct screen and state it shows plainly — default, loading or in-progress, error, empty, and any validation states on inputs — into `screens`. A frame that shows these states is specifying required behavior, not decoration; do not summarize loosely or collapse states together.
