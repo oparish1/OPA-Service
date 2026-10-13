@@ -1,7 +1,7 @@
 import logoUrl from '../assets/logo.svg';
 
 /** AA/Brand/Logo/Purple. Rendered from the supplied logo image. */
-export function Logo({ height = 64 }: { height?: number }) {
+export function Logo({ height = 84 }: { height?: number }) {
   return (
     <img
       src={logoUrl}
