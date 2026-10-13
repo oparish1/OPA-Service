@@ -1,0 +1,60 @@
+:root {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+body {
+  background: var(--aa-bg-canvas);
+  color: var(--aa-text-primary);
+  font-family: var(--aa-font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+input {
+  font: inherit;
+}
+
+.aa-focusable:focus-visible {
+  outline: var(--aa-focus-width) solid var(--aa-focus);
+  outline-offset: var(--aa-focus-offset);
+}
+
+.aa-spin {
+  animation: aa-spin 0.8s linear infinite;
+}
+
+@keyframes aa-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.aa-skeleton {
+  animation: aa-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes aa-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}

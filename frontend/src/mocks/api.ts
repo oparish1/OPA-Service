@@ -1,0 +1,226 @@
+import {
+  EMPTY_PROJECTS_BODY,
+  EXPIRED_ACCESS_TOKEN,
+  IDENTITIES,
+  MOCK_PROFILE_BODY,
+  MOCK_PROJECTS_BODY,
+  MOCK_SESSION,
+  PROFILE_ENDPOINT,
+  PROVIDERS,
+} from './data';
+import type { ProviderId } from './data';
+import type { AccessToken, ApiErrorKind, ApiResponse, Identity, MockConfig, Session } from './types';
+
+const DEFAULT_CONFIG: MockConfig = {
+  latencyMs: 1500,
+  signInFailure: false,
+  resetPasswordFailure: false,
+  changePasswordFailure: false,
+  refreshTokenFailure: false,
+  getSessionFailure: false,
+  getIdentitiesFailure: false,
+  runRequestFailure: null,
+  projectsEmpty: false,
+  identitiesEmpty: false,
+};
+
+let config: MockConfig = { ...DEFAULT_CONFIG };
+
+/** The session established by the most recent sign-in; the mock is its only owner. */
+let activeSession: Session | null = null;
+
+/** Test/demo seam for the mocked network. */
+export function configureMocks(partial: Partial<MockConfig>): void {
+  config = { ...config, ...partial };
+}
+
+export function resetMocks(): void {
+  config = { ...DEFAULT_CONFIG };
+  activeSession = null;
+}
+
+/** Clears the mocked session when the user signs out. */
+export function signOut(): void {
+  activeSession = null;
+}
+
+function delay<T>(value: T, ms = config.latencyMs): Promise<T> {
+  return new Promise(resolve => {
+    setTimeout(() => resolve(value), ms);
+  });
+}
+
+function fail<T>(error: Error, ms = config.latencyMs): Promise<T> {
+  return new Promise((_resolve, reject) => {
+    setTimeout(() => reject(error), ms);
+  });
+}
+
+const RESPONSE_DATE = 'Fri, 10 Oct 2026 14:12:00 GMT';
+
+function responseHeaders(statusLabel: string): string[] {
+  return [`status: ${statusLabel}`, 'content-type: application/json', `date: ${RESPONSE_DATE}`];
+}
+
+function errorResponse(kind: ApiErrorKind): ApiResponse {
+  switch (kind) {
+    case 'unauthorized':
+      return {
+        status: 401,
+        statusLabel: '401 Unauthorized',
+        duration: '84 ms',
+        size: '186 B',
+        timestamp: '14:30 UTC',
+        body: {
+          error: 'invalid_token',
+          message: 'The access token has expired.',
+          expired_at: '2026-10-10T14:30:00Z',
+          request_id: 'demo-req-002',
+        },
+        headers: responseHeaders('401 Unauthorized'),
+      };
+    case 'forbidden':
+      return {
+        status: 403,
+        statusLabel: '403 Forbidden',
+        duration: '96 ms',
+        size: '162 B',
+        timestamp: '14:30 UTC',
+        body: { error: 'forbidden', message: 'Missing scope profile.read' },
+        headers: responseHeaders('403 Forbidden'),
+      };
+    case 'notFound':
+      return {
+        status: 404,
+        statusLabel: '404 Not Found',
+        duration: '78 ms',
+        size: '148 B',
+        timestamp: '14:30 UTC',
+        body: { error: 'not_found', message: 'Resource not found' },
+        headers: responseHeaders('404 Not Found'),
+      };
+    case 'server':
+      return {
+        status: 500,
+        statusLabel: '500 Server Error',
+        duration: '412 ms',
+        size: '154 B',
+        timestamp: '14:30 UTC',
+        body: { error: 'server_error', message: 'Downstream service unavailable' },
+        headers: responseHeaders('500 Server Error'),
+      };
+    case 'timeout':
+      return {
+        status: 0,
+        statusLabel: 'Network error',
+        duration: '10000 ms',
+        size: '30 B',
+        timestamp: '14:30 UTC',
+        body: { error: 'request_timeout' },
+        headers: [],
+      };
+  }
+}
+
+function successResponse(endpoint: string): ApiResponse {
+  const isProjects = endpoint.includes('/projects');
+  return {
+    status: 200,
+    statusLabel: '200 OK',
+    duration: isProjects ? '128 ms' : '142 ms',
+    size: isProjects ? '214 B' : '248 B',
+    timestamp: '10 Oct 2026 · 14:12:00 UTC',
+    body: isProjects
+      ? config.projectsEmpty
+        ? EMPTY_PROJECTS_BODY
+        : MOCK_PROJECTS_BODY
+      : MOCK_PROFILE_BODY,
+    headers: responseHeaders('200 OK'),
+  };
+}
+
+/** Mocked provider sign-in. Establishes the session returned by later `getSession` calls. */
+export async function signIn(providerId: ProviderId): Promise<Session> {
+  if (config.signInFailure) {
+    return fail(new Error('Sign-in failed. Try again.'));
+  }
+  const provider = PROVIDERS.find(candidate => candidate.id === providerId);
+  const session = await delay({ ...MOCK_SESSION, provider: provider?.name ?? MOCK_SESSION.provider });
+  activeSession = session;
+  return session;
+}
+
+/** Simulates linking an additional identity provider without changing the signed-in session. */
+export async function connectProvider(_identityId: string): Promise<void> {
+  await delay(undefined);
+}
+
+export interface SsoDiscovery {
+  found: boolean;
+  providerId: ProviderId | null;
+}
+
+/**
+ * Mocked SSO discovery. A recognized domain resolves to the matching provider;
+ * an unknown domain resolves `found:false`; the seeded `offline.example` domain
+ * rejects to exercise the network-failure notice.
+ */
+export async function discoverSso(email: string): Promise<SsoDiscovery> {
+  const domain = email.split('@')[1]?.toLowerCase() ?? '';
+  if (domain === 'offline.example') {
+    return fail(new Error('Network unavailable'));
+  }
+  const provider = PROVIDERS.find(candidate => candidate.ssoDomain === domain);
+  return delay(provider ? { found: true, providerId: provider.id } : { found: false, providerId: null });
+}
+
+export async function resetPassword(email: string): Promise<{ ok: true; destination: string }> {
+  if (!email) return fail(new Error('Enter your work email.'));
+  if (config.resetPasswordFailure) return fail(new Error('Reset request failed.'));
+  return delay({ ok: true as const, destination: 'https://example.com/reset' });
+}
+
+export async function changePassword(providerId: string): Promise<{ ok: true; destination: string }> {
+  if (!providerId) return fail(new Error('Select a provider.'));
+  if (config.changePasswordFailure) return fail(new Error('Change request failed.'));
+  return delay({ ok: true as const, destination: 'https://example.com/change' });
+}
+
+export async function getSession(): Promise<Session> {
+  if (config.getSessionFailure) {
+    return fail(new Error('Session unavailable'));
+  }
+  return delay(activeSession ?? MOCK_SESSION);
+}
+
+export async function getIdentities(): Promise<Identity[]> {
+  if (config.getIdentitiesFailure) {
+    return fail(new Error('Could not load identities'));
+  }
+  return delay(config.identitiesEmpty ? [] : [...IDENTITIES]);
+}
+
+export async function runRequest(
+  token: string,
+  endpoint: string = PROFILE_ENDPOINT
+): Promise<ApiResponse> {
+  if (token === EXPIRED_ACCESS_TOKEN) {
+    return delay(errorResponse('unauthorized'));
+  }
+  if (config.runRequestFailure) {
+    return delay(errorResponse(config.runRequestFailure));
+  }
+  return delay(successResponse(endpoint));
+}
+
+export async function refreshToken(): Promise<AccessToken> {
+  if (config.refreshTokenFailure) {
+    return fail(new Error('Refresh token expired. Sign in again.'));
+  }
+  return delay({
+    masked: 'demo_at_refreshed…b21c',
+    value: 'demo_at_refreshed_20261010_orlando_parish_b21c',
+    expiresAt: '10 Oct 2026 · 15:00:00 UTC',
+    scopes: 'profile.read · projects.read · api.read',
+  });
+}
