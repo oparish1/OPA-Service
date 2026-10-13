@@ -22,3 +22,21 @@ These are built in the frontend from design tokens only, not added to the Figma 
 - **Sign out:** navigates to Sign in and clears mock session state.
 - **Headers tab:** three rows (status, content-type, date) from mock data.
 - **Icons:** all Lucide React.
+
+## Round 3 decisions (approved)
+
+- **Organisation SSO row (ProviderRow):** AA/ProviderRow is a generic, props-driven component (icon, name, subtitle, badge tone and label, action label). All four rows are instances of it. The Microsoft, Okta and Google "Loaded" variants are presets; Organisation SSO is a fourth preset with a generic building-2 icon, subtitle "Organisation single sign-on", badge Tone=Neutral "Not connected", and a Connect button. No new Figma variant is needed.
+- **"JSON · Pretty" label (ResponseCard):** static, non-interactive text. No Pretty/Raw toggle.
+- **Select and Recovery select validation:** when submitted with no provider chosen, the field enters its Error state with the message "Choose an identity provider to continue." (Body/13, same Error styling as the email input).
+- **"Documentation" sidebar link:** AA/TextLink with href="#", no navigation.
+- **RequestPanel:** extract one shared RequestPanel component (HttpMethodBadge + endpoint URL field + TokenSelect + Run request button + View session link). Screen 6 uses it inline and AA/RecoveryResponse on Screen 7 renders the same component.
+
+## Standing rules for anything else not drawn
+These are approved defaults. Use them instead of adding an open question, and list each one used under "Assumptions" in the design brief:
+- Network or unexpected failure on any action: Notice tone=error with "Something went wrong. Try again." and a Retry button.
+- Mock latency: 400 to 1500 ms per request.
+- Keyboard: tab order follows visual order; Enter submits forms; Escape closes open listboxes and returns focus to the trigger.
+- Document titles: "<Screen name> · Your Identity".
+- Layout: desktop only (1280px and up); no mobile or tablet.
+- Any other undrawn state: use the nearest existing component variant and its tokens.
+EOF
