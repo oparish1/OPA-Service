@@ -96,7 +96,12 @@ export function registerSessionRoutes(
           userAgent: request.headers['user-agent'] ?? null,
         });
         return sessionMetadata(services, auth.sessionId, auth.userId);
-      } catch {
+      } catch (err) {
+        const e = err as { code?: string; error?: string; error_description?: string; message?: string };
+        request.log.warn(
+          { code: e.code, error: e.error, description: e.error_description ?? e.message },
+          'session refresh failed'
+        );
         audit.record({
           event: 'session.refresh.failed',
           outcome: 'failure',

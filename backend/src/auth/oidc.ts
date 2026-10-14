@@ -86,6 +86,18 @@ export class OidcService {
     client.enableNonRepudiationChecks(this.configuration);
   }
 
+  private scopeString(): string {
+    const API_SCOPES = ['profile.read', 'projects.read']; 
+    const apiScopePrefix = `${this.config.clientId}`;
+    return [
+      'openid',
+      'profile',
+      'email',
+      'offline_access',
+      ...API_SCOPES.map((s) => `${apiScopePrefix}/${s}`),
+    ].join(' ');
+  }
+
   private requiredConfiguration(): client.Configuration {
     if (!this.configuration) throw new OidcError('OIDC client not initialised', 'not_initialised');
     return this.configuration;
@@ -98,14 +110,7 @@ export class OidcService {
     const nonce = client.randomNonce();
     const codeVerifier = client.randomPKCECodeVerifier();
     const codeChallenge = await client.calculatePKCECodeChallenge(codeVerifier);
-    const scope = [
-      'openid',
-      'profile',
-      'email',
-      'offline_access',
-      'profile.read',
-      'projects.read',
-    ].join(' ');
+    const scope = this.scopeString();
     const url = client.buildAuthorizationUrl(configuration, {
       redirect_uri: `${this.config.publicBaseUrl}/auth/callback`,
       scope,
@@ -152,7 +157,9 @@ export class OidcService {
 
   async refresh(refreshToken: string): Promise<OidcTokens> {
     const configuration = this.requiredConfiguration();
-    const tokens = await client.refreshTokenGrant(configuration, refreshToken);
+    const tokens = await client.refreshTokenGrant(configuration, refreshToken, {
+      scope: this.scopeString(),
+    });
     const claims = tokens.claims();
     const expiresIn = tokens.expires_in ?? ASSUMED_ACCESS_TOKEN_LIFETIME_SECONDS;
     return {
