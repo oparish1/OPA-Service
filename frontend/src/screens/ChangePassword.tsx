@@ -7,36 +7,34 @@ import { Notice } from '../components/Notice';
 import { ProviderSelect } from '../components/ProviderSelect';
 import { TextLink } from '../components/TextLink';
 import { PublicLayout } from '../layouts/PublicLayout';
+import { useAsyncData } from '../hooks/useAsyncData';
 import { GENERIC_ERROR, PROVIDER_ERROR } from '../lib/copy';
-import { changePassword } from '../mocks/api';
-import { MOCK_SESSION, PROVIDERS } from '../mocks/data';
+import { changePassword, getSession } from '../api';
+import { ENABLED_PROVIDERS } from '../mocks/data';
 import { body, color, font, label, space } from '../styles/tokens';
 
-const PROVIDER_OPTIONS = PROVIDERS.map(provider => ({
+const PROVIDER_OPTIONS = ENABLED_PROVIDERS.map(provider => ({
   value: provider.id,
   label: provider.name,
 }));
 
-const DESTINATIONS: Record<string, string> = {
-  microsoft: 'microsoft.com/account/security',
-  okta: 'okta.com/settings/security',
-  google: 'myaccount.google.com',
-};
-
 /** Change password: managed-provider select with a mocked change request. */
 export function ChangePassword() {
   const { navigate } = useApp();
+  const { state: sessionState } = useAsyncData(getSession);
   const [provider, setProvider] = useState('');
   const [error, setError] = useState<string | undefined>(undefined);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
   const [failure, setFailure] = useState(false);
-  const account = MOCK_SESSION.account;
+  const [destination, setDestination] = useState('—');
+  const account = sessionState.status === 'ready' ? sessionState.data.account : null;
 
   async function submit(providerId: string) {
     setStatus('loading');
     setFailure(false);
     try {
-      await changePassword(providerId);
+      const result = await changePassword(providerId);
+      setDestination(result.destination);
       setStatus('success');
     } catch {
       setStatus('idle');
@@ -53,8 +51,6 @@ export function ChangePassword() {
     setError(undefined);
     void submit(provider);
   }
-
-  const destination = provider ? DESTINATIONS[provider] ?? 'provider website' : '—';
 
   return (
     <PublicLayout
@@ -99,10 +95,10 @@ export function ChangePassword() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[4] }}>
           <span style={{ ...label[12], fontFamily: font.body, color: color.text.secondary }}>ACCOUNT</span>
           <span style={{ ...body[15], fontFamily: font.body, color: color.text.primary }}>
-            {account.displayName} · {account.email}
+            {account ? `${account.displayName} · ${account.email}` : '—'}
           </span>
           <span style={{ ...body[13], fontFamily: font.body, color: color.text.secondary }}>
-            Available identity providers: Microsoft Entra ID, Okta, Google Workspace / Cloud Identity
+            Available identity provider: Microsoft Entra ID
           </span>
         </div>
 

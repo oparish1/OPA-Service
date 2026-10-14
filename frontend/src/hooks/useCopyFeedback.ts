@@ -17,6 +17,10 @@ export function useCopyFeedback(): { status: CopyStatus; copy: (text: string) =>
   );
 
   const copy = useCallback((text: string) => {
+    if (!text) {
+      setStatus('failed');
+      return;
+    }
     if (timer.current !== null) window.clearTimeout(timer.current);
     const clipboard = navigator.clipboard;
     if (!clipboard?.writeText) {

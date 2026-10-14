@@ -29,6 +29,16 @@ export const PROVIDERS: readonly ProviderConfig[] = [
 
 export type ProviderId = (typeof PROVIDERS)[number]['id'];
 
+/**
+ * Providers enabled in this release: Entra ID only. The deferred providers stay in
+ * the fixtures so the mock suite can keep exercising them, but no screen offers them.
+ */
+export const ENABLED_PROVIDER_IDS: readonly ProviderId[] = ['microsoft'];
+
+export const ENABLED_PROVIDERS = PROVIDERS.filter(provider =>
+  ENABLED_PROVIDER_IDS.some(id => id === provider.id)
+);
+
 export const IDENTITIES: readonly Identity[] = [
   {
     id: 'microsoft',
@@ -64,6 +74,10 @@ export const IDENTITIES: readonly Identity[] = [
   },
 ];
 
+export const ENABLED_IDENTITIES = IDENTITIES.filter(identity =>
+  ENABLED_PROVIDER_IDS.some(id => id === identity.id)
+);
+
 export const MOCK_SESSION: Session = {
   provider: 'Google Workspace / Cloud Identity',
   account: {
@@ -78,7 +92,7 @@ export const MOCK_SESSION: Session = {
     masked: 'demo_at_op…9b4e',
     value: 'demo_at_op_20261010_orlando_parish_9b4e',
     expiresAt: '10 Oct 2026 · 14:30:00 UTC',
-    scopes: 'profile.read · projects.read · api.read',
+    scopes: 'profile.read · projects.read',
   },
   refreshToken: {
     masked: 'demo_rt_agadv…7c2f',

@@ -33,31 +33,36 @@ describe('ProjectsAPI', () => {
     expect(await screen.findByText('Run the request to see the response')).toBeInTheDocument();
   });
 
-  it('runs the expired token request into the 401 token-recovery state', async () => {
+  it('runs a valid request straight to the projects success body', async () => {
+    const user = userEvent.setup();
+    renderProjects();
+    await runRequest(user);
+    expect(await screen.findByText('200 OK')).toBeInTheDocument();
+    expect(screen.getByText(/prj_01/)).toBeInTheDocument();
+  });
+
+  it('runs a genuine 401 into the token-recovery state and recovers on refresh', async () => {
+    configureMocks({ runRequestFailure: 'unauthorized' });
     const user = userEvent.setup();
     renderProjects();
     await runRequest(user);
     expect(await screen.findByText('401 Unauthorized')).toBeInTheDocument();
     expect(screen.getAllByText(/access token expired/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/your account is still connected/i)).toBeInTheDocument();
-  });
 
-  it('refreshes the token and shows the projects success body', async () => {
-    const user = userEvent.setup();
-    renderProjects();
-    await runRequest(user);
-    await screen.findByText('401 Unauthorized');
+    configureMocks({ runRequestFailure: null });
     await user.click(screen.getByRole('button', { name: /refresh token & retry/i }));
     expect(await screen.findByText('200 OK')).toBeInTheDocument();
     expect(screen.getByText(/prj_01/)).toBeInTheDocument();
   });
 
   it('shows the empty projects body', async () => {
-    configureMocks({ projectsEmpty: true });
+    configureMocks({ runRequestFailure: 'unauthorized', projectsEmpty: true });
     const user = userEvent.setup();
     renderProjects();
     await runRequest(user);
     await screen.findByText('401 Unauthorized');
+    configureMocks({ runRequestFailure: null });
     await user.click(screen.getByRole('button', { name: /refresh token & retry/i }));
     expect(await screen.findByText('Nothing to show yet')).toBeInTheDocument();
     expect(screen.getByText('200 OK')).toBeInTheDocument();
@@ -67,8 +72,6 @@ describe('ProjectsAPI', () => {
     const user = userEvent.setup();
     renderProjects();
     await runRequest(user);
-    await screen.findByText('401 Unauthorized');
-    await user.click(screen.getByRole('button', { name: /refresh token & retry/i }));
     await screen.findByText('200 OK');
     configureMocks({ runRequestFailure: 'server' });
     await user.click(screen.getByRole('button', { name: /run request/i }));
@@ -81,8 +84,6 @@ describe('ProjectsAPI', () => {
     const user = userEvent.setup();
     renderProjects();
     await runRequest(user);
-    await screen.findByText('401 Unauthorized');
-    await user.click(screen.getByRole('button', { name: /refresh token & retry/i }));
     await screen.findByText('200 OK');
     configureMocks({ runRequestFailure: 'timeout' });
     await user.click(screen.getByRole('button', { name: /run request/i }));
@@ -99,11 +100,12 @@ describe('ProjectsAPI', () => {
   });
 
   it('keeps the expired state when the refresh token has expired', async () => {
-    configureMocks({ refreshTokenFailure: true });
+    configureMocks({ runRequestFailure: 'unauthorized' });
     const user = userEvent.setup();
     renderProjects();
     await runRequest(user);
     await screen.findByText('401 Unauthorized');
+    configureMocks({ refreshTokenFailure: true });
     await user.click(screen.getByRole('button', { name: /refresh token & retry/i }));
     expect(await screen.findByText('Refresh token expired. Sign in again.')).toBeInTheDocument();
   });

@@ -10,7 +10,7 @@ import { TextLink } from '../components/TextLink';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { GENERIC_ERROR } from '../lib/copy';
 import { WorkspaceLayout } from '../layouts/WorkspaceLayout';
-import { getSession, refreshToken, runRequest } from '../mocks/api';
+import { getSession, refreshToken, runRequest } from '../api';
 import { PROFILE_ENDPOINT } from '../mocks/data';
 import type { ApiResponse } from '../mocks/types';
 import { body, color, font } from '../styles/tokens';

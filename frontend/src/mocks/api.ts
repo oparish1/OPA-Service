@@ -1,7 +1,7 @@
 import {
   EMPTY_PROJECTS_BODY,
+  ENABLED_IDENTITIES,
   EXPIRED_ACCESS_TOKEN,
-  IDENTITIES,
   MOCK_PROFILE_BODY,
   MOCK_PROJECTS_BODY,
   MOCK_SESSION,
@@ -9,7 +9,7 @@ import {
   PROVIDERS,
 } from './data';
 import type { ProviderId } from './data';
-import type { AccessToken, ApiErrorKind, ApiResponse, Identity, MockConfig, Session } from './types';
+import type { AccessToken, ApiErrorKind, ApiResponse, Identity, MockConfig, Session, TokenKind } from './types';
 
 const DEFAULT_CONFIG: MockConfig = {
   latencyMs: 1500,
@@ -17,6 +17,7 @@ const DEFAULT_CONFIG: MockConfig = {
   resetPasswordFailure: false,
   changePasswordFailure: false,
   refreshTokenFailure: false,
+  revealTokenFailure: false,
   getSessionFailure: false,
   getIdentitiesFailure: false,
   runRequestFailure: null,
@@ -26,8 +27,8 @@ const DEFAULT_CONFIG: MockConfig = {
 
 let config: MockConfig = { ...DEFAULT_CONFIG };
 
-/** The session established by the most recent sign-in; the mock is its only owner. */
-let activeSession: Session | null = null;
+/** The mock's current session; the default demo session until a sign-in or refresh replaces it. */
+let activeSession: Session = MOCK_SESSION;
 
 /** Test/demo seam for the mocked network. */
 export function configureMocks(partial: Partial<MockConfig>): void {
@@ -36,12 +37,12 @@ export function configureMocks(partial: Partial<MockConfig>): void {
 
 export function resetMocks(): void {
   config = { ...DEFAULT_CONFIG };
-  activeSession = null;
+  activeSession = MOCK_SESSION;
 }
 
 /** Clears the mocked session when the user signs out. */
-export function signOut(): void {
-  activeSession = null;
+export async function signOut(): Promise<void> {
+  activeSession = MOCK_SESSION;
 }
 
 function delay<T>(value: T, ms = config.latencyMs): Promise<T> {
@@ -150,11 +151,6 @@ export async function signIn(providerId: ProviderId): Promise<Session> {
   return session;
 }
 
-/** Simulates linking an additional identity provider without changing the signed-in session. */
-export async function connectProvider(_identityId: string): Promise<void> {
-  await delay(undefined);
-}
-
 export interface SsoDiscovery {
   found: boolean;
   providerId: ProviderId | null;
@@ -190,14 +186,30 @@ export async function getSession(): Promise<Session> {
   if (config.getSessionFailure) {
     return fail(new Error('Session unavailable'));
   }
-  return delay(activeSession ?? MOCK_SESSION);
+  return delay(activeSession);
 }
 
 export async function getIdentities(): Promise<Identity[]> {
   if (config.getIdentitiesFailure) {
     return fail(new Error('Could not load identities'));
   }
-  return delay(config.identitiesEmpty ? [] : [...IDENTITIES]);
+  return delay(config.identitiesEmpty ? [] : [...ENABLED_IDENTITIES]);
+}
+
+/**
+ * Mocked session bootstrap. The mock never restores a session across reloads,
+ * so the app keeps its configured initial screen.
+ */
+export async function bootstrapSession(): Promise<boolean> {
+  return false;
+}
+
+/** Mocked token reveal. Returns the value the mocked session already holds. */
+export async function revealToken(kind: TokenKind): Promise<string> {
+  if (config.revealTokenFailure) {
+    return fail(new Error('Token reveal failed'));
+  }
+  return delay(kind === 'access' ? activeSession.accessToken.value : activeSession.refreshToken.value);
 }
 
 export async function runRequest(
@@ -217,10 +229,12 @@ export async function refreshToken(): Promise<AccessToken> {
   if (config.refreshTokenFailure) {
     return fail(new Error('Refresh token expired. Sign in again.'));
   }
-  return delay({
+  const refreshed: AccessToken = {
     masked: 'demo_at_refreshed…b21c',
     value: 'demo_at_refreshed_20261010_orlando_parish_b21c',
     expiresAt: '10 Oct 2026 · 15:00:00 UTC',
-    scopes: 'profile.read · projects.read · api.read',
-  });
+    scopes: 'profile.read · projects.read',
+  };
+  activeSession = { ...activeSession, accessToken: refreshed };
+  return delay(refreshed);
 }

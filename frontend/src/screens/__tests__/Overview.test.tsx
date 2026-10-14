@@ -61,6 +61,22 @@ describe('Overview', () => {
     expect(screen.queryByText('Copied')).not.toBeInTheDocument();
   });
 
+  it('reports a failed copy instead of claiming Copied when the token is still masked', async () => {
+    const user = userEvent.setup();
+    renderOverview();
+    await user.click((await screen.findAllByRole('button', { name: 'Copy' }))[0]);
+    expect(await screen.findByText('Copy failed')).toBeInTheDocument();
+    expect(screen.queryByText('Copied')).not.toBeInTheDocument();
+  });
+
+  it('surfaces an error instead of silently masking a failed reveal', async () => {
+    configureMocks({ revealTokenFailure: true });
+    const user = userEvent.setup();
+    renderOverview();
+    await user.click((await screen.findAllByRole('button', { name: 'Reveal' }))[0]);
+    expect(await screen.findByText('Something went wrong. Try again.')).toBeInTheDocument();
+  });
+
   it('shows a retryable error when the session fails to load', async () => {
     configureMocks({ getSessionFailure: true });
     renderOverview();

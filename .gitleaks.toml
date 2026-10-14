@@ -1,0 +1,11 @@
+# Test fixtures use obvious placeholder credentials; keep them out of the scan
+# so a real secret is not hidden by noise.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Placeholder credentials in tests and demo fixtures"
+paths = [
+  '''backend/test/.*''',
+  '''frontend/src/mocks/.*''',
+]

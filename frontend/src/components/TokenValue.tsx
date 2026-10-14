@@ -37,7 +37,7 @@ export function TokenValue({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: space[12], padding: space[16], background: color.surface.code }}>
       <span style={{ ...label[11], fontFamily: font.body, color: color.text.secondary, letterSpacing: tracking.eyebrow }}>
-        {expired ? 'DEMO VALUE · EXPIRED' : 'DEMO VALUE · TRUNCATED'}
+        {expired ? 'TOKEN VALUE · EXPIRED' : revealed ? 'TOKEN VALUE' : 'TOKEN VALUE · TRUNCATED'}
       </span>
       <code
         style={{

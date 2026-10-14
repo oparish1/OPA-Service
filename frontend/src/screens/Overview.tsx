@@ -9,7 +9,7 @@ import { useAsyncData } from '../hooks/useAsyncData';
 import { GENERIC_ERROR } from '../lib/copy';
 import { useCopyFeedback } from '../hooks/useCopyFeedback';
 import { WorkspaceLayout } from '../layouts/WorkspaceLayout';
-import { getSession, refreshToken } from '../mocks/api';
+import { getSession, refreshToken, revealToken } from '../api';
 import type { Session } from '../mocks/types';
 import { body, code, color, font, label, radius, size, space } from '../styles/tokens';
 
@@ -20,7 +20,10 @@ export function Overview() {
   const [session, setSession] = useState<Session | null>(null);
   const [revealAccess, setRevealAccess] = useState(false);
   const [revealRefresh, setRevealRefresh] = useState(false);
+  const [revealedAccess, setRevealedAccess] = useState('');
+  const [revealedRefresh, setRevealedRefresh] = useState('');
   const [accessExpired, setAccessExpired] = useState(false);
+  const [revealError, setRevealError] = useState(false);
   const [refreshState, setRefreshState] = useState<'idle' | 'loading' | 'error'>('idle');
   const accessCopy = useCopyFeedback();
   const refreshCopy = useCopyFeedback();
@@ -29,10 +32,47 @@ export function Overview() {
     if (state.status === 'ready') setSession(state.data);
   }, [state]);
 
+  async function toggleAccessReveal() {
+    if (revealAccess) {
+      setRevealAccess(false);
+      setRevealedAccess('');
+      setRevealError(false);
+      return;
+    }
+    try {
+      setRevealedAccess(await revealToken('access'));
+      setRevealAccess(true);
+      setRevealError(false);
+    } catch {
+      setRevealedAccess('');
+      setRevealError(true);
+    }
+  }
+
+  async function toggleRefreshReveal() {
+    if (revealRefresh) {
+      setRevealRefresh(false);
+      setRevealedRefresh('');
+      setRevealError(false);
+      return;
+    }
+    try {
+      setRevealedRefresh(await revealToken('refresh'));
+      setRevealRefresh(true);
+      setRevealError(false);
+    } catch {
+      setRevealedRefresh('');
+      setRevealError(true);
+    }
+  }
+
   async function handleRefresh() {
     setRefreshState('loading');
     setRevealAccess(false);
     setRevealRefresh(false);
+    setRevealedAccess('');
+    setRevealedRefresh('');
+    setRevealError(false);
     try {
       const token = await refreshToken();
       setSession(current => (current ? { ...current, accessToken: token } : current));
@@ -132,6 +172,8 @@ export function Overview() {
         />
       ) : null}
 
+      {revealError ? <Notice tone="error" heading={GENERIC_ERROR} /> : null}
+
       <Notice tone="neutral" heading={`Signed in with ${data.provider}`}>
         Account automatically created on first sign-in.
       </Notice>
@@ -143,11 +185,11 @@ export function Overview() {
             badge={<TokenState state={accessExpired ? 'expired' : 'success'} label={accessExpired ? 'Expired' : 'Valid · 18 min left'} />}
             description="Bearer token used to authorise downstream API requests."
             masked={data.accessToken.masked}
-            value={data.accessToken.value}
+            value={revealedAccess}
             state={accessExpired ? 'expired' : revealAccess ? 'revealed' : 'masked'}
-            onToggleReveal={() => setRevealAccess(value => !value)}
+            onToggleReveal={() => void toggleAccessReveal()}
             copyStatus={accessCopy.status}
-            onCopy={() => accessCopy.copy(data.accessToken.value)}
+            onCopy={() => accessCopy.copy(revealedAccess)}
             details={[
               { label: 'EXPIRES AT', value: data.accessToken.expiresAt },
               { label: 'SCOPES', value: data.accessToken.scopes },
@@ -160,11 +202,11 @@ export function Overview() {
             badge={<TokenState state="success" label="Available" />}
             description="Renews your access token. Never sent to an API."
             masked={data.refreshToken.masked}
-            value={data.refreshToken.value}
+            value={revealedRefresh}
             state={revealRefresh ? 'revealed' : 'masked'}
-            onToggleReveal={() => setRevealRefresh(value => !value)}
+            onToggleReveal={() => void toggleRefreshReveal()}
             copyStatus={refreshCopy.status}
-            onCopy={() => refreshCopy.copy(data.refreshToken.value)}
+            onCopy={() => refreshCopy.copy(revealedRefresh)}
             details={[
               { label: 'EXPIRES AT', value: data.refreshToken.expiresAt },
               { label: 'GRANT', value: data.refreshToken.grant },
@@ -188,7 +230,7 @@ export function Overview() {
         </h2>
         <dl style={{ display: 'flex', flexDirection: 'column', gap: space[8], margin: 0 }}>
           {[
-            { label: 'ISSUER · ILLUSTRATIVE', value: data.issuer },
+            { label: 'ISSUER', value: data.issuer },
             { label: 'ISSUED AT', value: data.issuedAt },
             { label: 'SESSION SNAPSHOT', value: data.snapshot },
           ].map(row => (

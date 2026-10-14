@@ -10,8 +10,8 @@ import { SkeletonBlock } from '../components/Skeleton';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { GENERIC_ERROR } from '../lib/copy';
 import { WorkspaceLayout } from '../layouts/WorkspaceLayout';
-import { getSession, refreshToken, runRequest } from '../mocks/api';
-import { EXPIRED_ACCESS_TOKEN, MOCK_SESSION, PROJECTS_ENDPOINT } from '../mocks/data';
+import { getSession, refreshToken, runRequest } from '../api';
+import { PROJECTS_ENDPOINT } from '../mocks/data';
 import type { ApiResponse } from '../mocks/types';
 import { body, color, font } from '../styles/tokens';
 
@@ -73,7 +73,7 @@ export function ProjectsAPI() {
 
   const session = state.data;
   const response = run?.response ?? null;
-  const token = run?.token ?? EXPIRED_ACCESS_TOKEN;
+  const token = run?.token ?? session.accessToken.value;
   const masked = run?.masked ?? session.accessToken.masked;
   const expiresAt = run?.expiresAt ?? session.accessToken.expiresAt;
   const expired = response?.status === 401;
@@ -118,7 +118,7 @@ export function ProjectsAPI() {
       statusBadge={expired ? <Badge tone="error">Access token expired</Badge> : undefined}
     >
       <p style={{ margin: 0, ...body[15], fontFamily: font.body, color: color.text.secondary }}>
-        List workspace projects. This demo request shows an expired access token and how to recover.
+        List workspace projects. An expired access token shows the recovery flow.
       </p>
 
       <RequestPanel
@@ -136,7 +136,7 @@ export function ProjectsAPI() {
       {expired ? (
         <RecoveryResponse
           expiredAt={expiresAt}
-          refreshValidUntil={MOCK_SESSION.refreshToken.expiresAt}
+          refreshValidUntil={session.refreshToken.expiresAt}
           refreshing={refreshing}
           error={refreshError}
           onRefresh={handleRefresh}

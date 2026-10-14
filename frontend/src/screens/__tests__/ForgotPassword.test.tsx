@@ -26,7 +26,7 @@ describe('ForgotPassword', () => {
   it('renders the recovery select and provider chips', () => {
     renderForgot();
     expect(screen.getByRole('combobox')).toBeInTheDocument();
-    expect(screen.getByText('Okta')).toBeInTheDocument();
+    expect(screen.getAllByText('Microsoft Entra ID').length).toBeGreaterThan(0);
   });
 
   it('opens the recovery dropdown into its Open state', async () => {
@@ -59,10 +59,11 @@ describe('ForgotPassword', () => {
     const user = userEvent.setup();
     renderForgot();
     await user.click(screen.getByRole('combobox'));
-    await user.click(screen.getByRole('button', { name: 'Okta' }));
+    await user.click(screen.getByRole('button', { name: 'Microsoft Entra ID' }));
     await user.type(screen.getByLabelText(/work email/i), 'orlando@agentic-advantage.example');
     await user.click(screen.getByRole('button', { name: /reset password/i }));
     expect(await screen.findByText(/password reset request sent/i)).toBeInTheDocument();
+    expect(await screen.findByText('https://example.com/reset')).toBeInTheDocument();
   });
 
   it('shows a retryable error notice when the reset request fails', async () => {
@@ -70,7 +71,7 @@ describe('ForgotPassword', () => {
     const user = userEvent.setup();
     renderForgot();
     await user.click(screen.getByRole('combobox'));
-    await user.click(screen.getByRole('button', { name: 'Okta' }));
+    await user.click(screen.getByRole('button', { name: 'Microsoft Entra ID' }));
     await user.type(screen.getByLabelText(/work email/i), 'orlando@agentic-advantage.example');
     await user.click(screen.getByRole('button', { name: /reset password/i }));
     expect(await screen.findByText('Something went wrong. Try again.')).toBeInTheDocument();

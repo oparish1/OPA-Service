@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useApp } from '../app/app-context';
 import { Avatar } from '../components/Avatar';
 import { Badge } from '../components/Badge';
@@ -11,7 +10,7 @@ import { TextLink } from '../components/TextLink';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { GENERIC_ERROR } from '../lib/copy';
 import { WorkspaceLayout } from '../layouts/WorkspaceLayout';
-import { connectProvider, getIdentities, getSession } from '../mocks/api';
+import { getIdentities, getSession } from '../api';
 import type { Identity } from '../mocks/types';
 import { body, color, font, heading, label, radius, size, space, weight } from '../styles/tokens';
 
@@ -43,28 +42,9 @@ export function AccountIdentity() {
     const [session, identities] = await Promise.all([getSession(), getIdentities()]);
     return { session, identities };
   });
-  const [busyId, setBusyId] = useState<string | null>(null);
 
-  async function handleAction(identity: Identity) {
-    if (identity.status !== 'not-connected') {
-      window.open(identity.manageUrl, '_blank', 'noopener,noreferrer');
-      return;
-    }
-    setBusyId(identity.id);
-    try {
-      await connectProvider(identity.id);
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function handleEmptyConnect() {
-    setBusyId('empty');
-    try {
-      await connectProvider('sso');
-    } finally {
-      setBusyId(null);
-    }
+  function handleAction(identity: Identity) {
+    window.open(identity.manageUrl, '_blank', 'noopener,noreferrer');
   }
 
   if (state.status === 'loading') {
@@ -124,6 +104,7 @@ export function AccountIdentity() {
       </p>
 
       <div style={{ display: 'flex', gap: space[24], alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        {account ? (
         <section
           style={{
             width: size.accountCardWidth,
@@ -170,14 +151,17 @@ export function AccountIdentity() {
             Profile details come from your identity provider. Ask your IT team to update them.
           </span>
         </section>
+        ) : (
+          <Notice tone="error" heading={GENERIC_ERROR} />
+        )}
 
         <section style={{ flex: 1, minWidth: size.identityListMinWidth }}>
           <h2 style={{ margin: `0 0 ${space[8]}px`, ...label[16], fontFamily: font.body, color: color.text.primary }}>
             Identity providers
           </h2>
           <p style={{ margin: `0 0 ${space[16]}px`, ...body[14], fontFamily: font.body, color: color.text.secondary }}>
-            Two providers are linked to this demo account. The primary provider issued your current session.
-            Additional providers can be connected.
+            Your organisation identity is linked to this demo account. The primary provider issued your
+            current session.
           </p>
           {identities.length === 0 ? (
             <div
@@ -194,20 +178,12 @@ export function AccountIdentity() {
               <span style={{ ...body[15], fontFamily: font.body, color: color.text.secondary }}>
                 No identity providers connected
               </span>
-              <Button
-                variant="secondary"
-                state={busyId === 'empty' ? 'in-progress' : 'default'}
-                onClick={handleEmptyConnect}
-              >
-                Connect
-              </Button>
             </div>
           ) : (
             identities.map(identity => (
               <ProviderRow
                 key={identity.id}
                 {...rowFor(identity)}
-                busy={busyId === identity.id}
                 onAction={() => handleAction(identity)}
               />
             ))

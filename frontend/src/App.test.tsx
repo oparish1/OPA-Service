@@ -14,12 +14,12 @@ afterEach(() => {
 });
 
 describe('App navigation', () => {
-  it('signs in with a provider and opens the Profile and Projects APIs', async () => {
+  it('signs in with Entra and opens the Profile and Projects APIs', async () => {
     const user = userEvent.setup();
     render(<App />);
     await screen.findByRole('heading', { name: /welcome to your workspace/i });
 
-    await user.click(screen.getByRole('button', { name: /google workspace/i }));
+    await user.click(screen.getByRole('button', { name: /microsoft entra id/i }));
     await screen.findByRole('heading', { name: /^welcome\.$/i });
 
     await user.click(await screen.findByRole('button', { name: /open profile api/i }));
@@ -35,7 +35,7 @@ describe('App navigation', () => {
     const user = userEvent.setup();
     render(<App />);
     await screen.findByRole('heading', { name: /welcome to your workspace/i });
-    await user.click(screen.getByRole('button', { name: /google workspace/i }));
+    await user.click(screen.getByRole('button', { name: /microsoft entra id/i }));
     await screen.findByRole('heading', { name: /^welcome\.$/i });
 
     await user.click(screen.getByRole('button', { name: /account & identity/i }));
@@ -45,39 +45,15 @@ describe('App navigation', () => {
     await screen.findByRole('heading', { name: /welcome to your workspace/i });
   });
 
-  it('signs in with the provider discovered for the SSO domain', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    await screen.findByRole('heading', { name: /welcome to your workspace/i });
-
-    await user.type(screen.getByLabelText('Work email'), 'orlando.parish@agentic-advantage.example');
-    await user.click(screen.getByRole('button', { name: /continue with sso/i }));
-    await screen.findByRole('heading', { name: /^welcome\.$/i });
-
-    expect(await screen.findByText('Signed in with Microsoft Entra ID')).toBeInTheDocument();
-  });
-
   it('names the current screen in the document title', async () => {
     const user = userEvent.setup();
     render(<App />);
     expect(document.title).toBe('Sign in · Your Identity');
     await screen.findByRole('heading', { name: /welcome to your workspace/i });
 
-    await user.click(screen.getByRole('button', { name: /google workspace/i }));
+    await user.click(screen.getByRole('button', { name: /microsoft entra id/i }));
     await screen.findByRole('heading', { name: /^welcome\.$/i });
     expect(document.title).toBe('Overview · Your Identity');
-  });
-
-  it('keeps the chosen provider on the overview session', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    await screen.findByRole('heading', { name: /welcome to your workspace/i });
-
-    await user.click(screen.getByRole('button', { name: /okta/i }));
-    await screen.findByRole('heading', { name: /^welcome\.$/i });
-
-    expect(await screen.findByText('Signed in with Okta')).toBeInTheDocument();
-    expect(screen.queryByText(/signed in with google workspace/i)).not.toBeInTheDocument();
   });
 
   it('navigates from Change password to Forgot password', async () => {

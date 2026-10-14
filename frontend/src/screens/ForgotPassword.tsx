@@ -10,21 +10,14 @@ import { RecoverySelect } from '../components/RecoverySelect';
 import { TextLink } from '../components/TextLink';
 import { PublicLayout } from '../layouts/PublicLayout';
 import { GENERIC_ERROR, PROVIDER_ERROR } from '../lib/copy';
-import { resetPassword } from '../mocks/api';
-import { IDENTITIES } from '../mocks/data';
+import { resetPassword } from '../api';
+import { ENABLED_IDENTITIES } from '../mocks/data';
 import { body, color, font, label, space } from '../styles/tokens';
 
-const PROVIDER_OPTIONS = IDENTITIES.map(identity => ({
+const PROVIDER_OPTIONS = ENABLED_IDENTITIES.map(identity => ({
   value: identity.id,
   label: identity.name,
 }));
-
-const DESTINATIONS: Record<string, string> = {
-  microsoft: 'microsoft.com/account/security',
-  okta: 'okta.com/settings/security',
-  google: 'accounts.google.com/signin/recovery',
-  sso: 'Contact your IT team',
-};
 
 /** Forgot password: recovery select, provider chips, reset submission. */
 export function ForgotPassword() {
@@ -34,12 +27,14 @@ export function ForgotPassword() {
   const [error, setError] = useState<string | undefined>(undefined);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
   const [failure, setFailure] = useState(false);
+  const [destination, setDestination] = useState('—');
 
   async function submit() {
     setStatus('loading');
     setFailure(false);
     try {
-      await resetPassword(workEmail);
+      const result = await resetPassword(workEmail);
+      setDestination(result.destination);
       setStatus('success');
     } catch {
       setStatus('idle');
@@ -56,8 +51,6 @@ export function ForgotPassword() {
     setError(undefined);
     void submit();
   }
-
-  const destination = selectedProvider ? DESTINATIONS[selectedProvider] ?? 'provider website' : '—';
 
   return (
     <PublicLayout
@@ -124,8 +117,8 @@ export function ForgotPassword() {
           </Notice>
         ) : null}
         <Notice tone="neutral" heading="You’re leaving this workspace">
-          Google Workspace / Cloud Identity will verify your identity and guide you through its recovery
-          options. Your organisation’s policy applies.
+          Microsoft Entra ID will verify your identity and guide you through its recovery options. Your
+          organisation’s policy applies.
         </Notice>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[4] }}>

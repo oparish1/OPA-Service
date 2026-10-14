@@ -4,7 +4,9 @@ import type { Screen } from '../mocks/types';
 export interface AppContextValue {
   screen: Screen;
   navigate: (screen: Screen) => void;
-  signOut: () => void;
+  signOut: () => Promise<void>;
+  signOutError: boolean;
+  dismissSignOutError: () => void;
 }
 
 export const AppContext = createContext<AppContextValue | null>(null);

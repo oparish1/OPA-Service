@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AppProvider } from '../../app/AppProvider';
@@ -23,10 +23,17 @@ afterEach(() => {
 });
 
 describe('ChangePassword', () => {
-  it('shows the account detail and managed-by notice', () => {
+  it('shows the account detail and managed-by notice', async () => {
     renderChange();
-    expect(screen.getByText(/Orlando Parish/)).toBeInTheDocument();
+    expect(await screen.findByText(/Orlando Parish/)).toBeInTheDocument();
     expect(screen.getByText('Managed by your identity provider')).toBeInTheDocument();
+  });
+
+  it('does not fall back to the fixture account when the session cannot be loaded', async () => {
+    configureMocks({ getSessionFailure: true });
+    renderChange();
+    expect(await screen.findByText('Managed by your identity provider')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText(/Orlando Parish/)).not.toBeInTheDocument());
   });
 
   it('validates that an identity provider is chosen', async () => {
@@ -40,9 +47,10 @@ describe('ChangePassword', () => {
     const user = userEvent.setup();
     renderChange();
     await user.click(screen.getByRole('combobox'));
-    await user.click(screen.getByRole('button', { name: 'Okta' }));
+    await user.click(screen.getByRole('button', { name: 'Microsoft Entra ID' }));
     await user.click(screen.getByRole('button', { name: /change password/i }));
     expect(await screen.findByText(/provider destination opened/i)).toBeInTheDocument();
+    expect(await screen.findByText('https://example.com/change')).toBeInTheDocument();
   });
 
   it('shows a retryable error notice when the change request fails', async () => {
@@ -50,7 +58,7 @@ describe('ChangePassword', () => {
     const user = userEvent.setup();
     renderChange();
     await user.click(screen.getByRole('combobox'));
-    await user.click(screen.getByRole('button', { name: 'Okta' }));
+    await user.click(screen.getByRole('button', { name: 'Microsoft Entra ID' }));
     await user.click(screen.getByRole('button', { name: /change password/i }));
     expect(await screen.findByText('Something went wrong. Try again.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();

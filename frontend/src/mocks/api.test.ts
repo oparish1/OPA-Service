@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+  bootstrapSession,
   configureMocks,
   discoverSso,
   getIdentities,
   getSession,
   refreshToken,
   resetMocks,
+  revealToken,
   runRequest,
   signIn,
 } from './api';
@@ -116,12 +118,28 @@ describe('refreshToken', () => {
 });
 
 describe('getIdentities', () => {
-  it('returns the four demo providers', async () => {
-    await expect(getIdentities()).resolves.toHaveLength(4);
+  it('returns only the enabled provider', async () => {
+    await expect(getIdentities()).resolves.toEqual([
+      expect.objectContaining({ id: 'microsoft', name: 'Microsoft Entra ID' }),
+    ]);
   });
 
   it('returns an empty list when configured', async () => {
     configureMocks({ identitiesEmpty: true });
     await expect(getIdentities()).resolves.toEqual([]);
+  });
+});
+
+describe('revealToken', () => {
+  it('returns the demo access and refresh values', async () => {
+    await expect(revealToken('access')).resolves.toBe('demo_at_op_20261010_orlando_parish_9b4e');
+    await expect(revealToken('refresh')).resolves.toBe('demo_rt_agadv_20261011_orlando_parish_7c2f');
+  });
+});
+
+describe('bootstrapSession', () => {
+  it('never restores a mock session', async () => {
+    await signIn('microsoft');
+    await expect(bootstrapSession()).resolves.toBe(false);
   });
 });
