@@ -1,4 +1,5 @@
 import { useApp } from '../app/app-context';
+import type { RunnerAuth } from '../types';
 import { code, color, font, label, radius, space } from '../styles/tokens';
 import { Button } from './Button';
 import { EndpointURLField } from './EndpointURLField';
@@ -9,11 +10,13 @@ import type { TokenOption } from './TokenSelect';
 
 interface RequestPanelProps {
   method: string;
-  endpoint: string;
+  url: string;
+  onUrlChange: (value: string) => void;
+  urlError?: string;
   tokenLabel: string;
-  tokenOptions: readonly TokenOption[];
-  tokenValue: string;
-  onTokenChange: (value: string) => void;
+  tokenOptions: readonly TokenOption<RunnerAuth>[];
+  tokenValue: RunnerAuth;
+  onTokenChange: (value: RunnerAuth) => void;
   tokenExpired?: boolean;
   running: boolean;
   onRun: () => void;
@@ -21,11 +24,13 @@ interface RequestPanelProps {
 
 /**
  * Local RequestPanel — shared by the Profile and Projects API screens:
- * HttpMethodBadge + endpoint URL + TokenSelect + Run request + View session.
+ * HttpMethodBadge + editable URL + TokenSelect + Run request + View session.
  */
 export function RequestPanel({
   method,
-  endpoint,
+  url,
+  onUrlChange,
+  urlError,
   tokenLabel,
   tokenOptions,
   tokenValue,
@@ -55,7 +60,12 @@ export function RequestPanel({
       <div style={{ display: 'flex', alignItems: 'center', gap: space[12] }}>
         <HttpMethodBadge method={method} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <EndpointURLField value={endpoint} />
+          <EndpointURLField
+            value={url}
+            onChange={onUrlChange}
+            onEnter={onRun}
+            error={urlError}
+          />
         </div>
         <Button state={running ? 'in-progress' : 'default'} onClick={onRun}>
           Run request

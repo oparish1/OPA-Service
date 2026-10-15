@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useApp } from '../app/app-context';
 import { Button } from '../components/Button';
 import { Notice } from '../components/Notice';
@@ -8,24 +8,27 @@ import { ResponseCard } from '../components/ResponseCard';
 import { SkeletonBlock } from '../components/Skeleton';
 import { TextLink } from '../components/TextLink';
 import { useAsyncData } from '../hooks/useAsyncData';
-import { GENERIC_ERROR } from '../lib/copy';
+import { BLOCKED_HOST, GENERIC_ERROR } from '../lib/copy';
+import { appUrl, PROFILE_PATH, runnerAuthOptions, validateRunnerUrl } from '../lib/runner-url';
 import { WorkspaceLayout } from '../layouts/WorkspaceLayout';
 import { getSession, refreshToken, runRequest } from '../api';
-import { PROFILE_ENDPOINT } from '../mocks/data';
-import type { ApiResponse } from '../mocks/types';
+import type { ApiResponse, RunnerAuth } from '../types';
 import { body, color, font } from '../styles/tokens';
 
 /** Profile API — idle shell, successful response, errors and 401 recovery. */
 export function ProfileAPI() {
   const { navigate, signOut } = useApp();
   const { state, reload } = useAsyncData(getSession);
+  const [url, setUrl] = useState(() => appUrl(PROFILE_PATH));
+  const [auth, setAuth] = useState<RunnerAuth>('session');
+  const [urlError, setUrlError] = useState<string | null>(null);
   const [response, setResponse] = useState<ApiResponse | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [masked, setMasked] = useState('');
-  const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [accessMeta, setAccessMeta] = useState<{ masked: string; expiresAt: string } | null>(null);
+  const [lastRun, setLastRun] = useState<{ url: string; auth: RunnerAuth } | null>(null);
+  const runSeq = useRef(0);
 
   if (state.status === 'loading') {
     return (
@@ -60,34 +63,44 @@ export function ProfileAPI() {
   }
 
   const session = state.data;
-  const activeToken = token ?? session.accessToken.value;
-  const activeMasked = masked || session.accessToken.masked;
-  const activeExpiresAt = expiresAt ?? session.accessToken.expiresAt;
-  const expired = response?.status === 401;
+  const masked = accessMeta?.masked ?? session.accessToken.masked;
+  const expiresAt = accessMeta?.expiresAt ?? session.accessToken.expiresAt;
+  const sessionExpired = response?.status === 401 && lastRun?.auth === 'session';
   const failed =
     response !== null && response.status !== 401 && (response.status >= 400 || response.status === 0);
 
   async function handleRun() {
+    const error = validateRunnerUrl(url);
+    setUrlError(error);
+    if (error) return;
+    const runId = ++runSeq.current;
+    const request = { url, auth };
     setRunning(true);
+    setResponse(null);
     try {
-      const result = await runRequest(activeToken, PROFILE_ENDPOINT);
+      const result = await runRequest(request.auth, request.url);
+      if (runSeq.current !== runId) return;
+      setLastRun(request);
       setResponse(result);
     } finally {
-      setRunning(false);
+      if (runSeq.current === runId) setRunning(false);
     }
   }
 
   async function handleRefresh() {
+    const request = lastRun;
+    if (!request) return;
     setRefreshError(null);
     setRefreshing(true);
+    const runId = ++runSeq.current;
     try {
       const newToken = await refreshToken();
-      setToken(newToken.value);
-      setMasked(newToken.masked);
-      setExpiresAt(newToken.expiresAt);
-      const result = await runRequest(newToken.value, PROFILE_ENDPOINT);
+      setAccessMeta({ masked: newToken.masked, expiresAt: newToken.expiresAt });
+      const result = await runRequest(request.auth, request.url);
+      if (runSeq.current !== runId) return;
       setResponse(result);
     } catch {
+      if (runSeq.current !== runId) return;
       setRefreshError('Refresh token expired. Sign in again.');
     } finally {
       setRefreshing(false);
@@ -106,18 +119,23 @@ export function ProfileAPI() {
 
       <RequestPanel
         method="GET"
-        endpoint={PROFILE_ENDPOINT}
-        tokenLabel={`Access token · valid until ${activeExpiresAt}`}
-        tokenOptions={[{ value: activeToken, label: `Bearer · ${activeMasked}` }]}
-        tokenValue={activeToken}
-        onTokenChange={setToken}
+        url={url}
+        onUrlChange={next => {
+          setUrl(next);
+          setUrlError(null);
+        }}
+        urlError={urlError ?? undefined}
+        tokenLabel={`Access token · valid until ${expiresAt}`}
+        tokenOptions={runnerAuthOptions(masked)}
+        tokenValue={auth}
+        onTokenChange={setAuth}
         running={running}
         onRun={handleRun}
       />
 
-      {expired ? (
+      {sessionExpired ? (
         <RecoveryResponse
-          expiredAt={activeExpiresAt}
+          expiredAt={expiresAt}
           refreshValidUntil={session.refreshToken.expiresAt}
           refreshing={refreshing}
           error={refreshError}
@@ -129,7 +147,7 @@ export function ProfileAPI() {
       {failed ? (
         <Notice
           tone="error"
-          heading={GENERIC_ERROR}
+          heading={response?.errorCode === 'blocked_host' ? BLOCKED_HOST : GENERIC_ERROR}
           action={
             <Button variant="secondary" onClick={handleRun}>
               Retry
@@ -138,7 +156,7 @@ export function ProfileAPI() {
         />
       ) : null}
 
-      <ResponseCard response={response} />
+      <ResponseCard response={response} loading={running} />
 
       {response?.status === 200 ? (
         <Notice tone="neutral" heading="Request authorised">
@@ -146,11 +164,6 @@ export function ProfileAPI() {
         </Notice>
       ) : null}
       <TextLink onClick={() => navigate('projects-api')}>Try Projects API</TextLink>
-
-      <hr style={{ margin: 0, border: 'none', borderTop: `1px solid ${color.border.subtle}` }} />
-      <span style={{ ...body[12], fontFamily: font.body, color: color.text.secondary }}>
-        Demo response · No live request was made. Tokens, identity details and endpoints are illustrative.
-      </span>
     </WorkspaceLayout>
   );
 }

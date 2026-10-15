@@ -3,30 +3,30 @@ import { useState } from 'react';
 import { useListbox } from '../hooks/useListbox';
 import { code, color, font, label as labelToken, radius, size, space } from '../styles/tokens';
 
-export interface TokenOption {
-  value: string;
+export interface TokenOption<T extends string = string> {
+  value: T;
   label: string;
 }
 
-interface TokenSelectProps {
+interface TokenSelectProps<T extends string> {
   label: string;
-  value: string;
-  options: readonly TokenOption[];
-  onChange: (value: string) => void;
+  value: T;
+  options: readonly TokenOption<T>[];
+  onChange: (value: T) => void;
   expired?: boolean;
 }
 
 /**
- * AA/TokenSelect — Bearer-token selector used by the shared RequestPanel.
- * Closed shows the selected token; Open lists the session tokens.
+ * AA/TokenSelect — Authorization selector used by the shared RequestPanel.
+ * Closed shows the selected option; Open lists every option.
  */
-export function TokenSelect({
+export function TokenSelect<T extends string>({
   label,
   value,
   options,
   onChange,
   expired = false,
-}: TokenSelectProps) {
+}: TokenSelectProps<T>) {
   const [open, setOpen] = useState(false);
   const selected = options.find(option => option.value === value);
   const { wrapperRef, triggerRef } = useListbox(open, () => setOpen(false));

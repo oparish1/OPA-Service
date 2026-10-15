@@ -85,29 +85,165 @@ describe('real API client', () => {
     expect(init.body).toBe(JSON.stringify({ kind: 'access' }));
   });
 
-  it('sends a bearer token only when one is held and maps the response', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(fakeResponse({ body: { projects: [] } }));
+  it('posts the relay request with the CSRF header and maps the success envelope', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(fakeResponse({ body: RAW_SESSION }))
+      .mockResolvedValueOnce(
+        fakeResponse({
+          body: {
+            status: 200,
+            statusText: 'OK',
+            headers: ['content-type: application/json'],
+            contentType: 'application/json',
+            body: '{"projects":[]}',
+            truncated: false,
+            size: 14,
+            durationMs: 55,
+            receivedAt: '2026-10-15T04:29:40.000Z',
+          },
+        })
+      );
     vi.stubGlobal('fetch', fetchMock);
 
-    const response = await runRequest('held-token', 'https://api.agadv.example/v1/projects');
+    await getSession();
+    const response = await runRequest('session', 'http://localhost:3000/v1/projects');
 
-    expect(fetchMock).toHaveBeenCalledWith('/v1/projects', {
-      credentials: 'same-origin',
-      headers: { Authorization: 'Bearer held-token' },
-    });
+    const [url, init] = fetchMock.mock.calls[1];
+    expect(url).toBe('/api/request-runner');
+    expect(init.method).toBe('POST');
+    expect(init.credentials).toBe('same-origin');
+    expect(init.headers['x-csrf-token']).toBe('csrf-token-1');
+    expect(init.headers.Authorization).toBeUndefined();
+    expect(init.body).toBe(
+      JSON.stringify({ url: 'http://localhost:3000/v1/projects', auth: 'session' })
+    );
     expect(response.status).toBe(200);
-    expect(response.timestamp).toMatch(/^\d{2} [A-Z][a-z]{2} \d{4} · \d{2}:\d{2}:\d{2} UTC$/);
+    expect(response.statusLabel).toBe('200 OK');
+    expect(response.body).toEqual({ projects: [] });
+    expect(response.bodyKind).toBe('json');
+    expect(response.duration).toBe('55 ms');
+    expect(response.size).toBe('14 B');
+    expect(response.timestamp).toBe('15 Oct 2026 · 04:29:40 UTC');
   });
 
-  it('falls back to the session cookie when no bearer token is held', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(fakeResponse({ body: {} }));
+  it('labels a JSON media type whose body does not parse as text', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(fakeResponse({ body: RAW_SESSION }))
+      .mockResolvedValueOnce(
+        fakeResponse({
+          body: {
+            status: 200,
+            statusText: 'OK',
+            headers: ['content-type: application/json'],
+            contentType: 'application/json',
+            body: 'not json',
+            truncated: false,
+            size: 8,
+            durationMs: 12,
+            receivedAt: '2026-10-15T04:29:40.000Z',
+          },
+        })
+      );
     vi.stubGlobal('fetch', fetchMock);
 
-    await runRequest('', 'https://api.agadv.example/v1/me');
+    await getSession();
+    const response = await runRequest('session', 'http://localhost:3000/v1/me');
 
-    expect(fetchMock).toHaveBeenCalledWith('/v1/me', {
-      credentials: 'same-origin',
-      headers: {},
-    });
+    expect(response.bodyKind).toBe('text');
+    expect(response.body).toBe('not json');
+  });
+
+  it('shows the upstream 401 without a relay error', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(fakeResponse({ body: RAW_SESSION }))
+      .mockResolvedValueOnce(
+        fakeResponse({
+          body: {
+            status: 401,
+            statusText: 'Unauthorized',
+            headers: [],
+            contentType: 'application/json',
+            body: '{"error":"invalid_token"}',
+            truncated: false,
+            size: 26,
+            durationMs: 84,
+            receivedAt: '2026-10-15T04:30:00.000Z',
+          },
+        })
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await getSession();
+    const response = await runRequest('valid-token-123', 'http://localhost:3000/v1/me');
+
+    expect(response.status).toBe(401);
+    expect(response.statusLabel).toBe('401 Unauthorized');
+    expect(response.errorCode).toBeUndefined();
+  });
+
+  it('maps a blocked host to a no-request failure with dashes', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(fakeResponse({ body: RAW_SESSION }))
+      .mockResolvedValueOnce(
+        fakeResponse({
+          status: 400,
+          statusText: 'Bad Request',
+          body: { error: 'blocked_host', receivedAt: '2026-10-15T04:31:00.000Z' },
+        })
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await getSession();
+    const response = await runRequest('session', 'http://elsewhere.example/v1/me');
+
+    expect(response.status).toBe(0);
+    expect(response.statusLabel).toBe('Blocked host');
+    expect(response.duration).toBe('—');
+    expect(response.size).toBe('—');
+    expect(response.timestamp).toBe('—');
+    expect(response.errorCode).toBe('blocked_host');
+  });
+
+  it('maps a timeout to a network-error response with the elapsed time', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(fakeResponse({ body: RAW_SESSION }))
+      .mockResolvedValueOnce(
+        fakeResponse({
+          status: 504,
+          statusText: 'Gateway Timeout',
+          body: { error: 'request_timeout', durationMs: 10000, receivedAt: '2026-10-15T04:32:00.000Z' },
+        })
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await getSession();
+    const response = await runRequest('session', 'http://localhost:3000/v1/me');
+
+    expect(response.status).toBe(0);
+    expect(response.statusLabel).toBe('Network error');
+    expect(response.duration).toBe('10.0 s');
+    expect(response.size).toBe('—');
+    expect(response.timestamp).toBe('15 Oct 2026 · 04:32:00 UTC');
+    expect(response.body).toEqual({ error: 'request_timeout' });
+  });
+
+  it('maps a dropped connection to request_failed', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(fakeResponse({ body: RAW_SESSION }))
+      .mockRejectedValueOnce(new TypeError('fetch failed'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await getSession();
+    const response = await runRequest('session', 'http://localhost:3000/v1/me');
+
+    expect(response.status).toBe(0);
+    expect(response.statusLabel).toBe('Network error');
+    expect(response.body).toEqual({ error: 'request_failed' });
   });
 });

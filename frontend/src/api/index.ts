@@ -2,7 +2,7 @@ import type { ProviderId } from '../mocks/data';
 import type { SsoDiscovery } from '../mocks/api';
 import * as mockApi from '../mocks/api';
 import * as realApi from './client';
-import type { AccessToken, ApiResponse, Identity, Session, TokenKind } from '../types';
+import type { AccessToken, ApiResponse, Identity, RunnerAuth, Session, TokenKind } from '../types';
 
 /**
  * The authentication seam. Component tests import the mocks directly; the running
@@ -50,6 +50,6 @@ export function changePassword(providerId: string): Promise<{ ok: true; destinat
   return useReal ? realApi.changePassword(providerId) : mockApi.changePassword(providerId);
 }
 
-export function runRequest(token: string, endpoint?: string): Promise<ApiResponse> {
-  return useReal ? realApi.runRequest(token, endpoint) : mockApi.runRequest(token, endpoint);
+export function runRequest(auth: RunnerAuth, url: string): Promise<ApiResponse> {
+  return useReal ? realApi.runRequest(auth, url) : mockApi.runRequest(auth, url);
 }

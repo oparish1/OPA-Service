@@ -17,6 +17,7 @@ const schema = z
     ENTRA_CLIENT_PRIVATE_KEY: z.string().min(1).optional(),
     ENTRA_REQUIRED_APP_ROLE: z.string().min(1).default('Workspace.User'),
     ENTRA_API_CLIENT_ID: z.string().optional(),
+    REQUEST_RUNNER_ALLOWED_HOSTS: z.string().optional(),
     SESSION_SECRET: z.string().min(1),
     TOKEN_ENCRYPTION_KEY: z.string().min(1),
     TOKEN_ENCRYPTION_KEY_PREVIOUS: z.string().optional(),
@@ -28,6 +29,7 @@ const schema = z
     RATE_LIMIT_LOGIN: z.coerce.number().int().positive().default(20),
     RATE_LIMIT_REFRESH: z.coerce.number().int().positive().default(10),
     RATE_LIMIT_REVEAL: z.coerce.number().int().positive().default(10),
+    RATE_LIMIT_REQUEST_RUNNER: z.coerce.number().int().positive().default(20),
     LOG_LEVEL: z.string().default('info'),
   })
   .refine(config => config.ENTRA_CLIENT_SECRET || config.ENTRA_CLIENT_PRIVATE_KEY, {
@@ -53,6 +55,7 @@ export interface AppConfig {
   clientPrivateKey?: string;
   requiredAppRole: string;
   apiClientId: string;
+  requestRunnerAllowedHosts: readonly string[];
   sessionSecret: string;
   tokenEncryptionKey: string;
   tokenEncryptionKeyPrevious?: string;
@@ -64,7 +67,17 @@ export interface AppConfig {
   rateLimitLogin: number;
   rateLimitRefresh: number;
   rateLimitReveal: number;
+  rateLimitRequestRunner: number;
   logLevel: string;
+}
+
+function allowedHosts(publicBaseUrl: string, raw: string | undefined): readonly string[] {
+  const hosts = new Set<string>([new URL(publicBaseUrl).host.toLowerCase()]);
+  for (const entry of raw?.split(',') ?? []) {
+    const host = entry.trim().toLowerCase();
+    if (host) hosts.add(host);
+  }
+  return Object.freeze([...hosts]);
 }
 
 /** Throws a message that names the missing variables but never echoes their values. */
@@ -93,6 +106,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     clientPrivateKey: value.ENTRA_CLIENT_PRIVATE_KEY,
     requiredAppRole: value.ENTRA_REQUIRED_APP_ROLE,
     apiClientId: value.ENTRA_API_CLIENT_ID ?? value.ENTRA_CLIENT_ID,
+    requestRunnerAllowedHosts: allowedHosts(publicBaseUrl, value.REQUEST_RUNNER_ALLOWED_HOSTS),
     sessionSecret: value.SESSION_SECRET,
     tokenEncryptionKey: value.TOKEN_ENCRYPTION_KEY,
     tokenEncryptionKeyPrevious: value.TOKEN_ENCRYPTION_KEY_PREVIOUS,
@@ -104,6 +118,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     rateLimitLogin: value.RATE_LIMIT_LOGIN,
     rateLimitRefresh: value.RATE_LIMIT_REFRESH,
     rateLimitReveal: value.RATE_LIMIT_REVEAL,
+    rateLimitRequestRunner: value.RATE_LIMIT_REQUEST_RUNNER,
     logLevel: value.LOG_LEVEL,
   });
 }

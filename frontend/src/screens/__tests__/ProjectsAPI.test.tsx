@@ -109,4 +109,88 @@ describe('ProjectsAPI', () => {
     await user.click(screen.getByRole('button', { name: /refresh token & retry/i }));
     expect(await screen.findByText('Refresh token expired. Sign in again.')).toBeInTheDocument();
   });
+
+  it('shows an editable URL with the app default and a fixed GET method', async () => {
+    renderProjects();
+    await screen.findByText('Run the request to see the response');
+    expect(screen.getByRole('textbox', { name: 'Request URL' })).toHaveValue(
+      `${window.location.origin}/v1/projects`
+    );
+    expect(screen.getByText('GET')).toBeInTheDocument();
+  });
+
+  it('lists the four Authorization options in order with the session entry default', async () => {
+    const user = userEvent.setup();
+    renderProjects();
+    await screen.findByText('Run the request to see the response');
+    await user.click(screen.getByRole('combobox'));
+    expect(screen.getAllByRole('option').map(option => option.textContent)).toEqual([
+      'Bearer · demo_at_op…9b4e',
+      'Bearer valid-token-123',
+      'Bearer expired-token',
+      'no-token',
+    ]);
+  });
+
+  it('shows the input error and sends nothing for an invalid URL', async () => {
+    const user = userEvent.setup();
+    renderProjects();
+    await screen.findByText('Run the request to see the response');
+    const field = screen.getByRole('textbox', { name: 'Request URL' });
+    await user.clear(field);
+    await user.type(field, 'not a url');
+    await user.click(screen.getByRole('button', { name: /run request/i }));
+    expect(await screen.findByText('Enter a valid http or https URL.')).toBeInTheDocument();
+    expect(screen.getByText('Run the request to see the response')).toBeInTheDocument();
+  });
+
+  it('shows a non-session 401 normally without the recovery panel', async () => {
+    const user = userEvent.setup();
+    renderProjects();
+    await screen.findByText('Run the request to see the response');
+    await user.click(screen.getByRole('combobox'));
+    await user.click(screen.getByText('Bearer expired-token'));
+    await user.click(screen.getByRole('button', { name: /run request/i }));
+    expect(await screen.findByText('401 Unauthorized')).toBeInTheDocument();
+    expect(screen.queryByText(/your account is still connected/i)).not.toBeInTheDocument();
+  });
+
+  it('does not show the demo disclaimer', async () => {
+    renderProjects();
+    await screen.findByText('Run the request to see the response');
+    expect(
+      screen.queryByText(/No live API request or token refresh was performed/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('runs the GET against the URL typed in the field', async () => {
+    const user = userEvent.setup();
+    renderProjects();
+    await screen.findByText('Run the request to see the response');
+    const field = screen.getByRole('textbox', { name: 'Request URL' });
+    await user.clear(field);
+    await user.type(field, `${window.location.origin}/v1/me`);
+    await user.click(screen.getByRole('button', { name: /run request/i }));
+    expect(await screen.findByText('200 OK')).toBeInTheDocument();
+    expect(screen.getByText(/orlando.parish@agadv.example/)).toBeInTheDocument();
+    expect(screen.queryByText(/prj_01/)).not.toBeInTheDocument();
+  });
+
+  it('re-enables refresh after a run supersedes an in-flight refresh', async () => {
+    configureMocks({ runRequestFailure: 'unauthorized' });
+    const user = userEvent.setup();
+    renderProjects();
+    await runRequest(user);
+    await screen.findByText('401 Unauthorized');
+    configureMocks({ runRequestFailure: null, latencyMs: 300 });
+    await user.click(screen.getByRole('button', { name: /refresh token & retry/i }));
+    configureMocks({ latencyMs: 0 });
+    await user.click(screen.getByRole('button', { name: /run request/i }));
+    expect(await screen.findByText('200 OK')).toBeInTheDocument();
+    await new Promise(resolve => setTimeout(resolve, 700));
+    configureMocks({ runRequestFailure: 'unauthorized' });
+    await user.click(screen.getByRole('button', { name: /run request/i }));
+    await screen.findByText('401 Unauthorized');
+    expect(screen.getByRole('button', { name: /refresh token & retry/i })).not.toBeDisabled();
+  });
 });

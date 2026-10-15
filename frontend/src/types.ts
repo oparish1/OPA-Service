@@ -1,3 +1,5 @@
+import type { RunnerAuth, RunnerErrorCode } from '../../shared/request-runner';
+
 export type Screen =
   | 'sign-in'
   | 'forgot-password'
@@ -60,6 +62,10 @@ export interface Identity {
   manageUrl: string;
 }
 
+export type BodyKind = 'json' | 'text' | 'empty' | 'binary';
+
+export type { RunnerAuth, RunnerErrorCode };
+
 export interface ApiResponse {
   status: number;
   statusLabel: string;
@@ -68,6 +74,9 @@ export interface ApiResponse {
   timestamp: string;
   body: unknown;
   headers: string[];
+  bodyKind?: BodyKind;
+  sizeBytes?: number;
+  errorCode?: RunnerErrorCode;
 }
 
 export type ApiErrorKind = 'unauthorized' | 'forbidden' | 'notFound' | 'server' | 'timeout';

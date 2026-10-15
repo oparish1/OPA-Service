@@ -1,17 +1,33 @@
 import { useState } from 'react';
-import type { ApiResponse } from '../mocks/types';
+import type { ApiResponse, BodyKind } from '../types';
 import { body, code, color, font, label, radius, space } from '../styles/tokens';
 import { Badge } from './Badge';
+import type { BadgeTone } from './Badge';
 import { CodeBlock } from './CodeBlock';
+import { SkeletonBlock } from './Skeleton';
 
 interface ResponseCardProps {
   response: ApiResponse | null;
+  loading?: boolean;
 }
 
-/** AA/ResponseCard — State=Body|Headers; idle shell before the first request. */
-export function ResponseCard({ response }: ResponseCardProps) {
+const BODY_LABEL: Record<BodyKind, string> = {
+  json: 'JSON · Pretty',
+  text: 'Text',
+  empty: 'Empty',
+  binary: 'Binary',
+};
+
+function toneFor(status: number): BadgeTone {
+  if (status >= 200 && status < 300) return 'success';
+  if (status >= 300 && status < 400) return 'neutral';
+  return 'error';
+}
+
+/** AA/ResponseCard — State=Body|Headers; idle, loading and real-response states. */
+export function ResponseCard({ response, loading = false }: ResponseCardProps) {
   const [tab, setTab] = useState<'body' | 'headers'>('body');
-  const tone = response?.status === 200 ? 'success' : 'error';
+  const bodyKind = response?.bodyKind ?? 'json';
 
   return (
     <section
@@ -29,14 +45,16 @@ export function ResponseCard({ response }: ResponseCardProps) {
         <h2 style={{ margin: 0, ...label[16], fontFamily: font.body, color: color.text.primary }}>Response</h2>
       </div>
 
-      {response === null ? (
+      {loading ? (
+        <SkeletonBlock lines={4} />
+      ) : response === null ? (
         <p style={{ margin: 0, ...body[14], fontFamily: font.body, color: color.text.secondary }}>
           Run the request to see the response
         </p>
       ) : (
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: space[12], flexWrap: 'wrap' }}>
-            <Badge tone={tone}>{response.statusLabel}</Badge>
+            <Badge tone={toneFor(response.status)}>{response.statusLabel}</Badge>
             <span style={{ ...body[13], fontFamily: font.body, color: color.text.secondary }}>
               {response.duration} · {response.size}
             </span>
@@ -75,17 +93,27 @@ export function ResponseCard({ response }: ResponseCardProps) {
               </button>
             ))}
             <span style={{ ...body[12], fontFamily: font.body, color: color.text.secondary }}>
-              JSON · Pretty
+              {BODY_LABEL[bodyKind]}
             </span>
           </div>
 
           {tab === 'body' ? (
-            <CodeBlock value={response.body} copyable />
+            bodyKind === 'empty' ? (
+              <span style={{ ...body[13], fontFamily: font.body, color: color.text.secondary }}>
+                No response body.
+              </span>
+            ) : bodyKind === 'binary' ? (
+              <span style={{ ...body[13], fontFamily: font.body, color: color.text.secondary }}>
+                {`Binary content (${response.sizeBytes ?? 0} B) is not displayed.`}
+              </span>
+            ) : (
+              <CodeBlock value={response.body} copyable />
+            )
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {response.headers.length === 0 ? (
                 <span style={{ ...body[13], fontFamily: font.body, color: color.text.secondary }}>
-                  Nothing to show yet
+                  No response headers.
                 </span>
               ) : (
                 response.headers.map(header => (

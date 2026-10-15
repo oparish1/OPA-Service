@@ -8,6 +8,7 @@ export type AuditEventName =
   | 'session.refresh'
   | 'session.refresh.failed'
   | 'token.reveal'
+  | 'request.runner'
   | 'logout'
   | 'csrf.refused'
   | 'rate_limited';

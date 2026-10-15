@@ -1,6 +1,16 @@
 import type { ProviderId } from '../mocks/data';
-import { PROFILE_ENDPOINT } from '../mocks/data';
-import type { AccessToken, ApiErrorKind, ApiResponse, Identity, Session, TokenKind } from '../types';
+import type { RelayFailure, RelaySuccess } from '../../../shared/request-runner';
+import { decodeBody, formatDuration, formatSize } from '../lib/response-format';
+import type {
+  AccessToken,
+  ApiErrorKind,
+  ApiResponse,
+  Identity,
+  RunnerAuth,
+  RunnerErrorCode,
+  Session,
+  TokenKind,
+} from '../types';
 
 interface RawTokenMetadata {
   masked: string;
@@ -78,55 +88,51 @@ export function formatTimestamp(date = new Date()): string {
   return `${day} ${month} ${year} · ${hh}:${mm}:${ss} UTC`;
 }
 
-function responseHeaders(response: Response): string[] {
-  const headers: string[] = [];
-  response.headers.forEach((value, key) => headers.push(`${key}: ${value}`));
-  return headers;
-}
+const FAILURE_LABEL: Record<RunnerErrorCode, string> = {
+  invalid_url: 'Invalid URL',
+  blocked_host: 'Blocked host',
+  session_token_not_allowed_for_host: 'Session token not allowed',
+  request_timeout: 'Network error',
+  request_failed: 'Network error',
+};
 
-function networkError(): ApiResponse {
+/** These failures never sent a request, so they show no time, size or date. */
+const NO_REQUEST_CODES: ReadonlySet<RunnerErrorCode> = new Set([
+  'invalid_url',
+  'blocked_host',
+  'session_token_not_allowed_for_host',
+]);
+
+function relaySuccess(payload: RelaySuccess): ApiResponse {
+  const { body, bodyKind } = decodeBody(payload.contentType, payload.body, payload.size);
   return {
-    status: 0,
-    statusLabel: 'Network error',
-    duration: '0 ms',
-    size: '0 B',
-    timestamp: formatTimestamp(),
-    body: { error: 'request_timeout' },
-    headers: [],
+    status: payload.status,
+    statusLabel: `${payload.status} ${payload.statusText}`.trim(),
+    duration: formatDuration(payload.durationMs),
+    size: formatSize(payload.size, payload.truncated),
+    timestamp: formatTimestamp(new Date(payload.receivedAt)),
+    body,
+    headers: payload.headers,
+    bodyKind,
+    sizeBytes: payload.size,
   };
 }
 
-async function request(
-  endpoint: string,
-  token?: string
-): Promise<ApiResponse> {
-  const started = Date.now();
-  const headers: Record<string, string> = {};
-  if (token) headers.Authorization = `Bearer ${token}`;
-  try {
-    const response = await fetch(new URL(endpoint).pathname, {
-      credentials: 'same-origin',
-      headers,
-    });
-    const text = await response.text();
-    let body: unknown = null;
-    try {
-      body = text ? JSON.parse(text) : null;
-    } catch {
-      body = text;
-    }
-    return {
-      status: response.status,
-      statusLabel: `${response.status} ${response.statusText}`.trim(),
-      duration: `${Date.now() - started} ms`,
-      size: `${new TextEncoder().encode(text).length} B`,
-      timestamp: formatTimestamp(),
-      body,
-      headers: responseHeaders(response),
-    };
-  } catch {
-    return networkError();
-  }
+function relayFailure(payload: RelayFailure): ApiResponse {
+  const code: RunnerErrorCode =
+    payload.error && payload.error in FAILURE_LABEL ? payload.error : 'request_failed';
+  const noRequest = NO_REQUEST_CODES.has(code);
+  return {
+    status: 0,
+    statusLabel: FAILURE_LABEL[code],
+    duration:
+      noRequest || payload.durationMs === undefined ? '—' : formatDuration(payload.durationMs),
+    size: '—',
+    timestamp: noRequest || !payload.receivedAt ? '—' : formatTimestamp(new Date(payload.receivedAt)),
+    body: { error: code },
+    headers: [],
+    errorCode: code,
+  };
 }
 
 const ENTRA_IDENTITY: Identity = {
@@ -207,8 +213,31 @@ export async function changePassword(_providerId: string): Promise<{ ok: true; d
   return { ok: true as const, destination: 'https://mysignins.microsoft.com/security-info' };
 }
 
-export async function runRequest(token: string, endpoint: string = PROFILE_ENDPOINT): Promise<ApiResponse> {
-  return request(endpoint, token || undefined);
+export async function runRequest(auth: RunnerAuth, url: string): Promise<ApiResponse> {
+  try {
+    await ensureCsrf();
+  } catch {
+    return relayFailure({ error: 'request_failed', receivedAt: new Date().toISOString() });
+  }
+  let response: Response;
+  try {
+    response = await fetch('/api/request-runner', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json', ...csrfHeaders() },
+      body: JSON.stringify({ url, auth }),
+    });
+  } catch {
+    return relayFailure({ error: 'request_failed', receivedAt: new Date().toISOString() });
+  }
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    return relayFailure({ error: 'request_failed', receivedAt: new Date().toISOString() });
+  }
+  if (response.ok) return relaySuccess(payload as RelaySuccess);
+  return relayFailure(payload as RelayFailure);
 }
 
 export type { ApiErrorKind };

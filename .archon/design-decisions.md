@@ -7,7 +7,7 @@ These are built in the frontend from design tokens only, not added to the Figma 
 - **Notice:** tone = neutral | success | error. Icons: shield-check (neutral), circle-check (success), circle-alert (error). The Screen 7 token recovery banner is Notice tone=error containing AA/RecoveryResponse and its action buttons.
 - **PublicFooter:** local frame as drawn. "Privacy" and "Terms" are AA/TextLink with href="#".
 - **StepIndicator:** local frame as drawn. Steps are separated by a middle dot "·" in Body/13 grey.
-- **Endpoint URL field:** read-only custom element, 44px height, 1px border, tokens only. Not AA/Form/Input; not editable.
+- **Endpoint URL field:** editable custom element, 44px height, 1px border, IBM Plex Mono 14, tokens only. Not AA/Form/Input; it keeps the local token styling and shows the Input error treatment.
 - **CodeBlock:** wrapper for the code-surface style (IBM Plex Mono 14/22 on #F8F7F8). Used inside AA/ResponseCard and AA/TokenCard. Not used standalone at page level.
 
 ## States and behavior
@@ -20,7 +20,7 @@ These are built in the frontend from design tokens only, not added to the Figma 
 - **Copy:** icon swaps to check and label reads "Copied" for 2 seconds.
 - **Token reveal:** toggles Reveal ⇄ Hide; resets to masked on session refresh and on leaving Overview.
 - **Sign out:** navigates to Sign in and clears mock session state.
-- **Headers tab:** three rows (status, content-type, date) from mock data.
+- **Headers tab:** “Headers (n)” rendered from the relay’s filtered response headers; shows “No response headers.” when the relay returned none.
 - **Icons:** all Lucide React.
 
 ## Round 3 decisions (approved)
@@ -29,7 +29,16 @@ These are built in the frontend from design tokens only, not added to the Figma 
 - **"JSON · Pretty" label (ResponseCard):** static, non-interactive text. No Pretty/Raw toggle.
 - **Select and Recovery select validation:** when submitted with no provider chosen, the field enters its Error state with the message "Choose an identity provider to continue." (Body/13, same Error styling as the email input).
 - **"Documentation" sidebar link:** AA/TextLink with href="#", no navigation.
-- **RequestPanel:** extract one shared RequestPanel component (HttpMethodBadge + endpoint URL field + TokenSelect + Run request button + View session link). Screen 6 uses it inline and AA/RecoveryResponse on Screen 7 renders the same component.
+- **RequestPanel:** extract one shared RequestPanel component (HttpMethodBadge + editable endpoint URL field + TokenSelect + Run request button + View session link). Screen 6 uses it inline and AA/RecoveryResponse on Screen 7 renders the same component.
+
+## Round 4 decisions (approved)
+
+- **Editable request URL:** the Endpoint URL field is editable on both API screens; the method stays GET. The URL is held in memory per screen and resets when the user leaves the screen. An invalid URL shows "Enter a valid http or https URL." and sends nothing.
+- **Authorization options:** the dropdown lists exactly four options in this order — the session access token (masked, default), `Bearer valid-token-123`, `Bearer expired-token`, `no-token`. A 401 on the session option shows the recovery panel; a 401 on any other option is shown normally.
+- **Live requests are relayed:** the browser never calls the target URL directly. `POST /api/request-runner` requires the session, CSRF and Origin checks, rate limiting and an audit event, and returns the response status, filtered headers, body, size, duration and backend receipt time. The session token is attached server-side and only to the app's own origin.
+- **Relay safety rules:** http/https only, at most 2048 characters, no URL credentials, GET only; host allowlist from the public origin plus `REQUEST_RUNNER_ALLOWED_HOSTS`; redirects not followed; 10-second timeout; 1 MiB body cap with truncation flagged; response headers limited to an allowlist and `set-cookie` never returned; the session token is refused for any host that is not the app's own origin; query strings and tokens are never logged.
+- **Demo footer removed:** the "No live request was made" / "No live API request or token refresh was performed" disclaimers are gone; the Response card now reflects the real relayed response.
+- **Local setup:** `PUBLIC_BASE_URL` must be the frontend origin (not the backend port) and the dev server proxies `/v1/*` and `/api/request-runner`, or every default-URL run fails `session_token_not_allowed_for_host`.
 
 ## Standing rules for anything else not drawn
 These are approved defaults. Use them instead of adding an open question and list each one used under "Assumptions" in the design brief:

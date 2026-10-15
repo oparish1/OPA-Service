@@ -42,4 +42,23 @@ describe('loadConfig', () => {
     const env = testEnv({ NODE_ENV: 'production', DATABASE_URL: '/var/lib/identity/store.db' });
     expect(loadConfig(env).databaseUrl).toBe('/var/lib/identity/store.db');
   });
+
+  it('defaults the request-runner allowlist to the public-origin host', () => {
+    const config = loadConfig(testEnv({ PUBLIC_BASE_URL: 'http://localhost:3000/' }));
+    expect(config.requestRunnerAllowedHosts).toEqual(['localhost:3000']);
+  });
+
+  it('unions, lowercases and trims REQUEST_RUNNER_ALLOWED_HOSTS entries', () => {
+    const config = loadConfig(
+      testEnv({
+        PUBLIC_BASE_URL: 'https://app.example',
+        REQUEST_RUNNER_ALLOWED_HOSTS: ' API.Example , other.example:8443 ,',
+      })
+    );
+    expect(config.requestRunnerAllowedHosts).toEqual([
+      'app.example',
+      'api.example',
+      'other.example:8443',
+    ]);
+  });
 });

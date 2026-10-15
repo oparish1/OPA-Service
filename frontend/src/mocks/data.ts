@@ -1,11 +1,5 @@
 import type { Identity, ProviderConfig, Session } from './types';
 
-export const PROFILE_ENDPOINT = 'https://api.agadv.example/v1/me';
-export const PROJECTS_ENDPOINT = 'https://api.agadv.example/v1/projects';
-
-/** Token value the demo treats as already expired, forcing the 401 recovery flow. */
-export const EXPIRED_ACCESS_TOKEN = 'demo-access-token-expired';
-
 export const PROVIDERS: readonly ProviderConfig[] = [
   {
     id: 'microsoft',

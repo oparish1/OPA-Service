@@ -17,6 +17,7 @@ import type { Store } from './db';
 import { registerAuthRoutes } from './routes/auth';
 import { createRouteInventory } from './routes/inventory';
 import type { RouteInventory } from './routes/inventory';
+import { registerRequestRunnerRoutes } from './routes/request-runner';
 import { registerSessionRoutes } from './routes/session';
 import { registerV1Routes } from './routes/v1';
 import type { Services } from './services';
@@ -118,6 +119,7 @@ export async function buildApp(options: BuildAppOptions): Promise<BuiltApp> {
 
   registerAuthRoutes(app, services, csrf);
   registerSessionRoutes(app, services, csrf);
+  registerRequestRunnerRoutes(app, services, csrf);
   registerV1Routes(app, services);
 
   if (options.frontendDist && existsSync(options.frontendDist)) {

@@ -11,7 +11,7 @@ import {
   runRequest,
   signIn,
 } from './api';
-import { EXPIRED_ACCESS_TOKEN, PROFILE_ENDPOINT, PROJECTS_ENDPOINT } from './data';
+import { PROFILE_PATH, PROJECTS_PATH } from '../lib/runner-url';
 
 beforeEach(() => {
   resetMocks();
@@ -77,30 +77,33 @@ describe('discoverSso', () => {
 });
 
 describe('runRequest', () => {
-  it('returns a 200 profile response by default', async () => {
-    const response = await runRequest('valid-token', PROFILE_ENDPOINT);
+  it('returns a 200 profile response for the session option', async () => {
+    const response = await runRequest('session', PROFILE_PATH);
     expect(response.status).toBe(200);
+    expect(response.bodyKind).toBe('json');
     expect(response.body).toMatchObject({ email: expect.any(String) });
   });
 
-  it('returns 401 for the expired token', async () => {
-    const response = await runRequest(EXPIRED_ACCESS_TOKEN, PROJECTS_ENDPOINT);
-    expect(response.status).toBe(401);
-    expect(response.statusLabel).toBe('401 Unauthorized');
-  });
-
   it('returns three projects and an empty list when configured', async () => {
-    const populated = await runRequest('valid-token', PROJECTS_ENDPOINT);
+    const populated = await runRequest('session', PROJECTS_PATH);
     expect(populated.body).toMatchObject({ projects: expect.arrayContaining([expect.any(Object)]) });
 
     configureMocks({ projectsEmpty: true });
-    const empty = await runRequest('valid-token', PROJECTS_ENDPOINT);
+    const empty = await runRequest('session', PROJECTS_PATH);
     expect(empty.body).toEqual({ projects: [] });
   });
 
+  for (const auth of ['valid-token-123', 'expired-token', 'none'] as const) {
+    it(`returns 401 for the ${auth} option without a bypass`, async () => {
+      const response = await runRequest(auth, PROFILE_PATH);
+      expect(response.status).toBe(401);
+      expect(response.statusLabel).toBe('401 Unauthorized');
+    });
+  }
+
   it('returns a timeout network error when configured', async () => {
     configureMocks({ runRequestFailure: 'timeout' });
-    const response = await runRequest('valid-token', PROFILE_ENDPOINT);
+    const response = await runRequest('session', PROFILE_PATH);
     expect(response.statusLabel).toBe('Network error');
     expect(response.body).toEqual({ error: 'request_timeout' });
   });

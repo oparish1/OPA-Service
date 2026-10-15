@@ -1,15 +1,23 @@
+import { PROJECTS_PATH } from '../lib/runner-url';
 import {
   EMPTY_PROJECTS_BODY,
   ENABLED_IDENTITIES,
-  EXPIRED_ACCESS_TOKEN,
   MOCK_PROFILE_BODY,
   MOCK_PROJECTS_BODY,
   MOCK_SESSION,
-  PROFILE_ENDPOINT,
   PROVIDERS,
 } from './data';
 import type { ProviderId } from './data';
-import type { AccessToken, ApiErrorKind, ApiResponse, Identity, MockConfig, Session, TokenKind } from './types';
+import type {
+  AccessToken,
+  ApiErrorKind,
+  ApiResponse,
+  Identity,
+  MockConfig,
+  RunnerAuth,
+  Session,
+  TokenKind,
+} from './types';
 
 const DEFAULT_CONFIG: MockConfig = {
   latencyMs: 1500,
@@ -79,6 +87,8 @@ function errorResponse(kind: ApiErrorKind): ApiResponse {
           request_id: 'demo-req-002',
         },
         headers: responseHeaders('401 Unauthorized'),
+        bodyKind: 'json',
+        sizeBytes: 186,
       };
     case 'forbidden':
       return {
@@ -89,6 +99,8 @@ function errorResponse(kind: ApiErrorKind): ApiResponse {
         timestamp: '14:30 UTC',
         body: { error: 'forbidden', message: 'Missing scope profile.read' },
         headers: responseHeaders('403 Forbidden'),
+        bodyKind: 'json',
+        sizeBytes: 162,
       };
     case 'notFound':
       return {
@@ -99,6 +111,8 @@ function errorResponse(kind: ApiErrorKind): ApiResponse {
         timestamp: '14:30 UTC',
         body: { error: 'not_found', message: 'Resource not found' },
         headers: responseHeaders('404 Not Found'),
+        bodyKind: 'json',
+        sizeBytes: 148,
       };
     case 'server':
       return {
@@ -109,6 +123,8 @@ function errorResponse(kind: ApiErrorKind): ApiResponse {
         timestamp: '14:30 UTC',
         body: { error: 'server_error', message: 'Downstream service unavailable' },
         headers: responseHeaders('500 Server Error'),
+        bodyKind: 'json',
+        sizeBytes: 154,
       };
     case 'timeout':
       return {
@@ -119,24 +135,30 @@ function errorResponse(kind: ApiErrorKind): ApiResponse {
         timestamp: '14:30 UTC',
         body: { error: 'request_timeout' },
         headers: [],
+        bodyKind: 'json',
+        sizeBytes: 30,
       };
   }
 }
 
 function successResponse(endpoint: string): ApiResponse {
-  const isProjects = endpoint.includes('/projects');
+  const isProjects = endpoint.includes(PROJECTS_PATH);
+  const body = isProjects
+    ? config.projectsEmpty
+      ? EMPTY_PROJECTS_BODY
+      : MOCK_PROJECTS_BODY
+    : MOCK_PROFILE_BODY;
+  const sizeBytes = new TextEncoder().encode(JSON.stringify(body)).length;
   return {
     status: 200,
     statusLabel: '200 OK',
     duration: isProjects ? '128 ms' : '142 ms',
-    size: isProjects ? '214 B' : '248 B',
+    size: `${sizeBytes} B`,
     timestamp: '10 Oct 2026 · 14:12:00 UTC',
-    body: isProjects
-      ? config.projectsEmpty
-        ? EMPTY_PROJECTS_BODY
-        : MOCK_PROJECTS_BODY
-      : MOCK_PROFILE_BODY,
+    body,
     headers: responseHeaders('200 OK'),
+    bodyKind: 'json',
+    sizeBytes,
   };
 }
 
@@ -212,17 +234,14 @@ export async function revealToken(kind: TokenKind): Promise<string> {
   return delay(kind === 'access' ? activeSession.accessToken.value : activeSession.refreshToken.value);
 }
 
-export async function runRequest(
-  token: string,
-  endpoint: string = PROFILE_ENDPOINT
-): Promise<ApiResponse> {
-  if (token === EXPIRED_ACCESS_TOKEN) {
-    return delay(errorResponse('unauthorized'));
-  }
+export async function runRequest(auth: RunnerAuth, url: string): Promise<ApiResponse> {
   if (config.runRequestFailure) {
     return delay(errorResponse(config.runRequestFailure));
   }
-  return delay(successResponse(endpoint));
+  if (auth !== 'session') {
+    return delay(errorResponse('unauthorized'));
+  }
+  return delay(successResponse(url));
 }
 
 export async function refreshToken(): Promise<AccessToken> {

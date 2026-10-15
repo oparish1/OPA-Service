@@ -34,6 +34,12 @@ describe('route inventory (A10)', () => {
     expect(projects?.scope).toBe('projects.read');
   });
 
+  it('declares the request runner as requiring auth', () => {
+    const runner = harness.inventory.routes.find(route => route.url === '/api/request-runner');
+    expect(runner?.auth).toBe('required');
+    expect(runner?.method).toBe('POST');
+  });
+
   it('flags a deliberately unguarded route', () => {
     const inventory = createRouteInventory();
     inventory.onRoute({ method: 'GET', url: '/unguarded' } as unknown as RouteOptions);
