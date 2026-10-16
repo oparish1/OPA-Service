@@ -35,9 +35,7 @@ describe('loadConfig', () => {
 
   it('does not require Okta or Google variables while they are disabled', () => {
     const config = loadConfig(testEnv());
-    expect(config.oktaEnabled).toBe(false);
     expect(config.okta).toBeUndefined();
-    expect(config.googleEnabled).toBe(false);
     expect(config.google).toBeUndefined();
   });
 
@@ -105,13 +103,11 @@ describe('loadConfig', () => {
         GOOGLE_HOSTED_DOMAIN: 'agentic-advantage.example',
       })
     );
-    expect(config.oktaEnabled).toBe(true);
     expect(config.okta).toMatchObject({
       issuer: 'https://dev-123.okta.com',
       requiredGroup: 'Workspace Users',
       apiAudience: 'api://default',
     });
-    expect(config.googleEnabled).toBe(true);
     expect(config.google).toMatchObject({
       clientId: 'google-client',
       hostedDomain: 'agentic-advantage.example',

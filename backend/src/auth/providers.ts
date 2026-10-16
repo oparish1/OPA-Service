@@ -15,7 +15,6 @@ export interface ProviderDefinition {
   loginPath: string;
   callbackPath: string;
   refreshExpiry: RefreshExpiry;
-  supportsBearer: boolean;
   oidc: OidcService;
   bearer: BearerValidator | null;
   /** Rejects claims that fail the provider's own gating; throws `OidcError(reason)`. */
@@ -78,7 +77,6 @@ function entraDefinition(config: AppConfig): ProviderDefinition {
     loginPath: '/auth/login',
     callbackPath: '/auth/callback',
     refreshExpiry: 'fixed',
-    supportsBearer: true,
     oidc,
     bearer,
     gate(claims) {

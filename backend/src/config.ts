@@ -115,9 +115,7 @@ export interface AppConfig {
   clientPrivateKey?: string;
   requiredAppRole: string;
   apiClientId: string;
-  oktaEnabled: boolean;
   okta?: OktaProviderConfig;
-  googleEnabled: boolean;
   google?: GoogleProviderConfig;
   requestRunnerAllowedHosts: readonly string[];
   sessionSecret: string;
@@ -194,9 +192,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     clientPrivateKey: value.ENTRA_CLIENT_PRIVATE_KEY,
     requiredAppRole: value.ENTRA_REQUIRED_APP_ROLE,
     apiClientId: value.ENTRA_API_CLIENT_ID ?? value.ENTRA_CLIENT_ID,
-    oktaEnabled: value.OKTA_ENABLED,
     okta,
-    googleEnabled: value.GOOGLE_ENABLED,
     google,
     requestRunnerAllowedHosts: allowedHosts(publicBaseUrl, value.REQUEST_RUNNER_ALLOWED_HOSTS),
     sessionSecret: value.SESSION_SECRET,
