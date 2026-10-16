@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 const booleanString = z.enum(['true', 'false']).transform(value => value === 'true');
 
-const schema = z
+const baseSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     PORT: z.coerce.number().int().positive().default(3000),
@@ -43,47 +43,70 @@ const schema = z
     RATE_LIMIT_REVEAL: z.coerce.number().int().positive().default(10),
     RATE_LIMIT_REQUEST_RUNNER: z.coerce.number().int().positive().default(20),
     LOG_LEVEL: z.string().default('info'),
-  })
+  });
+
+type ParsedEnv = z.infer<typeof baseSchema>;
+
+const OKTA_REQUIRED_FIELDS = ['OKTA_ISSUER', 'OKTA_CLIENT_ID', 'OKTA_REQUIRED_GROUP', 'OKTA_API_AUDIENCE'] as const;
+const GOOGLE_REQUIRED_FIELDS = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_HOSTED_DOMAIN'] as const;
+
+interface ProviderRequirement {
+  readonly flag: 'OKTA_ENABLED' | 'GOOGLE_ENABLED';
+  readonly path: string;
+  readonly message: string;
+  readonly present: (value: ParsedEnv) => boolean;
+}
+
+/** The single owner of which variables each enabled provider must supply. */
+const PROVIDER_REQUIREMENTS: readonly ProviderRequirement[] = [
+  ...OKTA_REQUIRED_FIELDS.map(field => ({
+    flag: 'OKTA_ENABLED' as const,
+    path: field,
+    message: `${field} is required when Okta is enabled`,
+    present: (value: ParsedEnv) => Boolean(value[field]),
+  })),
+  {
+    flag: 'OKTA_ENABLED',
+    path: 'OKTA_CLIENT_SECRET',
+    message: 'an Okta client credential is required when Okta is enabled',
+    present: value => Boolean(value.OKTA_CLIENT_SECRET || value.OKTA_CLIENT_PRIVATE_KEY),
+  },
+  ...GOOGLE_REQUIRED_FIELDS.map(field => ({
+    flag: 'GOOGLE_ENABLED' as const,
+    path: field,
+    message: `${field} is required when Google is enabled`,
+    present: (value: ParsedEnv) => Boolean(value[field]),
+  })),
+];
+
+const schema = baseSchema
   .refine(config => config.ENTRA_CLIENT_SECRET || config.ENTRA_CLIENT_PRIVATE_KEY, {
     message: 'a client credential is required',
     path: ['ENTRA_CLIENT_SECRET'],
   })
-  .refine(config => !config.OKTA_ENABLED || Boolean(config.OKTA_ISSUER), {
-    message: 'OKTA_ISSUER is required when Okta is enabled',
-    path: ['OKTA_ISSUER'],
-  })
-  .refine(config => !config.OKTA_ENABLED || Boolean(config.OKTA_CLIENT_ID), {
-    message: 'OKTA_CLIENT_ID is required when Okta is enabled',
-    path: ['OKTA_CLIENT_ID'],
-  })
-  .refine(config => !config.OKTA_ENABLED || Boolean(config.OKTA_CLIENT_SECRET || config.OKTA_CLIENT_PRIVATE_KEY), {
-    message: 'an Okta client credential is required when Okta is enabled',
-    path: ['OKTA_CLIENT_SECRET'],
-  })
-  .refine(config => !config.OKTA_ENABLED || Boolean(config.OKTA_REQUIRED_GROUP), {
-    message: 'OKTA_REQUIRED_GROUP is required when Okta is enabled',
-    path: ['OKTA_REQUIRED_GROUP'],
-  })
-  .refine(config => !config.OKTA_ENABLED || Boolean(config.OKTA_API_AUDIENCE), {
-    message: 'OKTA_API_AUDIENCE is required when Okta is enabled',
-    path: ['OKTA_API_AUDIENCE'],
-  })
-  .refine(config => !config.GOOGLE_ENABLED || Boolean(config.GOOGLE_CLIENT_ID), {
-    message: 'GOOGLE_CLIENT_ID is required when Google is enabled',
-    path: ['GOOGLE_CLIENT_ID'],
-  })
-  .refine(config => !config.GOOGLE_ENABLED || Boolean(config.GOOGLE_CLIENT_SECRET), {
-    message: 'GOOGLE_CLIENT_SECRET is required when Google is enabled',
-    path: ['GOOGLE_CLIENT_SECRET'],
-  })
-  .refine(config => !config.GOOGLE_ENABLED || Boolean(config.GOOGLE_HOSTED_DOMAIN), {
-    message: 'GOOGLE_HOSTED_DOMAIN is required when Google is enabled',
-    path: ['GOOGLE_HOSTED_DOMAIN'],
-  })
   .refine(config => !(config.NODE_ENV === 'production' && config.DATABASE_URL === ':memory:'), {
     message: 'DATABASE_URL must point at a durable database in production',
     path: ['DATABASE_URL'],
+  })
+  .superRefine((value, ctx) => {
+    for (const requirement of PROVIDER_REQUIREMENTS) {
+      if (value[requirement.flag] && !requirement.present(value)) {
+        ctx.addIssue({ code: 'custom', message: requirement.message, path: [requirement.path] });
+      }
+    }
   });
+
+function isOktaConfigured(
+  value: ParsedEnv
+): value is ParsedEnv & Record<(typeof OKTA_REQUIRED_FIELDS)[number], string> {
+  return OKTA_REQUIRED_FIELDS.every(field => Boolean(value[field]));
+}
+
+function isGoogleConfigured(
+  value: ParsedEnv
+): value is ParsedEnv & Record<(typeof GOOGLE_REQUIRED_FIELDS)[number], string> {
+  return GOOGLE_REQUIRED_FIELDS.every(field => Boolean(value[field]));
+}
 
 export interface OktaProviderConfig {
   issuer: string;
@@ -154,11 +177,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   const value = parsed.data;
   const publicBaseUrl = value.PUBLIC_BASE_URL.replace(/\/$/, '');
   const okta =
-    value.OKTA_ENABLED &&
-    value.OKTA_ISSUER &&
-    value.OKTA_CLIENT_ID &&
-    value.OKTA_REQUIRED_GROUP &&
-    value.OKTA_API_AUDIENCE
+    value.OKTA_ENABLED && isOktaConfigured(value)
       ? Object.freeze({
           issuer: value.OKTA_ISSUER,
           clientId: value.OKTA_CLIENT_ID,
@@ -169,7 +188,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
         })
       : undefined;
   const google =
-    value.GOOGLE_ENABLED && value.GOOGLE_CLIENT_ID && value.GOOGLE_CLIENT_SECRET && value.GOOGLE_HOSTED_DOMAIN
+    value.GOOGLE_ENABLED && isGoogleConfigured(value)
       ? Object.freeze({
           clientId: value.GOOGLE_CLIENT_ID,
           clientSecret: value.GOOGLE_CLIENT_SECRET,

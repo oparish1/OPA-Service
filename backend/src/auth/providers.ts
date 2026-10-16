@@ -5,7 +5,8 @@ import { OidcError, OidcService } from './oidc';
 
 const REFRESH_TOKEN_LIFETIME_MS = 90 * 24 * 60 * 60 * 1000;
 
-export type ProviderId = 'entra' | 'okta' | 'google';
+export const PROVIDER_IDS = ['entra', 'okta', 'google'] as const;
+export type ProviderId = (typeof PROVIDER_IDS)[number];
 export type RefreshExpiry = 'fixed' | 'policy' | 'none';
 
 export interface ProviderDefinition {
@@ -30,7 +31,7 @@ export interface ProviderRegistry {
 }
 
 export function isProviderId(value: string): value is ProviderId {
-  return value === 'entra' || value === 'okta' || value === 'google';
+  return (PROVIDER_IDS as readonly string[]).includes(value);
 }
 
 function firstString(...values: unknown[]): string {

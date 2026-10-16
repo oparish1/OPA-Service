@@ -101,21 +101,35 @@ describe('migration 002 on a seeded Entra database (B9)', () => {
     expect(store.countUsers()).toBe(1);
   });
 
-  it('finds a row inserted by the previous release after migration', () => {
+  it('reuses a row the previous release inserted after migration, before its first new sign-in', () => {
     const { path, seeds } = seedLegacyDatabase();
     const config = loadConfig(testEnv({ ENTRA_ISSUER: idp.origin, DATABASE_URL: path }));
     const store = new Store(path);
     openStores.push(store);
     store.migrate();
 
-    const inserted = store.upsertUser({
-      tid: seeds.tid,
-      oid: 'oid-2',
-      email: 'second@example.test',
-      displayName: 'Second User',
-      organisation: 'AA',
-    });
-    expect(store.getUserByIdentity('entra', config.issuer, 'oid-2')?.id).toBe(inserted.id);
+    // The previous release's INSERT omits provider/issuer/subject, so subject stays NULL.
+    const legacy = new Database(path);
+    legacy
+      .query(
+        'INSERT INTO users (id, tid, oid, email, display_name, organisation, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      )
+      .run('legacy-user-2', seeds.tid, 'oid-2', 'second@example.test', 'Second User', 'AA', Date.now());
+    legacy.close();
+
+    const reused = store.upsertUserByIdentity(
+      { provider: 'entra', issuer: config.issuer, subject: 'oid-2' },
+      {
+        tid: seeds.tid,
+        oid: 'oid-2',
+        email: 'second@example.test',
+        displayName: 'Second User',
+        organisation: 'AA',
+      }
+    );
+    expect(reused.id).toBe('legacy-user-2');
+    expect(reused.issuer).toBe(config.issuer);
+    expect(reused.subject).toBe('oid-2');
     expect(store.countUsers()).toBe(2);
   });
 });
