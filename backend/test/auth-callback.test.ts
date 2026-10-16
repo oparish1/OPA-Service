@@ -26,7 +26,7 @@ function refuseCount(): number {
 function insertTransaction(
   state: string,
   ltxValue: string,
-  overrides: Partial<{ codeVerifierEnc: string; expiresAt: number; nonce: string }> = {}
+  overrides: Partial<{ codeVerifierEnc: string; expiresAt: number; nonce: string; provider: string }> = {}
 ): void {
   harness.store.createLoginTransaction({
     state,
@@ -159,6 +159,23 @@ describe('callback rejects bad login transactions (A2)', () => {
     });
     expect(response.headers.location).toBe(`${harness.config.publicBaseUrl}/?error=signin`);
     expect(refuseCount()).toBe(1);
+  });
+
+  it('refuses a callback whose transaction belongs to another provider', async () => {
+    const state = 'cross-provider-state';
+    const ltx = 'cross-provider-ltx';
+    insertTransaction(state, ltx, { provider: 'okta' });
+    const response = await harness.app.inject({
+      method: 'GET',
+      url: `/auth/callback?code=${idp.makeCode('custom-nonce')}&state=${state}`,
+      cookies: { [harness.services.session.loginTransactionCookieName()]: ltx },
+    });
+    expect(response.headers.location).toBe(`${harness.config.publicBaseUrl}/?error=signin`);
+    const refused = harness.store
+      .listAuditEvents()
+      .find(event => event.event === 'login.refused');
+    expect(refused?.reason).toBe('provider_mismatch');
+    expect(refused?.actorProvider).toBe('entra');
   });
 
   it('rejects a mismatched login-transaction cookie', async () => {

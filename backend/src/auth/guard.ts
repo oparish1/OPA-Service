@@ -1,14 +1,19 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { AppConfig } from '../config';
 import type { Store } from '../db';
-import type { BearerValidator } from './bearer';
+import { isProviderId } from './providers';
+import type { ProviderId, ProviderRegistry } from './providers';
 import { SESSION_IDLE_MS } from './session';
 import type { SessionService } from './session';
 
 export interface AuthContext {
   userId?: string;
-  oid: string;
-  tid: string;
+  provider: ProviderId;
+  subject: string;
+  issuer: string;
+  /** Entra-derived, retained so existing audit and account-format call sites keep working. */
+  oid?: string;
+  tid?: string;
   sessionId?: string;
   via: 'cookie' | 'bearer';
   scopes: string[];
@@ -43,14 +48,17 @@ export class Guard {
   constructor(
     private readonly store: Store,
     private readonly session: SessionService,
-    private readonly bearer: BearerValidator,
+    private readonly providers: ProviderRegistry,
     private readonly config: AppConfig
   ) {}
 
   async onRequest(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const routeConfig = request.routeOptions.config;
-    const staticRoute = request.routeOptions.url === '/*' || isStaticRoute(request.routeOptions.url ?? '');
+    const routeUrl = request.routeOptions.url;
+    const staticRoute = routeUrl === '/*' || isStaticRoute(routeUrl ?? '');
     if (
+      // An unmatched route has no config to protect; let the not-found handler answer.
+      !routeUrl ||
       !this.config.authEnabled ||
       routeConfig?.auth === 'public' ||
       staticRoute ||
@@ -66,6 +74,9 @@ export class Guard {
         const user = this.store.getUserById(record.userId);
         request.auth = {
           userId: record.userId,
+          provider: user && isProviderId(user.provider) ? user.provider : 'entra',
+          subject: user?.subject ?? '',
+          issuer: user?.issuer ?? this.config.issuer,
           oid: user?.oid ?? '',
           tid: user?.tid ?? '',
           sessionId: record.id,
@@ -85,19 +96,26 @@ export class Guard {
 
     const header = request.headers.authorization;
     if (header?.startsWith('Bearer ')) {
-      try {
-        const identity = await this.bearer.validate(header.slice(7), routeConfig?.scope);
-        const user = this.store.getUserByTidOid(identity.tid, identity.oid);
-        request.auth = {
-          userId: user?.id,
-          oid: identity.oid,
-          tid: identity.tid,
-          via: 'bearer',
-          scopes: identity.scopes,
-        };
-        return;
-      } catch {
-        // fall through to the generic 401
+      const token = header.slice(7);
+      for (const provider of this.providers.all) {
+        if (!provider.bearer) continue;
+        try {
+          const identity = await provider.bearer.validate(token, routeConfig?.scope);
+          const user = this.store.getUserByIdentity(provider.id, provider.issuer, identity.subject);
+          request.auth = {
+            userId: user?.id,
+            provider: provider.id,
+            subject: identity.subject,
+            issuer: provider.issuer,
+            oid: provider.id === 'entra' ? identity.subject : undefined,
+            tid: provider.id === 'entra' ? identity.tid : undefined,
+            via: 'bearer',
+            scopes: identity.scopes,
+          };
+          return;
+        } catch {
+          // A token that fails one provider's strict iss/aud check may still be valid for the next.
+        }
       }
     }
 

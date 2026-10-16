@@ -2,12 +2,31 @@ import { Database } from 'bun:sqlite';
 
 export interface UserRecord {
   id: string;
+  provider: string;
+  issuer: string | null;
+  subject: string;
   tid: string;
   oid: string;
   email: string;
   displayName: string;
   organisation: string;
   createdAt: number;
+}
+
+/** The `(provider, issuer, subject)` key an account is stored under. */
+export interface IdentityKey {
+  provider: string;
+  issuer: string;
+  subject: string;
+}
+
+/** Provider-supplied profile fields; `tid`/`oid` are Entra-derived and absent elsewhere. */
+export interface UserProfile {
+  tid?: string;
+  oid?: string;
+  email: string;
+  displayName: string;
+  organisation: string;
 }
 
 export interface SessionRecord {
@@ -33,6 +52,7 @@ export interface LoginTransactionRecord {
   nonce: string;
   codeVerifierEnc: string;
   returnTo: string;
+  provider?: string;
   createdAt: number;
   expiresAt: number;
 }
@@ -40,6 +60,8 @@ export interface LoginTransactionRecord {
 export interface AuditRecord {
   actorOid: string | null;
   actorTid: string | null;
+  actorProvider?: string | null;
+  actorSubject?: string | null;
   sessionHash: string | null;
   event: string;
   outcome: string;
@@ -51,17 +73,17 @@ export interface AuditRecord {
 }
 
 const USER_COLUMNS =
-  'SELECT id, tid, oid, email, display_name AS displayName, organisation, created_at AS createdAt FROM users';
+  "SELECT id, provider, issuer, COALESCE(subject, oid, '') AS subject, COALESCE(tid, '') AS tid, COALESCE(oid, '') AS oid, email, display_name AS displayName, organisation, created_at AS createdAt FROM users";
 const SESSION_COLUMNS =
   'SELECT id, user_id AS userId, csrf_token AS csrfToken, created_at AS createdAt, last_seen_at AS lastSeenAt FROM sessions';
 const TOKEN_COLUMNS =
   'SELECT session_id AS sessionId, access_token_enc AS accessTokenEnc, refresh_token_enc AS refreshTokenEnc, access_expires_at AS accessExpiresAt, refresh_expires_at AS refreshExpiresAt, scopes FROM tokens';
 const LOGIN_TRANSACTION_COLUMNS =
-  'state, cookie_hash AS cookieHash, nonce, code_verifier_enc AS codeVerifierEnc, return_to AS returnTo, created_at AS createdAt, expires_at AS expiresAt';
+  'state, cookie_hash AS cookieHash, nonce, code_verifier_enc AS codeVerifierEnc, return_to AS returnTo, provider, created_at AS createdAt, expires_at AS expiresAt';
 const AUDIT_COLUMNS =
-  'SELECT id, actor_oid AS actorOid, actor_tid AS actorTid, session_hash AS sessionHash, event, outcome, reason, ip, user_agent AS userAgent, created_at AS createdAt, metadata FROM audit_events';
+  'SELECT id, actor_oid AS actorOid, actor_tid AS actorTid, actor_provider AS actorProvider, actor_subject AS actorSubject, session_hash AS sessionHash, event, outcome, reason, ip, user_agent AS userAgent, created_at AS createdAt, metadata FROM audit_events';
 
-const MIGRATIONS: ReadonlyArray<{ version: string; statements: string[] }> = [
+export const MIGRATIONS: ReadonlyArray<{ version: string; statements: string[] }> = [
   {
     version: '001',
     statements: [
@@ -115,6 +137,34 @@ const MIGRATIONS: ReadonlyArray<{ version: string; statements: string[] }> = [
       `CREATE INDEX IF NOT EXISTS idx_audit_events_created_at ON audit_events (created_at)`,
     ],
   },
+  {
+    version: '002',
+    statements: [
+      // SQLite cannot relax the NOT NULL on tid/oid in place, so the table is
+      // rebuilt. Existing rows keep their id and are backfilled as Entra.
+      `CREATE TABLE users_rebuilt (
+        id TEXT PRIMARY KEY,
+        provider TEXT NOT NULL DEFAULT 'entra',
+        issuer TEXT,
+        subject TEXT,
+        tid TEXT,
+        oid TEXT,
+        email TEXT NOT NULL DEFAULT '',
+        display_name TEXT NOT NULL DEFAULT '',
+        organisation TEXT NOT NULL DEFAULT '',
+        created_at INTEGER NOT NULL
+      )`,
+      `INSERT INTO users_rebuilt (id, provider, issuer, subject, tid, oid, email, display_name, organisation, created_at)
+       SELECT id, 'entra', NULL, oid, tid, oid, email, display_name, organisation, created_at FROM users`,
+      `DROP TABLE users`,
+      `ALTER TABLE users_rebuilt RENAME TO users`,
+      `CREATE UNIQUE INDEX ux_users_identity ON users (provider, issuer, subject)`,
+      `CREATE UNIQUE INDEX ux_users_tid_oid ON users (tid, oid)`,
+      `ALTER TABLE login_transactions ADD COLUMN provider TEXT NOT NULL DEFAULT 'entra'`,
+      `ALTER TABLE audit_events ADD COLUMN actor_provider TEXT`,
+      `ALTER TABLE audit_events ADD COLUMN actor_subject TEXT`,
+    ],
+  },
 ];
 
 export class Store {
@@ -150,6 +200,7 @@ export class Store {
     this.db.close();
   }
 
+  /** Legacy Entra-shaped upsert kept so the previous release can still run. */
   upsertUser(user: {
     tid: string;
     oid: string;
@@ -157,9 +208,7 @@ export class Store {
     displayName: string;
     organisation: string;
   }): UserRecord {
-    const existing = this.db
-      .query<UserRecord, [string, string]>(`${USER_COLUMNS} WHERE tid = ? AND oid = ?`)
-      .get(user.tid, user.oid);
+    const existing = this.getUserByTidOid(user.tid, user.oid);
     if (existing) {
       this.db
         .query('UPDATE users SET email = ?, display_name = ?, organisation = ? WHERE id = ?')
@@ -168,6 +217,9 @@ export class Store {
     }
     const record: UserRecord = {
       id: crypto.randomUUID(),
+      provider: 'entra',
+      issuer: null,
+      subject: user.oid,
       tid: user.tid,
       oid: user.oid,
       email: user.email,
@@ -177,10 +229,12 @@ export class Store {
     };
     this.db
       .query(
-        'INSERT INTO users (id, tid, oid, email, display_name, organisation, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        `INSERT INTO users (id, provider, issuer, subject, tid, oid, email, display_name, organisation, created_at)
+         VALUES (?, 'entra', NULL, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         record.id,
+        record.subject,
         record.tid,
         record.oid,
         record.email,
@@ -197,6 +251,90 @@ export class Store {
         .query<UserRecord, [string, string]>(`${USER_COLUMNS} WHERE tid = ? AND oid = ?`)
         .get(tid, oid) ?? null
     );
+  }
+
+  /**
+   * Entra is matched on its single issuer-independent `oid` because migrated
+   * rows carry a NULL issuer until their owner next signs in; every other
+   * provider is matched on the full `(provider, issuer, subject)` key.
+   */
+  private findUserByIdentity(identity: IdentityKey): UserRecord | null {
+    if (identity.provider === 'entra') {
+      return (
+        this.db
+          .query<UserRecord, [string, string]>(
+            `${USER_COLUMNS} WHERE provider = 'entra' AND (subject = ? OR (subject IS NULL AND oid = ?))`
+          )
+          .get(identity.subject, identity.subject) ?? null
+      );
+    }
+    return (
+      this.db
+        .query<UserRecord, [string, string, string]>(
+          `${USER_COLUMNS} WHERE provider = ? AND issuer = ? AND subject = ?`
+        )
+        .get(identity.provider, identity.issuer, identity.subject) ?? null
+    );
+  }
+
+  getUserByIdentity(provider: string, issuer: string, subject: string): UserRecord | null {
+    return this.findUserByIdentity({ provider, issuer, subject });
+  }
+
+  /** Creates or updates the row for a `(provider, issuer, subject)` identity. */
+  upsertUserByIdentity(identity: IdentityKey, profile: UserProfile): UserRecord {
+    const existing = this.findUserByIdentity(identity);
+    const tid = profile.tid ?? null;
+    const oid = profile.oid ?? null;
+    if (existing) {
+      this.db
+        .query(
+          `UPDATE users SET provider = ?, issuer = ?, subject = ?, tid = ?, oid = ?,
+           email = ?, display_name = ?, organisation = ? WHERE id = ?`
+        )
+        .run(
+          identity.provider,
+          identity.issuer,
+          identity.subject,
+          tid,
+          oid,
+          profile.email,
+          profile.displayName,
+          profile.organisation,
+          existing.id
+        );
+      return this.getUserById(existing.id) ?? existing;
+    }
+    const record: UserRecord = {
+      id: crypto.randomUUID(),
+      provider: identity.provider,
+      issuer: identity.issuer,
+      subject: identity.subject,
+      tid: tid ?? '',
+      oid: oid ?? '',
+      email: profile.email,
+      displayName: profile.displayName,
+      organisation: profile.organisation,
+      createdAt: Date.now(),
+    };
+    this.db
+      .query(
+        `INSERT INTO users (id, provider, issuer, subject, tid, oid, email, display_name, organisation, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        record.id,
+        record.provider,
+        record.issuer,
+        record.subject,
+        tid,
+        oid,
+        record.email,
+        record.displayName,
+        record.organisation,
+        record.createdAt
+      );
+    return record;
   }
 
   getUserById(id: string): UserRecord | null {
@@ -269,8 +407,8 @@ export class Store {
   createLoginTransaction(record: LoginTransactionRecord): void {
     this.db
       .query(
-        `INSERT INTO login_transactions (state, cookie_hash, nonce, code_verifier_enc, return_to, created_at, expires_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO login_transactions (state, cookie_hash, nonce, code_verifier_enc, return_to, provider, created_at, expires_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         record.state,
@@ -278,6 +416,7 @@ export class Store {
         record.nonce,
         record.codeVerifierEnc,
         record.returnTo,
+        record.provider ?? 'entra',
         record.createdAt,
         record.expiresAt
       );
@@ -299,12 +438,14 @@ export class Store {
   insertAudit(record: AuditRecord): void {
     this.db
       .query(
-        `INSERT INTO audit_events (actor_oid, actor_tid, session_hash, event, outcome, reason, ip, user_agent, created_at, metadata)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO audit_events (actor_oid, actor_tid, actor_provider, actor_subject, session_hash, event, outcome, reason, ip, user_agent, created_at, metadata)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         record.actorOid,
         record.actorTid,
+        record.actorProvider ?? null,
+        record.actorSubject ?? null,
         record.sessionHash,
         record.event,
         record.outcome,

@@ -28,6 +28,8 @@ describe('audit logging (A20)', () => {
     expect(event).toBeDefined();
     expect(event?.actorOid).toBe('oid-default');
     expect(event?.actorTid).toBe('tenant-1');
+    expect(event?.actorProvider).toBe('entra');
+    expect(event?.actorSubject).toBe('oid-default');
     expect(event?.outcome).toBe('success');
     expect(event?.sessionHash).toBeTruthy();
     expect(event?.ip).toBeTruthy();
@@ -81,6 +83,8 @@ describe('audit logging (A20)', () => {
       const event = events.find(candidate => candidate.event === name);
       expect(event?.actorOid).toBe('oid-default');
       expect(event?.actorTid).toBe('tenant-1');
+      expect(event?.actorProvider).toBe('entra');
+      expect(event?.actorSubject).toBe('oid-default');
     }
   });
 });

@@ -6,10 +6,9 @@ import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
 import type { FastifyError, FastifyInstance } from 'fastify';
 import { AuditLogger } from './audit';
-import { BearerValidator } from './auth/bearer';
 import { createCsrfPreHandler } from './auth/csrf';
 import { Guard } from './auth/guard';
-import { OidcService } from './auth/oidc';
+import { buildProviderRegistry } from './auth/providers';
 import { SessionService } from './auth/session';
 import type { AppConfig } from './config';
 import { TokenCipher } from './crypto';
@@ -25,8 +24,6 @@ import type { Services } from './services';
 export interface BuildAppOptions {
   config: AppConfig;
   store: Store;
-  oidc?: OidcService;
-  bearer?: BearerValidator;
   frontendDist?: string;
   loggerStream?: { write(message: string): void };
 }
@@ -63,13 +60,9 @@ export async function buildApp(options: BuildAppOptions): Promise<BuiltApp> {
   const cipher = new TokenCipher(config.tokenEncryptionKey, config.tokenEncryptionKeyPrevious);
   const audit = new AuditLogger(store);
   const session = new SessionService(store, config);
-  const oidc = options.oidc ?? new OidcService(config);
-  const bearer = options.bearer ?? new BearerValidator(config);
-  await oidc.init();
-  const jwksUri = oidc.jwksUri();
-  if (jwksUri) bearer.setJwksUri(jwksUri);
+  const providers = await buildProviderRegistry(config);
 
-  const services: Services = { config, store, cipher, audit, session, oidc, bearer };
+  const services: Services = { config, store, cipher, audit, session, providers };
   const csrf = createCsrfPreHandler(config, session, audit);
   const inventory = createRouteInventory();
   app.addHook('onRoute', inventory.onRoute);
@@ -96,7 +89,7 @@ export async function buildApp(options: BuildAppOptions): Promise<BuiltApp> {
         : false,
   });
 
-  const guard = new Guard(store, session, bearer, config);
+  const guard = new Guard(store, session, providers, config);
   app.addHook('onRequest', (request, reply) => guard.onRequest(request, reply));
 
   await app.register(rateLimit, {
@@ -108,6 +101,8 @@ export async function buildApp(options: BuildAppOptions): Promise<BuiltApp> {
         outcome: 'failure',
         actorOid: request.auth?.oid || null,
         actorTid: request.auth?.tid || null,
+        provider: request.auth?.provider,
+        subject: request.auth?.subject,
         sessionId: request.auth?.sessionId ?? null,
         ip: request.ip,
         userAgent: request.headers['user-agent'] ?? null,

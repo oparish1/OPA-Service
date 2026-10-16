@@ -48,7 +48,8 @@ export function toAccountSummary(user: UserRecord): AccountSummary {
     email: user.email,
     organisation: user.organisation || 'Agentic Advantage',
     role: 'User',
-    accountId: `acct_${user.oid}`,
+    accountId:
+      user.provider === 'entra' ? `acct_${user.oid}` : `acct_${user.provider}_${user.subject}`,
     createdAt: formatTimestamp(user.createdAt),
   };
 }
