@@ -219,3 +219,47 @@ describe('token storage and refresh (A13)', () => {
     expect(response.statusCode).toBe(401);
   });
 });
+
+describe('provider-shaped sessions never log token material (B16)', () => {
+  for (const kind of ['okta', 'google'] as const) {
+    it(`never writes a revealed ${kind} token to the logs`, async () => {
+      const logs: string[] = [];
+      const providerIdp = new TestIdp({
+        tenantId: 'tenant-1',
+        clientId: `${kind}-client`,
+        kind,
+        apiAudience: 'api://default',
+        hostedDomain: 'agentic-advantage.com',
+      });
+      await providerIdp.start();
+      const multi = await createHarness({
+        idp,
+        ...(kind === 'okta' ? { oktaIdp: providerIdp } : { googleIdp: providerIdp }),
+        env: { LOG_LEVEL: 'info' },
+        loggerStream: { write: message => logs.push(message) },
+      });
+      try {
+        const { response } = await completeLogin(multi.app, providerIdp, {
+          loginPath: `/auth/login/${kind}`,
+          callbackPath: `/auth/callback/${kind}`,
+        });
+        const cookie = sessionCookie(response);
+        const csrf = await sessionCsrf(multi.app, cookie);
+        const reveal = await multi.app.inject({
+          method: 'POST',
+          url: '/api/session/tokens/reveal',
+          cookies: { [cookie.name]: cookie.value },
+          headers: { 'x-csrf-token': csrf, origin: multi.config.allowedOrigin },
+          payload: { kind: 'refresh' },
+        });
+        const revealed = (reveal.json() as { value: string }).value;
+        expect(revealed.length).toBeGreaterThan(10);
+        expect(logs.join('\n')).not.toContain(revealed);
+      } finally {
+        await multi.app.close();
+        multi.store.close();
+        providerIdp.stop();
+      }
+    });
+  }
+});

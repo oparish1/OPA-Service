@@ -69,7 +69,7 @@ export class Guard {
 
     const sessionId = this.session.sessionIdFrom(request);
     if (sessionId) {
-      const record = this.session.read(sessionId);
+      const record = await this.session.read(sessionId);
       if (record) {
         const user = this.store.getUserById(record.userId);
         request.auth = {

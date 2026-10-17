@@ -59,8 +59,40 @@ export async function buildApp(options: BuildAppOptions): Promise<BuiltApp> {
 
   const cipher = new TokenCipher(config.tokenEncryptionKey, config.tokenEncryptionKeyPrevious);
   const audit = new AuditLogger(store);
-  const session = new SessionService(store, config);
   const providers = await buildProviderRegistry(config);
+  const session = new SessionService(store, config, async record => {
+    const user = store.getUserById(record.userId);
+    const provider = user ? providers.get(user.provider) : undefined;
+    if (!provider?.revokeRefresh) return;
+    const tokens = store.getTokens(record.id);
+    if (!tokens) return;
+    let refreshToken = '';
+    try {
+      refreshToken = cipher.open(tokens.refreshTokenEnc);
+    } catch {
+      return;
+    }
+    if (!refreshToken) return;
+    try {
+      await provider.revokeRefresh(refreshToken);
+      audit.record({
+        event: 'token.revoke',
+        outcome: 'success',
+        provider: user?.provider ?? null,
+        subject: user?.subject ?? null,
+        sessionId: record.id,
+      });
+    } catch (error) {
+      audit.record({
+        event: 'token.revoke',
+        outcome: 'failure',
+        reason: error instanceof Error ? error.message : 'revoke_failed',
+        provider: user?.provider ?? null,
+        subject: user?.subject ?? null,
+        sessionId: record.id,
+      });
+    }
+  });
 
   const services: Services = { config, store, cipher, audit, session, providers };
   const csrf = createCsrfPreHandler(config, session, audit);

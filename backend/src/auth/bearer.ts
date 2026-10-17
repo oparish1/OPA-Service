@@ -6,6 +6,11 @@ export interface BearerValidatorOptions {
   /** Claim holding the account subject: Entra `oid`, Okta `uid`. */
   subjectClaim: string;
   requireTenantId?: string;
+  /**
+   * Whether the route's `scope` must be present in the token. Okta access tokens
+   * carry identity scopes only (O-07), so its validator opts out.
+   */
+  enforceScope?: boolean;
 }
 
 export interface BearerIdentity {
@@ -33,8 +38,14 @@ export class BearerValidator {
     if (this.options.requireTenantId && payload.tid !== this.options.requireTenantId) {
       throw new Error('wrong_tenant');
     }
-    const scopes = typeof payload.scp === 'string' ? payload.scp.split(' ') : [];
-    if (requiredScope && !scopes.includes(requiredScope)) throw new Error('missing_scope');
+    const scopes = Array.isArray(payload.scp)
+      ? payload.scp.filter((entry): entry is string => typeof entry === 'string')
+      : typeof payload.scp === 'string'
+        ? payload.scp.split(' ').filter(Boolean)
+        : [];
+    if (this.options.enforceScope !== false && requiredScope && !scopes.includes(requiredScope)) {
+      throw new Error('missing_scope');
+    }
     const value = payload[this.options.subjectClaim];
     const subject = typeof value === 'string' ? value : '';
     if (!subject) throw new Error('missing_subject');

@@ -19,8 +19,19 @@ export function hashCookieValue(value: string): string {
 export class SessionService {
   constructor(
     private readonly store: Store,
-    private readonly config: AppConfig
+    private readonly config: AppConfig,
+    private readonly onEnd?: (record: SessionRecord) => Promise<void>
   ) {}
+
+  /** Runs the end-of-session hook best-effort; a provider failure never blocks the caller. */
+  private async end(record: SessionRecord): Promise<void> {
+    if (!this.onEnd) return;
+    try {
+      await this.onEnd(record);
+    } catch {
+      // The hook owns its own audit trail; never let it stop the session teardown.
+    }
+  }
 
   cookieName(): string {
     return `${this.config.cookieSecure ? '__Host-' : ''}aa_session`;
@@ -66,10 +77,11 @@ export class SessionService {
   }
 
   /** Enforces idle and absolute timeouts server-side, and rolls the idle clock. */
-  read(id: string, now = Date.now()): SessionRecord | null {
+  async read(id: string, now = Date.now()): Promise<SessionRecord | null> {
     const record = this.store.getSession(id);
     if (!record) return null;
     if (now - record.lastSeenAt > SESSION_IDLE_MS || now - record.createdAt > SESSION_ABSOLUTE_MS) {
+      await this.end(record);
       this.store.deleteSession(id);
       return null;
     }
@@ -82,7 +94,9 @@ export class SessionService {
     return this.store.getSession(id);
   }
 
-  destroy(id: string): void {
+  async destroy(id: string): Promise<void> {
+    const record = this.store.getSession(id);
+    if (record) await this.end(record);
     this.store.deleteSession(id);
   }
 

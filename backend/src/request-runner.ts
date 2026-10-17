@@ -42,6 +42,41 @@ export interface RelayOptions {
   timeoutMs?: number;
 }
 
+export interface RelayTargetOptions {
+  url: string;
+  auth: RunnerAuth;
+  sessionToken?: string;
+  allowedHosts: readonly string[];
+  ownOrigin: string;
+}
+
+/** A GET dispatched through the app's own router rather than the network. */
+export interface InjectRequest {
+  method: string;
+  url: string;
+  cookies?: Record<string, string>;
+  headers?: Record<string, string>;
+}
+
+export interface InjectResponse {
+  statusCode: number;
+  statusMessage?: string;
+  headers: Record<string, string | string[] | number | undefined>;
+  body: string;
+}
+
+export type Inject = (request: InjectRequest) => Promise<InjectResponse>;
+
+export interface RelayInProcessOptions {
+  url: string;
+  allowedHosts: readonly string[];
+  ownOrigin: string;
+  cookieName: string;
+  cookieValue: string;
+  inject: Inject;
+  timeoutMs?: number;
+}
+
 const TEXTUAL_HINTS = ['json', 'xml', 'javascript', 'x-www-form-urlencoded', 'csv'];
 
 /** The media type without parameters, lowercased; `null` when the header is absent. */
@@ -131,6 +166,28 @@ function isAbortError(error: unknown): boolean {
 }
 
 /**
+ * Applies the URL, host-allowlist and auth/host rules. `relayRequest` and
+ * `relayInProcess` share it so the in-process path cannot drift from the rules.
+ */
+export function resolveRelayTarget(
+  options: RelayTargetOptions
+): { target: URL; error?: undefined } | { target?: undefined; error: RunnerErrorCode } {
+  const target = parseRunnerUrl(options.url);
+  if (!target) return { error: 'invalid_url' };
+
+  const allowed = new Set(options.allowedHosts.map(host => host.toLowerCase()));
+  if (!allowed.has(target.host.toLowerCase())) return { error: 'blocked_host' };
+
+  if (options.auth === 'session') {
+    if (target.origin !== safeOrigin(options.ownOrigin)) {
+      return { error: 'session_token_not_allowed_for_host' };
+    }
+    if (!options.sessionToken) return { error: 'request_failed' };
+  }
+  return { target };
+}
+
+/**
  * Relays one GET to a validated target. The caller owns the session token; this
  * function only ever attaches it to the app's own origin. Nothing is sent when
  * the URL, host or auth/host combination fails a rule.
@@ -144,18 +201,9 @@ export async function relayRequest(options: RelayOptions): Promise<RelayOutcome>
     receivedAt: new Date().toISOString(),
   });
 
-  const target = parseRunnerUrl(options.url);
-  if (!target) return fail('invalid_url');
-
-  const allowed = new Set(options.allowedHosts.map(host => host.toLowerCase()));
-  if (!allowed.has(target.host.toLowerCase())) return fail('blocked_host');
-
-  if (options.auth === 'session') {
-    if (target.origin !== safeOrigin(options.ownOrigin)) {
-      return fail('session_token_not_allowed_for_host');
-    }
-    if (!options.sessionToken) return fail('request_failed');
-  }
+  const resolved = resolveRelayTarget(options);
+  if (resolved.error) return fail(resolved.error);
+  const target = resolved.target;
 
   const headers: Record<string, string> = { accept: RUNNER_ACCEPT };
   if (options.auth === 'session') headers.authorization = `Bearer ${options.sessionToken}`;
@@ -193,4 +241,69 @@ export async function relayRequest(options: RelayOptions): Promise<RelayOutcome>
   } finally {
     clearTimeout(timer);
   }
+}
+
+function headerEntries(headers: Record<string, string | string[] | number | undefined>): Headers {
+  const result = new Headers();
+  for (const [name, value] of Object.entries(headers)) {
+    if (typeof value === 'string') result.set(name, value);
+    else if (Array.isArray(value)) result.set(name, value.join(', '));
+    else if (typeof value === 'number') result.set(name, String(value));
+  }
+  return result;
+}
+
+/**
+ * Relays one GET by dispatching through the app's own router with the caller's
+ * signed session cookie. The request re-enters the real guard and `/v1` routes,
+ * so no provider token is minted, attached or sent off the process.
+ */
+export async function relayInProcess(options: RelayInProcessOptions): Promise<RelayOutcome> {
+  const started = Date.now();
+  const fail = (error: RunnerErrorCode): RelayFailure => ({
+    error,
+    durationMs: Date.now() - started,
+    receivedAt: new Date().toISOString(),
+  });
+
+  const resolved = resolveRelayTarget({
+    url: options.url,
+    auth: 'session',
+    allowedHosts: options.allowedHosts,
+    ownOrigin: options.ownOrigin,
+    sessionToken: options.cookieValue,
+  });
+  if (resolved.error) return fail(resolved.error);
+  const target = resolved.target;
+
+  let response: InjectResponse;
+  try {
+    response = await options.inject({
+      method: 'GET',
+      url: `${target.pathname}${target.search}`,
+      cookies: { [options.cookieName]: options.cookieValue },
+      headers: { accept: RUNNER_ACCEPT },
+    });
+  } catch {
+    return fail('request_failed');
+  }
+
+  const bytes = new TextEncoder().encode(response.body ?? '');
+  const truncated = bytes.length > RUNNER_BODY_CAP;
+  const slice = truncated ? bytes.subarray(0, RUNNER_BODY_CAP) : bytes;
+  const headers = headerEntries(response.headers);
+  const contentType = headers.get('content-type')?.toLowerCase() ?? null;
+  const body =
+    slice.length > 0 && isTextualContentType(contentType) ? new TextDecoder().decode(slice) : '';
+  return {
+    status: response.statusCode,
+    statusText: response.statusMessage || STATUS_CODES[response.statusCode] || '',
+    headers: filterHeaders(headers),
+    contentType,
+    body,
+    truncated,
+    size: slice.length,
+    durationMs: Date.now() - started,
+    receivedAt: new Date().toISOString(),
+  };
 }

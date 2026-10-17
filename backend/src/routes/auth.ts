@@ -180,7 +180,11 @@ export function registerAuthRoutes(
   const { config, session, audit, providers } = services;
 
   app.get('/auth/providers', { config: { auth: 'public' } }, async () => ({
-    providers: providers.all.map(provider => ({ id: provider.id, name: provider.name })),
+    providers: providers.all.map(provider => ({
+      id: provider.id,
+      name: provider.name,
+      ...config.providerLinks[provider.id],
+    })),
   }));
 
   for (const provider of providers.all) {
@@ -193,7 +197,7 @@ export function registerAuthRoutes(
     { config: { auth: 'required' }, preHandler: csrf },
     async (request, reply) => {
       const auth = request.auth;
-      if (auth?.sessionId) session.destroy(auth.sessionId);
+      if (auth?.sessionId) await session.destroy(auth.sessionId);
       reply.clearCookie(session.cookieName(), {
         path: '/',
         secure: config.cookieSecure,
