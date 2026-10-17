@@ -1,17 +1,10 @@
 import type { ProviderId } from '../../../shared/providers';
-import type { Identity, ProviderInfo, Session } from './types';
+import type { Identity, ProviderConfig, ProviderInfo, Session } from './types';
 
 export type { ProviderId };
 
-interface MockProvider {
-  id: ProviderId;
-  name: string;
-  icon: string;
-  ssoDomain: string;
-}
-
 /** Enabled providers, in the order the sign-in screen renders them. */
-export const PROVIDERS: readonly MockProvider[] = [
+export const PROVIDERS: readonly ProviderConfig[] = [
   {
     id: 'entra',
     name: 'Microsoft Entra ID',

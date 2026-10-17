@@ -1,3 +1,4 @@
+import type { ProviderId } from '../../shared/providers';
 import type { RunnerAuth, RunnerErrorCode } from '../../shared/request-runner';
 
 export type Screen =
@@ -10,7 +11,7 @@ export type Screen =
   | 'projects-api';
 
 export interface ProviderConfig {
-  id: string;
+  id: ProviderId;
   name: string;
   icon: string;
   ssoDomain: string;
