@@ -42,7 +42,7 @@ bearer.
 Optional account destinations are per provider and are never invented: a link
 is hidden when its variable is unset. `ENTRA_*`, `OKTA_*` and `GOOGLE_*` each
 accept `_FORGOT_PASSWORD_URL`, `_CHANGE_PASSWORD_URL` and `_MANAGE_ACCOUNT_URL`;
-they are returned by `GET /auth/providers` and drive the sign-in, recovery and
+they are returned by `GET /auth/providers` and drive the recovery and
 Account & identity screens.
 
 Run the two dev servers:
@@ -70,10 +70,11 @@ The API screens send one real `GET` through an authenticated backend relay,
 never receives the session access token: the backend resolves the token from the
 server-side store and attaches it only to the app's own origin.
 
-For a Google session the relay does not make an outbound request at all. It
-dispatches the `GET` through the app's own router in-process, carrying the
-caller's signed session cookie rather than any provider token, so the real guard
-and `/v1` routes authorise the request exactly as a browser call would.
+For a Google session using the session option, the relay does not make an
+outbound request at all. It dispatches the `GET` through the app's own router
+in-process, carrying the caller's signed session cookie rather than any provider
+token, so the real guard and `/v1` routes authorise the request exactly as a
+browser call would.
 
 The route accepts a closed `auth` enum and returns the response status, filtered
 headers, body, byte size, backend-measured duration and backend receipt time.
