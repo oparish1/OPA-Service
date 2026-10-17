@@ -249,6 +249,13 @@ describe('real API client', () => {
     expect(assign).toHaveBeenCalledWith('/auth/login/okta');
   });
 
+  it('signs Entra in at its provider-id login path', () => {
+    const assign = vi.fn();
+    vi.stubGlobal('location', { assign });
+    void signIn('entra');
+    expect(assign).toHaveBeenCalledWith('/auth/login/entra');
+  });
+
   it('lists providers from the BFF and derives the current identity', async () => {
     const providersPayload = {
       providers: [

@@ -30,6 +30,7 @@ const DEFAULT_CONFIG: MockConfig = {
   refreshTokenFailure: false,
   revealTokenFailure: false,
   getSessionFailure: false,
+  getProvidersFailure: false,
   getIdentitiesFailure: false,
   runRequestFailure: null,
   projectsEmpty: false,
@@ -60,6 +61,7 @@ export async function signOut(): Promise<void> {
 }
 
 export async function getProviders(): Promise<ProviderInfo[]> {
+  if (config.getProvidersFailure) return fail(new Error('Providers unavailable'));
   return delay(providerInfos());
 }
 

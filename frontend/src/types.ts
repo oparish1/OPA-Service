@@ -13,18 +13,11 @@ export type Screen =
 export interface ProviderConfig {
   id: ProviderId;
   name: string;
-  icon: string;
   ssoDomain: string;
 }
 
 /** The public provider list from `GET /auth/providers`; icons are a UI concern. */
-export interface ProviderInfo {
-  id: string;
-  name: string;
-  forgotPasswordUrl?: string;
-  changePasswordUrl?: string;
-  manageAccountUrl?: string;
-}
+export type { ProviderInfo } from '../../shared/providers';
 
 export interface AccountSummary {
   displayName: string;

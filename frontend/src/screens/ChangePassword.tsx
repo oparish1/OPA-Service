@@ -17,7 +17,7 @@ import { body, color, font, label, space } from '../styles/tokens';
 export function ChangePassword() {
   const { navigate } = useApp();
   const { state: sessionState } = useAsyncData(getSession);
-  const { state: providerState } = useAsyncData(getProviders);
+  const { state: providerState, reload: reloadProviders } = useAsyncData(getProviders);
   const [provider, setProvider] = useState('');
   const [error, setError] = useState<string | undefined>(undefined);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
@@ -71,6 +71,18 @@ export function ChangePassword() {
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: space[20] }}>
+        {providerState.status === 'error' ? (
+          <Notice
+            tone="error"
+            heading={GENERIC_ERROR}
+            action={
+              <Button variant="secondary" onClick={reloadProviders}>
+                Retry
+              </Button>
+            }
+          />
+        ) : null}
+
         {failure ? (
           <Notice
             tone="error"

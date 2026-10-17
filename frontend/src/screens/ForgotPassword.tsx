@@ -18,7 +18,7 @@ import { body, color, font, label, space } from '../styles/tokens';
 /** Forgot password: recovery select, provider chips, reset submission. */
 export function ForgotPassword() {
   const { navigate } = useApp();
-  const { state } = useAsyncData(getProviders);
+  const { state, reload } = useAsyncData(getProviders);
   const [selectedProvider, setSelectedProvider] = useState('');
   const [workEmail, setWorkEmail] = useState('');
   const [error, setError] = useState<string | undefined>(undefined);
@@ -73,6 +73,18 @@ export function ForgotPassword() {
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: space[20] }}>
+        {state.status === 'error' ? (
+          <Notice
+            tone="error"
+            heading={GENERIC_ERROR}
+            action={
+              <Button variant="secondary" onClick={reload}>
+                Retry
+              </Button>
+            }
+          />
+        ) : null}
+
         {failure ? (
           <Notice
             tone="error"

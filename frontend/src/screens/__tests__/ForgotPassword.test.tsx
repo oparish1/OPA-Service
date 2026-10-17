@@ -83,4 +83,11 @@ describe('ForgotPassword', () => {
     expect(await screen.findByText('Something went wrong. Try again.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
   });
+
+  it('shows a retryable error notice when the provider list cannot be loaded', async () => {
+    configureMocks({ getProvidersFailure: true });
+    renderForgot();
+    expect(await screen.findByText('Something went wrong. Try again.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+  });
 });

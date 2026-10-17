@@ -1,4 +1,5 @@
-import type { ProviderId } from '../../../shared/providers';
+import { providerIcon } from '../lib/provider-icons';
+import type { ProviderId, ProviderLinks } from '../../../shared/providers';
 import type { Identity, ProviderConfig, ProviderInfo, Session } from './types';
 
 export type { ProviderId };
@@ -8,28 +9,22 @@ export const PROVIDERS: readonly ProviderConfig[] = [
   {
     id: 'entra',
     name: 'Microsoft Entra ID',
-    icon: 'building-2',
     ssoDomain: 'agentic-advantage.example',
   },
   {
     id: 'okta',
     name: 'Okta',
-    icon: 'circle-dot',
     ssoDomain: 'agentic-advantage.example',
   },
   {
     id: 'google',
     name: 'Google Workspace / Cloud Identity',
-    icon: 'google',
     ssoDomain: 'agentic-advantage.example',
   },
 ];
 
 /** Per-provider account destinations; a link is hidden when its value is unset. */
-export const PROVIDER_LINKS: Record<
-  ProviderId,
-  { forgotPasswordUrl?: string; changePasswordUrl?: string; manageAccountUrl?: string }
-> = {
+export const PROVIDER_LINKS: Record<ProviderId, ProviderLinks> = {
   entra: {
     forgotPasswordUrl: 'https://example.com/reset',
     changePasswordUrl: 'https://example.com/change',
@@ -61,7 +56,7 @@ export function identityFor(providerId: ProviderId, email: string): Identity {
   return {
     id: provider.id,
     name: provider.name,
-    icon: provider.icon,
+    icon: providerIcon(provider.id),
     subtitle: email,
     status: 'primary',
     manageUrl: PROVIDER_LINKS[provider.id].manageAccountUrl,
