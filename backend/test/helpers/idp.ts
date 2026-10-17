@@ -1,6 +1,8 @@
 import { exportJWK, generateKeyPair, SignJWT } from 'jose';
 import type { CryptoKey, JWK } from 'jose';
 
+export type IdpKind = 'entra' | 'okta' | 'google';
+
 export interface TokenBehavior {
   /** Extra or overriding ID-token claims. */
   claims?: Record<string, unknown>;
@@ -8,11 +10,22 @@ export interface TokenBehavior {
   signWithUnknownKey?: boolean;
   /** Omit the ID token entirely. */
   omitIdToken?: boolean;
+  /** Omit the rotated refresh token from refresh responses (Google's consent-only case). */
+  omitRefreshedRefreshToken?: boolean;
+  /** Reject the next refresh with `invalid_grant`. */
+  invalidGrant?: boolean;
 }
 
 export interface IdpOptions {
   tenantId: string;
   clientId: string;
+  kind?: IdpKind;
+  /** Okta default-AS API audience expected on `/v1` access tokens. */
+  apiAudience?: string;
+  /** Google Workspace hosted domain (`hd`) the app requires. */
+  hostedDomain?: string;
+  /** Okta group the app requires in the ID-token `groups` claim. */
+  requiredGroup?: string;
 }
 
 function encodeCode(nonce: string): string {
@@ -23,17 +36,23 @@ function decodeNonce(code: string): string {
   return Buffer.from(code.replace(/^code-/, ''), 'base64url').toString('utf8');
 }
 
-/** Local OIDC issuer + JWKS so tests never call Microsoft Entra. */
+/** Local OIDC issuer + JWKS so tests never call a real Microsoft, Okta or Google tenant. */
 export class TestIdp {
   private server: ReturnType<typeof Bun.serve> | null = null;
   private privateKey!: CryptoKey;
   private unknownKey!: CryptoKey;
   private publicJwk!: JWK;
   private refreshCount = 0;
+  private validRefreshTokens = new Set<string>();
+  revokeCount = 0;
   origin = '';
   behavior: TokenBehavior = {};
 
   constructor(private readonly options: IdpOptions) {}
+
+  get kind(): IdpKind {
+    return this.options.kind ?? 'entra';
+  }
 
   async start(): Promise<void> {
     const known = await generateKeyPair('RS256');
@@ -67,6 +86,47 @@ export class TestIdp {
   reset(): void {
     this.behavior = {};
     this.refreshCount = 0;
+    this.validRefreshTokens.clear();
+    this.revokeCount = 0;
+  }
+
+  private idClaims(): Record<string, unknown> {
+    const common = {
+      iss: this.origin,
+      aud: this.options.clientId,
+      sub: 'sub-default',
+      nonce: '',
+      iat: 0,
+      exp: 0,
+    };
+    switch (this.kind) {
+      case 'okta':
+        return {
+          ...common,
+          sub: 'okta-user-1',
+          email: 'orlando.parish@agentic-advantage.example',
+          name: 'Orlando Parish',
+          groups: [this.options.requiredGroup ?? 'Workspace User'],
+        };
+      case 'google':
+        return {
+          ...common,
+          sub: 'google-user-1',
+          email: 'orlando.parish@agentic-advantage.example',
+          name: 'Orlando Parish',
+          hd: this.options.hostedDomain ?? 'agentic-advantage.com',
+          email_verified: true,
+        };
+      default:
+        return {
+          ...common,
+          oid: 'oid-default',
+          tid: this.options.tenantId,
+          email: 'orlando.parish@agentic-advantage.example',
+          name: 'Orlando Parish',
+          roles: ['Workspace.User'],
+        };
+    }
   }
 
   async signIdToken(nonce: string): Promise<string> {
@@ -74,14 +134,7 @@ export class TestIdp {
     const kid = this.behavior.signWithUnknownKey ? 'unknown-key' : 'test-key';
     const now = Math.floor(Date.now() / 1000);
     const payload: Record<string, unknown> = {
-      iss: this.origin,
-      aud: this.options.clientId,
-      sub: 'sub-default',
-      oid: 'oid-default',
-      tid: this.options.tenantId,
-      email: 'orlando.parish@agentic-advantage.example',
-      name: 'Orlando Parish',
-      roles: ['Workspace.User'],
+      ...this.idClaims(),
       nonce,
       iat: now,
       exp: now + 300,
@@ -92,19 +145,30 @@ export class TestIdp {
       .sign(signingKey);
   }
 
-  /** Mints an access token for `/v1/*` bearer tests. */
+  /** Mints a `/v1` bearer access token shaped for this provider. */
   async signAccessToken(claims: Record<string, unknown> = {}): Promise<string> {
     const now = Math.floor(Date.now() / 1000);
-    const payload: Record<string, unknown> = {
-      iss: this.origin,
-      aud: this.options.clientId,
-      oid: 'oid-default',
-      tid: this.options.tenantId,
-      scp: 'profile.read projects.read',
-      iat: now,
-      exp: now + 300,
-      ...claims,
-    };
+    const base: Record<string, unknown> =
+      this.kind === 'okta'
+        ? {
+            iss: this.origin,
+            aud: this.options.apiAudience ?? 'api://default',
+            sub: 'okta-user-1',
+            uid: 'okta-uid-1',
+            scp: ['openid', 'email', 'profile'],
+            iat: now,
+            exp: now + 300,
+          }
+        : {
+            iss: this.origin,
+            aud: this.options.clientId,
+            oid: 'oid-default',
+            tid: this.options.tenantId,
+            scp: 'profile.read projects.read',
+            iat: now,
+            exp: now + 300,
+          };
+    const payload: Record<string, unknown> = { ...base, ...claims };
     const key = claims.__unknownKey ? this.unknownKey : this.privateKey;
     const kid = claims.__unknownKey ? 'unknown-key' : 'test-key';
     delete payload.__unknownKey;
@@ -114,6 +178,10 @@ export class TestIdp {
   private async handle(request: Request): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === '/.well-known/openid-configuration') {
+      const scopes =
+        this.kind === 'okta'
+          ? ['openid', 'profile', 'email', 'groups', 'offline_access']
+          : ['openid', 'profile', 'email', 'offline_access'];
       return Response.json({
         issuer: this.origin,
         authorization_endpoint: `${this.origin}/authorize`,
@@ -122,19 +190,24 @@ export class TestIdp {
         response_types_supported: ['code'],
         subject_types_supported: ['public'],
         id_token_signing_alg_values_supported: ['RS256'],
-        scopes_supported: ['openid', 'profile', 'email', 'offline_access'],
+        scopes_supported: scopes,
         code_challenge_methods_supported: ['S256'],
         token_endpoint_auth_methods_supported: ['client_secret_post', 'private_key_jwt'],
         end_session_endpoint: `${this.origin}/logout`,
+        ...(this.kind === 'google' ? { revocation_endpoint: `${this.origin}/revoke` } : {}),
       });
     }
     if (url.pathname === '/jwks') {
       return Response.json({ keys: [this.publicJwk] });
     }
+    if (url.pathname === '/revoke' && request.method === 'POST') {
+      this.revokeCount += 1;
+      return new Response('', { status: 200 });
+    }
     if (url.pathname === '/token' && request.method === 'POST') {
       const form = new URLSearchParams(await request.text());
       if (form.get('grant_type') === 'refresh_token') {
-        return this.refreshResponse();
+        return this.refreshResponse(form);
       }
       return this.codeResponse(form);
     }
@@ -144,6 +217,7 @@ export class TestIdp {
   private async codeResponse(form: URLSearchParams): Promise<Response> {
     const code = form.get('code') ?? '';
     const nonce = code ? decodeNonce(code) : '';
+    this.validRefreshTokens.add('refresh-token-1');
     const body: Record<string, unknown> = {
       token_type: 'Bearer',
       expires_in: 3600,
@@ -157,14 +231,24 @@ export class TestIdp {
     return Response.json(body);
   }
 
-  private async refreshResponse(): Promise<Response> {
+  private async refreshResponse(form: URLSearchParams): Promise<Response> {
+    const presented = form.get('refresh_token') ?? '';
+    if (this.behavior.invalidGrant || !this.validRefreshTokens.has(presented)) {
+      return Response.json({ error: 'invalid_grant', error_description: 'token revoked' }, { status: 400 });
+    }
     this.refreshCount += 1;
-    return Response.json({
+    const body: Record<string, unknown> = {
       token_type: 'Bearer',
       expires_in: 3600,
       access_token: `access-token-refreshed-${this.refreshCount}`,
-      refresh_token: `refresh-token-${this.refreshCount + 1}`,
       scope: 'openid profile email offline_access profile.read projects.read',
-    });
+    };
+    if (!this.behavior.omitRefreshedRefreshToken) {
+      const rotated = `refresh-token-${this.refreshCount + 1}`;
+      this.validRefreshTokens.delete(presented);
+      this.validRefreshTokens.add(rotated);
+      body.refresh_token = rotated;
+    }
+    return Response.json(body);
   }
 }

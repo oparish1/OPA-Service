@@ -1,6 +1,14 @@
+import { readFileSync } from 'node:fs';
 import { z } from 'zod';
+import type { ProviderId, ProviderLinks } from '../../shared/providers';
 
 const booleanString = z.enum(['true', 'false']).transform(value => value === 'true');
+
+/** An optional URL variable: an empty value is the operator saying "not configured". */
+const optionalUrl = z.preprocess(
+  value => (value === '' ? undefined : value),
+  z.string().url().optional()
+);
 
 const baseSchema = z
   .object({
@@ -22,13 +30,24 @@ const baseSchema = z
     OKTA_CLIENT_ID: z.string().min(1).optional(),
     OKTA_CLIENT_SECRET: z.string().min(1).optional(),
     OKTA_CLIENT_PRIVATE_KEY: z.string().min(1).optional(),
+    OKTA_CLIENT_PRIVATE_KEY_FILE: z.string().min(1).optional(),
     OKTA_REQUIRED_GROUP: z.string().min(1).optional(),
     OKTA_API_AUDIENCE: z.string().min(1).optional(),
     GOOGLE_ENABLED: booleanString.default(false),
     GOOGLE_CLIENT_ID: z.string().min(1).optional(),
     GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
     GOOGLE_HOSTED_DOMAIN: z.string().min(1).optional(),
+    GOOGLE_ISSUER: optionalUrl,
     GOOGLE_PROMPT_CONSENT: booleanString.default(false),
+    ENTRA_FORGOT_PASSWORD_URL: optionalUrl,
+    ENTRA_CHANGE_PASSWORD_URL: optionalUrl,
+    ENTRA_MANAGE_ACCOUNT_URL: optionalUrl,
+    OKTA_FORGOT_PASSWORD_URL: optionalUrl,
+    OKTA_CHANGE_PASSWORD_URL: optionalUrl,
+    OKTA_MANAGE_ACCOUNT_URL: optionalUrl,
+    GOOGLE_FORGOT_PASSWORD_URL: optionalUrl,
+    GOOGLE_CHANGE_PASSWORD_URL: optionalUrl,
+    GOOGLE_MANAGE_ACCOUNT_URL: optionalUrl,
     REQUEST_RUNNER_ALLOWED_HOSTS: z.string().optional(),
     SESSION_SECRET: z.string().min(1),
     TOKEN_ENCRYPTION_KEY: z.string().min(1),
@@ -69,7 +88,8 @@ const PROVIDER_REQUIREMENTS: readonly ProviderRequirement[] = [
     flag: 'OKTA_ENABLED',
     path: 'OKTA_CLIENT_SECRET',
     message: 'an Okta client credential is required when Okta is enabled',
-    present: value => Boolean(value.OKTA_CLIENT_SECRET || value.OKTA_CLIENT_PRIVATE_KEY),
+    present: value =>
+      Boolean(value.OKTA_CLIENT_SECRET || value.OKTA_CLIENT_PRIVATE_KEY || value.OKTA_CLIENT_PRIVATE_KEY_FILE),
   },
   ...GOOGLE_REQUIRED_FIELDS.map(field => ({
     flag: 'GOOGLE_ENABLED' as const,
@@ -121,6 +141,7 @@ export interface GoogleProviderConfig {
   clientId: string;
   clientSecret: string;
   hostedDomain: string;
+  issuer: string;
   promptConsent: boolean;
 }
 
@@ -140,6 +161,7 @@ export interface AppConfig {
   apiClientId: string;
   okta?: OktaProviderConfig;
   google?: GoogleProviderConfig;
+  providerLinks: Record<ProviderId, ProviderLinks>;
   requestRunnerAllowedHosts: readonly string[];
   sessionSecret: string;
   tokenEncryptionKey: string;
@@ -154,6 +176,42 @@ export interface AppConfig {
   rateLimitReveal: number;
   rateLimitRequestRunner: number;
   logLevel: string;
+}
+
+const DEFAULT_GOOGLE_ISSUER = 'https://accounts.google.com';
+
+/** Reads the `OKTA_CLIENT_PRIVATE_KEY_FILE` path; a failure names only the variable. */
+function oktaClientPrivateKey(value: ParsedEnv): string | undefined {
+  if (value.OKTA_CLIENT_PRIVATE_KEY_FILE) {
+    try {
+      return readFileSync(value.OKTA_CLIENT_PRIVATE_KEY_FILE, 'utf8');
+    } catch {
+      throw new Error('Invalid or missing configuration: OKTA_CLIENT_PRIVATE_KEY_FILE could not be read');
+    }
+  }
+  return value.OKTA_CLIENT_PRIVATE_KEY;
+}
+
+/** Never invents a destination: each link is present only when its variable is set. */
+function providerLinks(value: ParsedEnv): Record<ProviderId, ProviderLinks> {
+  const links = {
+    entra: {
+      forgotPasswordUrl: value.ENTRA_FORGOT_PASSWORD_URL,
+      changePasswordUrl: value.ENTRA_CHANGE_PASSWORD_URL,
+      manageAccountUrl: value.ENTRA_MANAGE_ACCOUNT_URL,
+    },
+    okta: {
+      forgotPasswordUrl: value.OKTA_FORGOT_PASSWORD_URL,
+      changePasswordUrl: value.OKTA_CHANGE_PASSWORD_URL,
+      manageAccountUrl: value.OKTA_MANAGE_ACCOUNT_URL,
+    },
+    google: {
+      forgotPasswordUrl: value.GOOGLE_FORGOT_PASSWORD_URL,
+      changePasswordUrl: value.GOOGLE_CHANGE_PASSWORD_URL,
+      manageAccountUrl: value.GOOGLE_MANAGE_ACCOUNT_URL,
+    },
+  } satisfies Record<ProviderId, ProviderLinks>;
+  return Object.freeze(links);
 }
 
 function allowedHosts(publicBaseUrl: string, raw: string | undefined): readonly string[] {
@@ -176,23 +234,27 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   }
   const value = parsed.data;
   const publicBaseUrl = value.PUBLIC_BASE_URL.replace(/\/$/, '');
-  const okta =
-    value.OKTA_ENABLED && isOktaConfigured(value)
-      ? Object.freeze({
-          issuer: value.OKTA_ISSUER,
-          clientId: value.OKTA_CLIENT_ID,
-          clientSecret: value.OKTA_CLIENT_SECRET,
-          clientPrivateKey: value.OKTA_CLIENT_PRIVATE_KEY,
-          requiredGroup: value.OKTA_REQUIRED_GROUP,
-          apiAudience: value.OKTA_API_AUDIENCE,
-        })
-      : undefined;
+  let okta: OktaProviderConfig | undefined;
+  if (value.OKTA_ENABLED && isOktaConfigured(value)) {
+    // The key file is read only for an enabled provider, so the kill switch needs no Okta variables.
+    const clientPrivateKey = oktaClientPrivateKey(value);
+    okta = Object.freeze({
+      issuer: value.OKTA_ISSUER,
+      clientId: value.OKTA_CLIENT_ID,
+      // A configured private key makes Okta use private_key_jwt; the secret is not sent.
+      clientSecret: clientPrivateKey ? undefined : value.OKTA_CLIENT_SECRET,
+      clientPrivateKey,
+      requiredGroup: value.OKTA_REQUIRED_GROUP,
+      apiAudience: value.OKTA_API_AUDIENCE,
+    });
+  }
   const google =
     value.GOOGLE_ENABLED && isGoogleConfigured(value)
       ? Object.freeze({
           clientId: value.GOOGLE_CLIENT_ID,
           clientSecret: value.GOOGLE_CLIENT_SECRET,
           hostedDomain: value.GOOGLE_HOSTED_DOMAIN,
+          issuer: value.GOOGLE_ISSUER ?? DEFAULT_GOOGLE_ISSUER,
           promptConsent: value.GOOGLE_PROMPT_CONSENT,
         })
       : undefined;
@@ -213,6 +275,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     apiClientId: value.ENTRA_API_CLIENT_ID ?? value.ENTRA_CLIENT_ID,
     okta,
     google,
+    providerLinks: providerLinks(value),
     requestRunnerAllowedHosts: allowedHosts(publicBaseUrl, value.REQUEST_RUNNER_ALLOWED_HOSTS),
     sessionSecret: value.SESSION_SECRET,
     tokenEncryptionKey: value.TOKEN_ENCRYPTION_KEY,

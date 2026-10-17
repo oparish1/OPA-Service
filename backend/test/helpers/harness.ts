@@ -29,12 +29,44 @@ export interface Harness extends BuiltApp {
   config: BuiltApp['services']['config'];
 }
 
+export interface HarnessIdps {
+  idp: TestIdp;
+  oktaIdp?: TestIdp;
+  googleIdp?: TestIdp;
+}
+
+function providerEnv(options: HarnessIdps): Record<string, string | undefined> {
+  const env: Record<string, string | undefined> = { ENTRA_ISSUER: options.idp.origin };
+  if (options.oktaIdp) {
+    Object.assign(env, {
+      OKTA_ENABLED: 'true',
+      OKTA_ISSUER: options.oktaIdp.origin,
+      OKTA_CLIENT_ID: 'okta-client',
+      OKTA_CLIENT_SECRET: 'okta-secret',
+      OKTA_REQUIRED_GROUP: 'Workspace User',
+      OKTA_API_AUDIENCE: 'api://default',
+    });
+  }
+  if (options.googleIdp) {
+    Object.assign(env, {
+      GOOGLE_ENABLED: 'true',
+      GOOGLE_ISSUER: options.googleIdp.origin,
+      GOOGLE_CLIENT_ID: 'google-client',
+      GOOGLE_CLIENT_SECRET: 'google-secret',
+      GOOGLE_HOSTED_DOMAIN: 'agentic-advantage.com',
+    });
+  }
+  return env;
+}
+
 export async function createHarness(options: {
   idp: TestIdp;
+  oktaIdp?: TestIdp;
+  googleIdp?: TestIdp;
   env?: Record<string, string | undefined>;
   loggerStream?: { write(message: string): void };
 }): Promise<Harness> {
-  const config = loadConfig(testEnv({ ENTRA_ISSUER: options.idp.origin, ...options.env }));
+  const config = loadConfig(testEnv({ ...providerEnv(options), ...options.env }));
   const store = new Store(':memory:');
   store.migrate();
   const built = await buildApp({ config, store, loggerStream: options.loggerStream });
@@ -49,8 +81,8 @@ export interface LoginStart {
   ltxValue: string;
 }
 
-export async function beginLogin(app: FastifyInstance): Promise<LoginStart> {
-  const response = await app.inject({ method: 'GET', url: '/auth/login' });
+export async function beginLogin(app: FastifyInstance, loginPath = '/auth/login'): Promise<LoginStart> {
+  const response = await app.inject({ method: 'GET', url: loginPath });
   if (response.statusCode !== 302) throw new Error(`login did not redirect: ${response.statusCode}`);
   const location = new URL(response.headers.location as string);
   const ltx = response.cookies.find(cookie => cookie.name.includes('aa_ltx'));
@@ -66,13 +98,15 @@ export async function beginLogin(app: FastifyInstance): Promise<LoginStart> {
 
 export async function completeLogin(
   app: FastifyInstance,
-  idp: TestIdp
+  idp: TestIdp,
+  paths: { loginPath?: string; callbackPath?: string } = {}
 ): Promise<{ response: Awaited<ReturnType<FastifyInstance['inject']>>; start: LoginStart }> {
-  const start = await beginLogin(app);
+  const start = await beginLogin(app, paths.loginPath ?? '/auth/login');
   const code = idp.makeCode(start.nonce);
+  const callbackPath = paths.callbackPath ?? '/auth/callback';
   const response = await app.inject({
     method: 'GET',
-    url: `/auth/callback?code=${code}&state=${encodeURIComponent(start.state)}`,
+    url: `${callbackPath}?code=${code}&state=${encodeURIComponent(start.state)}`,
     cookies: { [start.ltxName]: start.ltxValue },
   });
   return { response, start };

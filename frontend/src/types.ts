@@ -1,3 +1,4 @@
+import type { ProviderId } from '../../shared/providers';
 import type { RunnerAuth, RunnerErrorCode } from '../../shared/request-runner';
 
 export type Screen =
@@ -10,11 +11,13 @@ export type Screen =
   | 'projects-api';
 
 export interface ProviderConfig {
-  id: string;
+  id: ProviderId;
   name: string;
-  icon: string;
   ssoDomain: string;
 }
+
+/** The public provider list from `GET /auth/providers`; icons are a UI concern. */
+export type { ProviderInfo } from '../../shared/providers';
 
 export interface AccountSummary {
   displayName: string;
@@ -59,7 +62,8 @@ export interface Identity {
   icon: string;
   subtitle: string;
   status: ProviderStatus;
-  manageUrl: string;
+  /** Absent when the provider has no configured account-management destination. */
+  manageUrl?: string;
 }
 
 export type BodyKind = 'json' | 'text' | 'empty' | 'binary';

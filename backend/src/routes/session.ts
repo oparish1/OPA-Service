@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { withSessionRefreshLock } from '../auth/refresh-lock';
 import type { ProviderDefinition } from '../auth/providers';
 import type { TokenRecord } from '../db';
 import { formatTimestamp, maskToken, toAccountSummary } from '../format';
@@ -30,25 +31,17 @@ function refreshExpiryLabel(provider: ProviderDefinition | undefined, tokens: To
   }
 }
 
-function refreshGrantLabel(provider: ProviderDefinition | undefined): string {
-  switch (provider?.refreshExpiry) {
-    case 'policy':
-      return 'Rotating refresh token';
-    case 'none':
-      return 'Session-scoped token';
-    default:
-      return 'offline_access · rotating refresh token';
-  }
-}
-
 function sessionMetadata(services: Services, sessionId: string, userId: string): SessionMetadata {
   const { store, session, cipher, config, providers } = services;
   const record = session.peek(sessionId);
   const user = store.getUserById(userId);
   const provider = providers.get(user?.provider ?? 'entra');
   const tokens = store.getTokens(sessionId);
+  // Decryption failures propagate: corruption or a key mismatch must not be reported
+  // as a legitimately absent token. An absent refresh token is stored as an empty string.
   const accessValue = tokens ? cipher.open(tokens.accessTokenEnc) : '';
-  const refreshValue = tokens ? cipher.open(tokens.refreshTokenEnc) : '';
+  const refreshValue = tokens?.refreshTokenEnc ? cipher.open(tokens.refreshTokenEnc) : '';
+  const hasRefresh = refreshValue.length > 0;
   return {
     provider: provider?.name ?? 'Microsoft Entra ID',
     account: user ? toAccountSummary(user) : null,
@@ -58,9 +51,9 @@ function sessionMetadata(services: Services, sessionId: string, userId: string):
       scopes: tokens?.scopes ?? '',
     },
     refreshToken: {
-      masked: tokens ? maskToken(refreshValue) : '',
+      masked: hasRefresh ? maskToken(refreshValue) : '',
       expiresAt: refreshExpiryLabel(provider, tokens),
-      grant: refreshGrantLabel(provider),
+      grant: hasRefresh ? (provider?.refreshGrant ?? 'Not issued') : 'Not issued',
     },
     issuer: provider?.issuer ?? config.issuer,
     issuedAt: formatTimestamp(record?.createdAt ?? Date.now()),
@@ -74,7 +67,7 @@ export function registerSessionRoutes(
   services: Services,
   csrf: PreHandler
 ): void {
-  const { config, store, cipher, audit, providers } = services;
+  const { config, store, cipher, audit, providers, session } = services;
 
   app.get('/api/session', { config: { auth: 'required' } }, async (request, reply) => {
     const auth = request.auth;
@@ -98,53 +91,77 @@ export function registerSessionRoutes(
       if (!auth?.sessionId || !auth.userId) {
         return reply.code(401).send({ error: 'unauthorized' });
       }
-      const provider = providers.get(auth.provider);
+      const sessionId = auth.sessionId;
+      const userId = auth.userId;
+      const providerId = auth.provider;
+      const subject = auth.subject;
+      const actorOid = auth.oid || null;
+      const actorTid = auth.tid || null;
+      const provider = providers.get(providerId);
       if (!provider) return reply.code(401).send({ error: 'unauthorized' });
-      const tokens = store.getTokens(auth.sessionId);
-      if (!tokens?.refreshTokenEnc) {
-        return reply.code(401).send({ error: 'no_refresh_token' });
-      }
-      try {
-        const refreshed = await provider.oidc.refresh(cipher.open(tokens.refreshTokenEnc));
-        store.saveTokens({
-          sessionId: auth.sessionId,
-          accessTokenEnc: cipher.seal(refreshed.accessToken),
-          refreshTokenEnc: cipher.seal(refreshed.refreshToken),
-          accessExpiresAt: refreshed.accessExpiresAt,
-          refreshExpiresAt: refreshed.refreshExpiresAt,
-          scopes: refreshed.scopes || tokens.scopes,
-        });
-        audit.record({
-          event: 'session.refresh',
-          outcome: 'success',
-          actorOid: auth.oid || null,
-          actorTid: auth.tid || null,
-          provider: auth.provider,
-          subject: auth.subject,
-          sessionId: auth.sessionId,
-          ip: request.ip,
-          userAgent: request.headers['user-agent'] ?? null,
-        });
-        return sessionMetadata(services, auth.sessionId, auth.userId);
-      } catch (err) {
-        const e = err as { code?: string; error?: string; error_description?: string; message?: string };
-        request.log.warn(
-          { code: e.code, error: e.error, description: e.error_description ?? e.message },
-          'session refresh failed'
-        );
-        audit.record({
-          event: 'session.refresh.failed',
-          outcome: 'failure',
-          actorOid: auth.oid || null,
-          actorTid: auth.tid || null,
-          provider: auth.provider,
-          subject: auth.subject,
-          sessionId: auth.sessionId,
-          ip: request.ip,
-          userAgent: request.headers['user-agent'] ?? null,
+      const metadata = await withSessionRefreshLock(sessionId, async () => {
+        // Re-read inside the lock so a concurrent refresh uses the rotated token.
+        const tokens = store.getTokens(sessionId);
+        if (!tokens || !tokens.refreshTokenEnc) return { kind: 'no_refresh' as const };
+        try {
+          // A stored token that cannot be opened is corruption, not an unissued token:
+          // it falls through to the failure branch and is logged and audited.
+          const refreshValue = cipher.open(tokens.refreshTokenEnc);
+          if (!refreshValue) return { kind: 'no_refresh' as const };
+          const refreshed = await provider.oidc.refresh(refreshValue);
+          store.saveTokens({
+            sessionId,
+            accessTokenEnc: cipher.seal(refreshed.accessToken),
+            refreshTokenEnc: refreshed.refreshToken ? cipher.seal(refreshed.refreshToken) : '',
+            accessExpiresAt: refreshed.accessExpiresAt,
+            refreshExpiresAt: refreshed.refreshExpiresAt,
+            scopes: refreshed.scopes || tokens.scopes,
+          });
+          audit.record({
+            event: 'session.refresh',
+            outcome: 'success',
+            actorOid,
+            actorTid,
+            provider: providerId,
+            subject,
+            sessionId,
+            ip: request.ip,
+            userAgent: request.headers['user-agent'] ?? null,
+          });
+          return { kind: 'ok' as const };
+        } catch (err) {
+          const e = err as { code?: string; error?: string; error_description?: string; message?: string };
+          request.log.warn(
+            { code: e.code, error: e.error, description: e.error_description ?? e.message },
+            'session refresh failed'
+          );
+          audit.record({
+            event: 'session.refresh.failed',
+            outcome: 'failure',
+            actorOid,
+            actorTid,
+            provider: providerId,
+            subject,
+            sessionId,
+            ip: request.ip,
+            userAgent: request.headers['user-agent'] ?? null,
+          });
+          const invalidGrant = e.error === 'invalid_grant' || e.code === 'invalid_grant';
+          return invalidGrant ? { kind: 'invalid_grant' as const } : { kind: 'failed' as const };
+        }
+      });
+      if (metadata.kind === 'no_refresh') return reply.code(401).send({ error: 'no_refresh_token' });
+      if (metadata.kind === 'invalid_grant') {
+        await session.destroy(sessionId);
+        reply.clearCookie(session.cookieName(), {
+          path: '/',
+          secure: config.cookieSecure,
+          sameSite: 'lax',
         });
         return reply.code(401).send({ error: 'refresh_failed' });
       }
+      if (metadata.kind === 'failed') return reply.code(401).send({ error: 'refresh_failed' });
+      return sessionMetadata(services, sessionId, userId);
     }
   );
 
@@ -168,10 +185,13 @@ export function registerSessionRoutes(
       }
       const tokens = store.getTokens(auth.sessionId);
       if (!tokens) return reply.code(401).send({ error: 'unauthorized' });
+      const refreshTokenEnc = tokens.refreshTokenEnc;
       const value =
         body.kind === 'access'
           ? cipher.open(tokens.accessTokenEnc)
-          : cipher.open(tokens.refreshTokenEnc);
+          : refreshTokenEnc
+            ? cipher.open(refreshTokenEnc)
+            : '';
       audit.record({
         event: 'token.reveal',
         outcome: 'success',

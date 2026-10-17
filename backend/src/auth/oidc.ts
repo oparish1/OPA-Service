@@ -12,10 +12,14 @@ export interface OidcServiceOptions {
   allowInsecureIssuer: boolean;
   callbackPath: string;
   scopes: readonly string[];
+  /** Extra authorization-query parameters a provider requires (for example `access_type`). */
+  extraAuthorizationParams?: Record<string, string>;
   /** Fixed refresh-token lifetime, or `null` when the provider does not publish one. */
   refreshTokenLifetimeMs: number | null;
   endSession: boolean;
 }
+
+const REVOCATION_TIMEOUT_MS = 5000;
 
 /** Raw token material plus the validated ID-token claims; gating lives with the provider. */
 export interface OidcTokenSet {
@@ -101,6 +105,7 @@ export class OidcService {
       nonce,
       code_challenge: codeChallenge,
       code_challenge_method: 'S256',
+      ...this.options.extraAuthorizationParams,
     });
     return { url: url.href, state, nonce, codeVerifier };
   }
@@ -150,6 +155,30 @@ export class OidcService {
 
   jwksUri(): string | null {
     return this.configuration?.serverMetadata().jwks_uri ?? null;
+  }
+
+  revocationEndpoint(): string | null {
+    return this.configuration?.serverMetadata().revocation_endpoint ?? null;
+  }
+
+  /**
+   * Best-effort RFC 7009 revocation. Bounded so a slow provider can never hold
+   * up logout or the idle-timeout path.
+   */
+  async revoke(token: string): Promise<void> {
+    if (!token || !this.revocationEndpoint()) return;
+    const configuration = this.requiredConfiguration();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        client.tokenRevocation(configuration, token),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => reject(new Error('revocation_timeout')), REVOCATION_TIMEOUT_MS);
+        }),
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 
   /** RP-initiated logout URL; only providers with an approved end-session endpoint get one. */

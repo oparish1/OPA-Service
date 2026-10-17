@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { RUNNER_AUTH_VALUES, relayRequest } from '../request-runner';
+import { RUNNER_AUTH_VALUES, relayInProcess, relayRequest } from '../request-runner';
 import type { RelayOutcome, RunnerAuth, RunnerErrorCode } from '../request-runner';
 import type { Services } from '../services';
 
@@ -43,7 +43,7 @@ export function registerRequestRunnerRoutes(
   services: Services,
   csrf: PreHandler
 ): void {
-  const { config, store, cipher, audit } = services;
+  const { config, store, cipher, audit, session, providers } = services;
 
   app.post(
     '/api/request-runner',
@@ -65,19 +65,35 @@ export function registerRequestRunnerRoutes(
       }
       const { url, auth: authOption } = parsed.data;
 
-      let sessionToken: string | undefined;
-      if (authOption === 'session') {
-        const tokens = store.getTokens(auth.sessionId);
-        if (tokens) sessionToken = cipher.open(tokens.accessTokenEnc);
+      const provider = providers.get(auth.provider);
+      const useInProcess = authOption === 'session' && provider !== undefined && provider.bearer === null;
+      let outcome: RelayOutcome;
+      if (useInProcess) {
+        // Google sessions have no `/v1`-valid bearer, so the relay dispatches in-process
+        // with the session cookie and lets the real guard authorise the request.
+        const cookieName = session.cookieName();
+        outcome = await relayInProcess({
+          url,
+          allowedHosts: config.requestRunnerAllowedHosts,
+          ownOrigin: config.publicBaseUrl,
+          cookieName,
+          cookieValue: request.cookies[cookieName] ?? '',
+          inject: injectOptions => request.server.inject(injectOptions),
+        });
+      } else {
+        let sessionToken: string | undefined;
+        if (authOption === 'session') {
+          const tokens = store.getTokens(auth.sessionId);
+          if (tokens) sessionToken = cipher.open(tokens.accessTokenEnc);
+        }
+        outcome = await relayRequest({
+          url,
+          auth: authOption,
+          sessionToken,
+          allowedHosts: config.requestRunnerAllowedHosts,
+          ownOrigin: config.publicBaseUrl,
+        });
       }
-
-      const outcome: RelayOutcome = await relayRequest({
-        url,
-        auth: authOption,
-        sessionToken,
-        allowedHosts: config.requestRunnerAllowedHosts,
-        ownOrigin: config.publicBaseUrl,
-      });
       const metadata = baseMetadata(url, authOption);
       if (outcome.durationMs !== undefined) metadata.durationMs = outcome.durationMs;
 

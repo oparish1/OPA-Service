@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'bun:test';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { loadConfig } from '../src/config';
 import { testEnv } from './helpers/harness';
 
@@ -113,6 +116,105 @@ describe('loadConfig', () => {
       hostedDomain: 'agentic-advantage.example',
       promptConsent: false,
     });
+  });
+
+  it('accepts OKTA_CLIENT_PRIVATE_KEY_FILE as the Okta credential and reads it', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'archon-okta-key-'));
+    const keyPath = join(dir, 'okta.pem');
+    writeFileSync(keyPath, '-----BEGIN PRIVATE KEY-----\nkey-material\n-----END PRIVATE KEY-----');
+    try {
+      const config = loadConfig(
+        testEnv({
+          OKTA_ENABLED: 'true',
+          OKTA_ISSUER: 'https://dev-123.okta.com',
+          OKTA_CLIENT_ID: 'okta-client',
+          OKTA_CLIENT_PRIVATE_KEY_FILE: keyPath,
+          OKTA_REQUIRED_GROUP: 'Workspace Users',
+          OKTA_API_AUDIENCE: 'api://default',
+        })
+      );
+      expect(config.okta?.clientPrivateKey).toContain('key-material');
+      expect(config.okta?.clientSecret).toBeUndefined();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('names only the variable when OKTA_CLIENT_PRIVATE_KEY_FILE cannot be read', () => {
+    const env = testEnv({
+      OKTA_ENABLED: 'true',
+      OKTA_ISSUER: 'https://dev-123.okta.com',
+      OKTA_CLIENT_ID: 'okta-client',
+      OKTA_CLIENT_PRIVATE_KEY_FILE: '/no/such/okta-key.pem',
+      OKTA_REQUIRED_GROUP: 'Workspace Users',
+      OKTA_API_AUDIENCE: 'api://default',
+    });
+    let message = '';
+    try {
+      loadConfig(env);
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    expect(message).toContain('OKTA_CLIENT_PRIVATE_KEY_FILE');
+  });
+
+  it('does not read OKTA_CLIENT_PRIVATE_KEY_FILE while Okta is disabled', () => {
+    const config = loadConfig(
+      testEnv({ OKTA_ENABLED: 'false', OKTA_CLIENT_PRIVATE_KEY_FILE: '/no/such/okta-key.pem' })
+    );
+    expect(config.okta).toBeUndefined();
+  });
+
+  it('builds provider links only for variables that are set', () => {
+    const config = loadConfig(
+      testEnv({
+        OKTA_FORGOT_PASSWORD_URL: 'https://integrator-3993617.okta.com/signin/forgot-password',
+        GOOGLE_MANAGE_ACCOUNT_URL: 'https://myaccount.google.com/',
+      })
+    );
+    expect(config.providerLinks.okta.forgotPasswordUrl).toBe(
+      'https://integrator-3993617.okta.com/signin/forgot-password'
+    );
+    expect(config.providerLinks.okta.changePasswordUrl).toBeUndefined();
+    expect(config.providerLinks.google.manageAccountUrl).toBe('https://myaccount.google.com/');
+    expect(config.providerLinks.entra.forgotPasswordUrl).toBeUndefined();
+  });
+
+  it('treats an empty optional URL variable as unset', () => {
+    const config = loadConfig(
+      testEnv({
+        ENTRA_FORGOT_PASSWORD_URL: '',
+        GOOGLE_ENABLED: 'true',
+        GOOGLE_CLIENT_ID: 'google-client',
+        GOOGLE_CLIENT_SECRET: 'google-secret',
+        GOOGLE_HOSTED_DOMAIN: 'agentic-advantage.example',
+        GOOGLE_ISSUER: '',
+      })
+    );
+    expect(config.providerLinks.entra.forgotPasswordUrl).toBeUndefined();
+    expect(config.google?.issuer).toBe('https://accounts.google.com');
+  });
+
+  it('defaults the Google issuer to accounts.google.com and accepts an override', () => {
+    const base = loadConfig(
+      testEnv({
+        GOOGLE_ENABLED: 'true',
+        GOOGLE_CLIENT_ID: 'google-client',
+        GOOGLE_CLIENT_SECRET: 'google-secret',
+        GOOGLE_HOSTED_DOMAIN: 'agentic-advantage.example',
+      })
+    );
+    expect(base.google?.issuer).toBe('https://accounts.google.com');
+    const overridden = loadConfig(
+      testEnv({
+        GOOGLE_ENABLED: 'true',
+        GOOGLE_CLIENT_ID: 'google-client',
+        GOOGLE_CLIENT_SECRET: 'google-secret',
+        GOOGLE_HOSTED_DOMAIN: 'agentic-advantage.example',
+        GOOGLE_ISSUER: 'http://127.0.0.1:9999',
+      })
+    );
+    expect(overridden.google?.issuer).toBe('http://127.0.0.1:9999');
   });
 
   it('refuses the in-memory store in production', () => {

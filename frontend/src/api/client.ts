@@ -1,11 +1,13 @@
-import type { ProviderId } from '../mocks/data';
+import type { ProviderId } from '../../../shared/providers';
 import type { RelayFailure, RelaySuccess } from '../../../shared/request-runner';
+import { providerIcon } from '../lib/provider-icons';
 import { decodeBody, formatDuration, formatSize } from '../lib/response-format';
 import type {
   AccessToken,
   ApiErrorKind,
   ApiResponse,
   Identity,
+  ProviderInfo,
   RunnerAuth,
   RunnerErrorCode,
   Session,
@@ -135,18 +137,16 @@ function relayFailure(payload: RelayFailure): ApiResponse {
   };
 }
 
-const ENTRA_IDENTITY: Identity = {
-  id: 'microsoft',
-  name: 'Microsoft Entra ID',
-  icon: 'building-2',
-  subtitle: 'Agentic Advantage organisation account',
-  status: 'primary',
-  manageUrl: 'https://mysignins.microsoft.com/security-info',
-};
+export async function getProviders(): Promise<ProviderInfo[]> {
+  const response = await fetch('/auth/providers', { credentials: 'same-origin' });
+  if (!response.ok) throw new Error('Providers unavailable');
+  const payload = (await response.json()) as { providers: ProviderInfo[] };
+  return payload.providers;
+}
 
 /** Real sign-in is a top-level navigation into the BFF authorization-code flow. */
-export function signIn(_providerId: ProviderId): Promise<Session> {
-  window.location.assign('/auth/login');
+export function signIn(providerId: ProviderId): Promise<Session> {
+  window.location.assign(`/auth/login/${providerId}`);
   return new Promise<Session>(() => undefined);
 }
 
@@ -198,19 +198,37 @@ export async function refreshToken(): Promise<AccessToken> {
 }
 
 export async function getIdentities(): Promise<Identity[]> {
-  return [ENTRA_IDENTITY];
+  const [session, providers] = await Promise.all([getSession(), getProviders()]);
+  const provider = providers.find(candidate => candidate.name === session.provider) ?? providers[0];
+  if (!provider) return [];
+  return [
+    {
+      id: provider.id,
+      name: provider.name,
+      icon: providerIcon(provider.id),
+      subtitle: session.account?.email ?? '',
+      status: 'primary',
+      manageUrl: provider.manageAccountUrl,
+    },
+  ];
 }
 
 export async function discoverSso(_email: string): Promise<{ found: false; providerId: null }> {
   return { found: false, providerId: null };
 }
 
-export async function resetPassword(_email: string): Promise<{ ok: true; destination: string }> {
-  return { ok: true as const, destination: 'https://passwordreset.microsoftonline.com' };
+export async function resetPassword(providerId: ProviderId): Promise<{ ok: true; destination: string }> {
+  const providers = await getProviders();
+  const destination = providers.find(candidate => candidate.id === providerId)?.forgotPasswordUrl;
+  if (!destination) throw new Error('No recovery destination configured');
+  return { ok: true as const, destination };
 }
 
-export async function changePassword(_providerId: string): Promise<{ ok: true; destination: string }> {
-  return { ok: true as const, destination: 'https://mysignins.microsoft.com/security-info' };
+export async function changePassword(providerId: ProviderId): Promise<{ ok: true; destination: string }> {
+  const providers = await getProviders();
+  const destination = providers.find(candidate => candidate.id === providerId)?.changePasswordUrl;
+  if (!destination) throw new Error('No change-password destination configured');
+  return { ok: true as const, destination };
 }
 
 export async function runRequest(auth: RunnerAuth, url: string): Promise<ApiResponse> {

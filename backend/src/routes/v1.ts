@@ -19,7 +19,7 @@ export function registerV1Routes(app: FastifyInstance, services: Services): void
       const auth = request.auth;
       const user = auth?.userId ? store.getUserById(auth.userId) : null;
       return {
-        id: `usr_${user?.oid ?? auth?.oid ?? ''}`,
+        id: `usr_${user?.oid || user?.subject || auth?.oid || auth?.subject || ''}`,
         display_name: user?.displayName ?? '',
         email: user?.email ?? '',
         organisation: user?.organisation ?? 'Agentic Advantage',

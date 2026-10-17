@@ -88,3 +88,58 @@ describe('audit logging (A20)', () => {
     }
   });
 });
+
+describe('audit logging for non-Entra providers (B18)', () => {
+  let okta: TestIdp;
+  let multi: Harness;
+
+  beforeEach(async () => {
+    okta = new TestIdp({ tenantId: 'tenant-1', clientId: 'okta-client', kind: 'okta' });
+    await okta.start();
+    multi = await createHarness({ idp, oktaIdp: okta });
+  });
+
+  afterEach(async () => {
+    await multi.app.close();
+    multi.store.close();
+    okta.stop();
+  });
+
+  it('records the Okta actor on login, refresh, reveal and logout', async () => {
+    const { response } = await completeLogin(multi.app, okta, {
+      loginPath: '/auth/login/okta',
+      callbackPath: '/auth/callback/okta',
+    });
+    const cookie = sessionCookie(response);
+    const csrf = await sessionCsrf(multi.app, cookie);
+    const headers = { 'x-csrf-token': csrf, origin: multi.config.allowedOrigin };
+    await multi.app.inject({
+      method: 'POST',
+      url: '/api/session/refresh',
+      cookies: { [cookie.name]: cookie.value },
+      headers,
+    });
+    await multi.app.inject({
+      method: 'POST',
+      url: '/api/session/tokens/reveal',
+      cookies: { [cookie.name]: cookie.value },
+      headers,
+      payload: { kind: 'refresh' },
+    });
+    await multi.app.inject({
+      method: 'POST',
+      url: '/auth/logout',
+      cookies: { [cookie.name]: cookie.value },
+      headers,
+    });
+    const events = multi.store.listAuditEvents();
+    const success = events.find(event => event.event === 'login.success');
+    expect(success?.actorProvider).toBe('okta');
+    expect(success?.actorSubject).toBe('okta-user-1');
+    for (const name of ['session.refresh', 'token.reveal', 'logout']) {
+      const event = events.find(candidate => candidate.event === name);
+      expect(event?.actorProvider).toBe('okta');
+      expect(event?.actorSubject).toBe('okta-user-1');
+    }
+  });
+});

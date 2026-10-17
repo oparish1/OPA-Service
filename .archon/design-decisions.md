@@ -49,3 +49,10 @@ These are approved defaults. Use them instead of adding an open question and lis
 - Layout: desktop only (1280px and up); no mobile or tablet.
 - Any other undrawn state: use the nearest existing component variant and its tokens.
 EOF
+## Round 5 decisions (Okta and Google sign-in, approved)
+
+- **Provider-driven sign-in:** the sign-in screen renders one `AA/Authentication/Provider` row per provider returned by `GET /auth/providers`, in the order Entra, Okta, Google. Provider icons stay a frontend concern; the BFF contract carries ids, display names and public account destinations only.
+- **Provider-neutral notice copy:** the sign-in notice body is "Your organisation's identity provider manages sign-in, recovery and password changes." (was Entra-specific).
+- **Account & identity:** the screen lists only the current session's identity with its `Primary` badge. A `Manage` action appears only when that provider has a configured `_MANAGE_ACCOUNT_URL`; there is no `Connect` action.
+- **Forgot / Change password:** the provider list is the enabled provider list from `GET /auth/providers`. The action is disabled when the selected provider has no configured destination; no destination is hard-coded.
+- **Overview:** when the session has no refresh token, the Refresh control is disabled ("Refresh not available for this session") and a "Sign in again" link is offered instead; the refresh card badge reads `Not issued`.

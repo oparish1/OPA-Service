@@ -11,6 +11,7 @@ export interface MockConfig {
   refreshTokenFailure: boolean;
   revealTokenFailure: boolean;
   getSessionFailure: boolean;
+  getProvidersFailure: boolean;
   getIdentitiesFailure: boolean;
   runRequestFailure: ApiErrorKind | null;
   projectsEmpty: boolean;

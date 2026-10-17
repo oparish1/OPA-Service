@@ -1,79 +1,70 @@
-import type { Identity, ProviderConfig, Session } from './types';
+import { providerIcon } from '../lib/provider-icons';
+import type { ProviderId, ProviderLinks } from '../../../shared/providers';
+import type { Identity, ProviderConfig, ProviderInfo, Session } from './types';
 
+export type { ProviderId };
+
+/** Enabled providers, in the order the sign-in screen renders them. */
 export const PROVIDERS: readonly ProviderConfig[] = [
   {
-    id: 'microsoft',
+    id: 'entra',
     name: 'Microsoft Entra ID',
-    icon: 'building-2',
     ssoDomain: 'agentic-advantage.example',
   },
   {
     id: 'okta',
     name: 'Okta',
-    icon: 'circle-dot',
     ssoDomain: 'agentic-advantage.example',
   },
   {
     id: 'google',
     name: 'Google Workspace / Cloud Identity',
-    icon: 'google',
     ssoDomain: 'agentic-advantage.example',
   },
 ];
 
-export type ProviderId = (typeof PROVIDERS)[number]['id'];
+/** Per-provider account destinations; a link is hidden when its value is unset. */
+export const PROVIDER_LINKS: Record<ProviderId, ProviderLinks> = {
+  entra: {
+    forgotPasswordUrl: 'https://example.com/reset',
+    changePasswordUrl: 'https://example.com/change',
+    manageAccountUrl: 'https://example.com/manage/entra',
+  },
+  okta: {
+    forgotPasswordUrl: 'https://example.com/reset',
+    changePasswordUrl: 'https://example.com/change',
+    manageAccountUrl: 'https://example.com/manage/okta',
+  },
+  google: {
+    forgotPasswordUrl: 'https://example.com/reset',
+    changePasswordUrl: 'https://example.com/change',
+    manageAccountUrl: 'https://example.com/manage/google',
+  },
+};
 
-/**
- * Providers enabled in this release: Entra ID only. The deferred providers stay in
- * the fixtures so the mock suite can keep exercising them, but no screen offers them.
- */
-export const ENABLED_PROVIDER_IDS: readonly ProviderId[] = ['microsoft'];
+/** The mock's `GET /auth/providers` response. */
+export function providerInfos(): ProviderInfo[] {
+  return PROVIDERS.map(provider => ({
+    id: provider.id,
+    name: provider.name,
+    ...PROVIDER_LINKS[provider.id],
+  }));
+}
 
-export const ENABLED_PROVIDERS = PROVIDERS.filter(provider =>
-  ENABLED_PROVIDER_IDS.some(id => id === provider.id)
-);
-
-export const IDENTITIES: readonly Identity[] = [
-  {
-    id: 'microsoft',
-    name: 'Microsoft Entra ID',
-    icon: 'building-2',
-    subtitle: 'orlando.parish@agentic-advantage.example',
+export function identityFor(providerId: ProviderId, email: string): Identity {
+  const provider = PROVIDERS.find(candidate => candidate.id === providerId) ?? PROVIDERS[0];
+  return {
+    id: provider.id,
+    name: provider.name,
+    icon: providerIcon(provider.id),
+    subtitle: email,
     status: 'primary',
-    manageUrl: 'https://example.com/manage/microsoft',
-  },
-  {
-    id: 'okta',
-    name: 'Okta',
-    icon: 'circle-dot',
-    subtitle: 'orlando.parish@agentic-advantage.example',
-    status: 'connected',
-    manageUrl: 'https://example.com/manage/okta',
-  },
-  {
-    id: 'sso',
-    name: 'Organisation SSO',
-    icon: 'building-2',
-    subtitle: 'Organisation single sign-on',
-    status: 'not-connected',
-    manageUrl: 'https://example.com/manage/sso',
-  },
-  {
-    id: 'google',
-    name: 'Google Workspace / Cloud Identity',
-    icon: 'google',
-    subtitle: 'orlando.parish@agadv.example',
-    status: 'not-connected',
-    manageUrl: 'https://example.com/manage/google',
-  },
-];
-
-export const ENABLED_IDENTITIES = IDENTITIES.filter(identity =>
-  ENABLED_PROVIDER_IDS.some(id => id === identity.id)
-);
+    manageUrl: PROVIDER_LINKS[provider.id].manageAccountUrl,
+  };
+}
 
 export const MOCK_SESSION: Session = {
-  provider: 'Google Workspace / Cloud Identity',
+  provider: 'Microsoft Entra ID',
   account: {
     displayName: 'Orlando Parish',
     email: 'orlando.parish@agentic-advantage.example',

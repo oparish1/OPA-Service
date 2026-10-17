@@ -140,10 +140,13 @@ export function Overview() {
   const data = session ?? state.data;
   if (!data) return null;
 
-  const refreshControl = (
+  const canRefresh = data.refreshToken.masked !== '';
+  const refreshControl = canRefresh ? (
     <Button state={refreshState === 'loading' ? 'in-progress' : 'default'} onClick={handleRefresh}>
       Refresh session
     </Button>
+  ) : (
+    <Button state="disabled">Refresh not available for this session</Button>
   );
 
   return (
@@ -169,6 +172,14 @@ export function Overview() {
               <TextLink onClick={signOut}>Sign in again</TextLink>
             </>
           }
+        />
+      ) : null}
+
+      {!canRefresh ? (
+        <Notice
+          tone="neutral"
+          heading="This session has no refresh token."
+          action={<TextLink onClick={signOut}>Sign in again</TextLink>}
         />
       ) : null}
 
@@ -199,7 +210,7 @@ export function Overview() {
         <div style={{ flex: 1, minWidth: size.tokenCardMinWidth }}>
           <TokenCard
             title="Refresh token"
-            badge={<TokenState state="success" label="Available" />}
+            badge={<TokenState state="success" label={canRefresh ? 'Available' : 'Not issued'} />}
             description="Renews your access token. Never sent to an API."
             masked={data.refreshToken.masked}
             value={revealedRefresh}

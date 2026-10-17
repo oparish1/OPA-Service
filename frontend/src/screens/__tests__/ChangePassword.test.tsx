@@ -46,6 +46,7 @@ describe('ChangePassword', () => {
   it('submits a mocked change once a provider is chosen and shows a success notice', async () => {
     const user = userEvent.setup();
     renderChange();
+    await screen.findByText(/Available identity providers:.*Microsoft Entra ID/);
     await user.click(screen.getByRole('combobox'));
     await user.click(screen.getByRole('button', { name: 'Microsoft Entra ID' }));
     await user.click(screen.getByRole('button', { name: /change password/i }));
@@ -57,9 +58,17 @@ describe('ChangePassword', () => {
     configureMocks({ changePasswordFailure: true });
     const user = userEvent.setup();
     renderChange();
+    await screen.findByText(/Available identity providers:.*Microsoft Entra ID/);
     await user.click(screen.getByRole('combobox'));
     await user.click(screen.getByRole('button', { name: 'Microsoft Entra ID' }));
     await user.click(screen.getByRole('button', { name: /change password/i }));
+    expect(await screen.findByText('Something went wrong. Try again.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+  });
+
+  it('shows a retryable error notice when the provider list cannot be loaded', async () => {
+    configureMocks({ getProvidersFailure: true });
+    renderChange();
     expect(await screen.findByText('Something went wrong. Try again.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
   });
