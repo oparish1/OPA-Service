@@ -33,6 +33,88 @@ describe('loadConfig', () => {
     expect(config.cookieSecure).toBe(false);
   });
 
+  it('does not require Okta or Google variables while they are disabled', () => {
+    const config = loadConfig(testEnv());
+    expect(config.okta).toBeUndefined();
+    expect(config.google).toBeUndefined();
+  });
+
+  it('names every missing Okta variable when Okta is enabled', () => {
+    const env = testEnv({ OKTA_ENABLED: 'true' });
+    let message = '';
+    try {
+      loadConfig(env);
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    for (const name of [
+      'OKTA_ISSUER',
+      'OKTA_CLIENT_ID',
+      'OKTA_CLIENT_SECRET',
+      'OKTA_REQUIRED_GROUP',
+      'OKTA_API_AUDIENCE',
+    ]) {
+      expect(message).toContain(name);
+    }
+  });
+
+  it('names every missing Google variable when Google is enabled', () => {
+    const env = testEnv({ GOOGLE_ENABLED: 'true' });
+    let message = '';
+    try {
+      loadConfig(env);
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    for (const name of ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_HOSTED_DOMAIN']) {
+      expect(message).toContain(name);
+    }
+  });
+
+  it('never echoes Okta or Google secret values in a validation error', () => {
+    const env = testEnv({
+      OKTA_ENABLED: 'true',
+      OKTA_CLIENT_SECRET: 'okta-top-secret',
+      GOOGLE_ENABLED: 'true',
+      GOOGLE_CLIENT_SECRET: 'google-top-secret',
+    });
+    let message = '';
+    try {
+      loadConfig(env);
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    expect(message).not.toContain('okta-top-secret');
+    expect(message).not.toContain('google-top-secret');
+  });
+
+  it('accepts fully configured Okta and Google providers', () => {
+    const config = loadConfig(
+      testEnv({
+        OKTA_ENABLED: 'true',
+        OKTA_ISSUER: 'https://dev-123.okta.com',
+        OKTA_CLIENT_ID: 'okta-client',
+        OKTA_CLIENT_SECRET: 'okta-secret',
+        OKTA_REQUIRED_GROUP: 'Workspace Users',
+        OKTA_API_AUDIENCE: 'api://default',
+        GOOGLE_ENABLED: 'true',
+        GOOGLE_CLIENT_ID: 'google-client',
+        GOOGLE_CLIENT_SECRET: 'google-secret',
+        GOOGLE_HOSTED_DOMAIN: 'agentic-advantage.example',
+      })
+    );
+    expect(config.okta).toMatchObject({
+      issuer: 'https://dev-123.okta.com',
+      requiredGroup: 'Workspace Users',
+      apiAudience: 'api://default',
+    });
+    expect(config.google).toMatchObject({
+      clientId: 'google-client',
+      hostedDomain: 'agentic-advantage.example',
+      promptConsent: false,
+    });
+  });
+
   it('refuses the in-memory store in production', () => {
     const env = testEnv({ NODE_ENV: 'production', DATABASE_URL: undefined });
     expect(() => loadConfig(env)).toThrow(/DATABASE_URL/);

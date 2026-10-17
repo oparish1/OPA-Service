@@ -1,4 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { ProviderDefinition } from '../auth/providers';
+import type { TokenRecord } from '../db';
 import { formatTimestamp, maskToken, toAccountSummary } from '../format';
 import type { AccountSummary } from '../format';
 import type { Services } from '../services';
@@ -16,15 +18,39 @@ export interface SessionMetadata {
   csrfToken: string;
 }
 
+/** B15: never invent a refresh lifetime the provider has not published. */
+function refreshExpiryLabel(provider: ProviderDefinition | undefined, tokens: TokenRecord | null): string {
+  switch (provider?.refreshExpiry) {
+    case 'policy':
+      return 'Per provider policy';
+    case 'none':
+      return 'No fixed expiry';
+    default:
+      return formatTimestamp(tokens?.refreshExpiresAt ?? Date.now());
+  }
+}
+
+function refreshGrantLabel(provider: ProviderDefinition | undefined): string {
+  switch (provider?.refreshExpiry) {
+    case 'policy':
+      return 'Rotating refresh token';
+    case 'none':
+      return 'Session-scoped token';
+    default:
+      return 'offline_access · rotating refresh token';
+  }
+}
+
 function sessionMetadata(services: Services, sessionId: string, userId: string): SessionMetadata {
-  const { store, session, cipher, config } = services;
+  const { store, session, cipher, config, providers } = services;
   const record = session.peek(sessionId);
   const user = store.getUserById(userId);
+  const provider = providers.get(user?.provider ?? 'entra');
   const tokens = store.getTokens(sessionId);
   const accessValue = tokens ? cipher.open(tokens.accessTokenEnc) : '';
   const refreshValue = tokens ? cipher.open(tokens.refreshTokenEnc) : '';
   return {
-    provider: 'Microsoft Entra ID',
+    provider: provider?.name ?? 'Microsoft Entra ID',
     account: user ? toAccountSummary(user) : null,
     accessToken: {
       masked: tokens ? maskToken(accessValue) : '',
@@ -33,10 +59,10 @@ function sessionMetadata(services: Services, sessionId: string, userId: string):
     },
     refreshToken: {
       masked: tokens ? maskToken(refreshValue) : '',
-      expiresAt: formatTimestamp(tokens?.refreshExpiresAt ?? Date.now()),
-      grant: 'offline_access · rotating refresh token',
+      expiresAt: refreshExpiryLabel(provider, tokens),
+      grant: refreshGrantLabel(provider),
     },
-    issuer: config.issuer,
+    issuer: provider?.issuer ?? config.issuer,
     issuedAt: formatTimestamp(record?.createdAt ?? Date.now()),
     snapshot: formatTimestamp(Date.now()),
     csrfToken: record?.csrfToken ?? '',
@@ -48,7 +74,7 @@ export function registerSessionRoutes(
   services: Services,
   csrf: PreHandler
 ): void {
-  const { config, store, cipher, audit, oidc } = services;
+  const { config, store, cipher, audit, providers } = services;
 
   app.get('/api/session', { config: { auth: 'required' } }, async (request, reply) => {
     const auth = request.auth;
@@ -72,12 +98,14 @@ export function registerSessionRoutes(
       if (!auth?.sessionId || !auth.userId) {
         return reply.code(401).send({ error: 'unauthorized' });
       }
+      const provider = providers.get(auth.provider);
+      if (!provider) return reply.code(401).send({ error: 'unauthorized' });
       const tokens = store.getTokens(auth.sessionId);
       if (!tokens?.refreshTokenEnc) {
         return reply.code(401).send({ error: 'no_refresh_token' });
       }
       try {
-        const refreshed = await oidc.refresh(cipher.open(tokens.refreshTokenEnc));
+        const refreshed = await provider.oidc.refresh(cipher.open(tokens.refreshTokenEnc));
         store.saveTokens({
           sessionId: auth.sessionId,
           accessTokenEnc: cipher.seal(refreshed.accessToken),
@@ -91,6 +119,8 @@ export function registerSessionRoutes(
           outcome: 'success',
           actorOid: auth.oid || null,
           actorTid: auth.tid || null,
+          provider: auth.provider,
+          subject: auth.subject,
           sessionId: auth.sessionId,
           ip: request.ip,
           userAgent: request.headers['user-agent'] ?? null,
@@ -107,6 +137,8 @@ export function registerSessionRoutes(
           outcome: 'failure',
           actorOid: auth.oid || null,
           actorTid: auth.tid || null,
+          provider: auth.provider,
+          subject: auth.subject,
           sessionId: auth.sessionId,
           ip: request.ip,
           userAgent: request.headers['user-agent'] ?? null,
@@ -145,6 +177,8 @@ export function registerSessionRoutes(
         outcome: 'success',
         actorOid: auth.oid || null,
         actorTid: auth.tid || null,
+        provider: auth.provider,
+        subject: auth.subject,
         sessionId: auth.sessionId,
         ip: request.ip,
         userAgent: request.headers['user-agent'] ?? null,

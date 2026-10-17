@@ -1,6 +1,5 @@
 import type { AuditLogger } from './audit';
-import type { BearerValidator } from './auth/bearer';
-import type { OidcService } from './auth/oidc';
+import type { ProviderRegistry } from './auth/providers';
 import type { SessionService } from './auth/session';
 import type { AppConfig } from './config';
 import type { TokenCipher } from './crypto';
@@ -12,6 +11,5 @@ export interface Services {
   cipher: TokenCipher;
   audit: AuditLogger;
   session: SessionService;
-  oidc: OidcService;
-  bearer: BearerValidator;
+  providers: ProviderRegistry;
 }

@@ -18,6 +18,8 @@ export interface AuditEvent {
   outcome: 'success' | 'failure';
   actorOid?: string | null;
   actorTid?: string | null;
+  provider?: string | null;
+  subject?: string | null;
   sessionId?: string | null;
   reason?: string | null;
   ip?: string | null;
@@ -37,6 +39,8 @@ export class AuditLogger {
     this.store.insertAudit({
       actorOid: event.actorOid ?? null,
       actorTid: event.actorTid ?? null,
+      actorProvider: event.provider ?? null,
+      actorSubject: event.subject ?? null,
       sessionHash: event.sessionId ? hashSessionId(event.sessionId) : null,
       event: event.event,
       outcome: event.outcome,

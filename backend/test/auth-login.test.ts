@@ -18,6 +18,22 @@ afterEach(async () => {
   idp.stop();
 });
 
+describe('GET /auth/providers (O-17)', () => {
+  it('lists the enabled providers in order', async () => {
+    const response = await harness.app.inject({ method: 'GET', url: '/auth/providers' });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ providers: [{ id: 'entra', name: 'Microsoft Entra ID' }] });
+  });
+
+  it('404s a disabled provider login path without creating a transaction', async () => {
+    const response = await harness.app.inject({ method: 'GET', url: '/auth/login/okta' });
+    expect(response.statusCode).toBe(404);
+    expect(harness.store.listAuditEvents().filter(event => event.event === 'login.start')).toHaveLength(
+      0
+    );
+  });
+});
+
 describe('GET /auth/login (A1)', () => {
   it('redirects to the discovered authorize endpoint with the required parameters', async () => {
     const start = await beginLogin(harness.app);

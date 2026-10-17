@@ -1,7 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../../src/app';
 import type { BuiltApp } from '../../src/app';
-import { OidcService } from '../../src/auth/oidc';
 import { loadConfig } from '../../src/config';
 import { Store } from '../../src/db';
 import type { TestIdp } from './idp';
@@ -38,8 +37,7 @@ export async function createHarness(options: {
   const config = loadConfig(testEnv({ ENTRA_ISSUER: options.idp.origin, ...options.env }));
   const store = new Store(':memory:');
   store.migrate();
-  const oidc = new OidcService(config);
-  const built = await buildApp({ config, store, oidc, loggerStream: options.loggerStream });
+  const built = await buildApp({ config, store, loggerStream: options.loggerStream });
   return { ...built, store, config };
 }
 
