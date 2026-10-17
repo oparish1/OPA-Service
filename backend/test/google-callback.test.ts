@@ -112,6 +112,7 @@ describe('Google hosted-domain gating (B7, O-18)', () => {
     ['a missing hd', 'wrong_hd', { hd: undefined }],
     ['a foreign hd', 'wrong_hd', { hd: 'other.example' }],
     ['an unverified email', 'email_unverified', { email_verified: false }],
+    ['a missing email_verified', 'email_unverified', { email_verified: undefined }],
   ];
   for (const [label, reason, claims] of refusedClaims) {
     it(`refuses ${label} with no user row`, async () => {
@@ -188,7 +189,7 @@ describe('Google session lifecycle (B14, B15, B17)', () => {
     harness.store.saveTokens({
       sessionId,
       accessTokenEnc: tokens?.accessTokenEnc ?? '',
-      refreshTokenEnc: harness.services.cipher.seal(''),
+      refreshTokenEnc: '',
       accessExpiresAt: tokens?.accessExpiresAt ?? Date.now(),
       refreshExpiresAt: 0,
       scopes: '',

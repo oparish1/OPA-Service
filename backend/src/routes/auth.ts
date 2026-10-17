@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { ProviderInfo } from '../../../shared/providers';
 import { OidcError } from '../auth/oidc';
 import type { OidcTokenSet } from '../auth/oidc';
 import type { ProviderDefinition } from '../auth/providers';
@@ -144,7 +145,7 @@ function registerCallbackRoute(
       store.saveTokens({
         sessionId: record.id,
         accessTokenEnc: cipher.seal(tokens.accessToken),
-        refreshTokenEnc: cipher.seal(tokens.refreshToken),
+        refreshTokenEnc: tokens.refreshToken ? cipher.seal(tokens.refreshToken) : '',
         accessExpiresAt: tokens.accessExpiresAt,
         refreshExpiresAt: tokens.refreshExpiresAt,
         scopes: tokens.scopes,
@@ -179,16 +180,25 @@ export function registerAuthRoutes(
 ): void {
   const { config, session, audit, providers } = services;
 
-  app.get('/auth/providers', { config: { auth: 'public' } }, async () => ({
-    providers: providers.all.map(provider => ({
-      id: provider.id,
-      name: provider.name,
-      ...config.providerLinks[provider.id],
-    })),
-  }));
+  app.get(
+    '/auth/providers',
+    { config: { auth: 'public' } },
+    async (): Promise<{ providers: ProviderInfo[] }> => ({
+      providers: providers.all.map(provider => ({
+        id: provider.id,
+        name: provider.name,
+        ...config.providerLinks[provider.id],
+      })),
+    })
+  );
 
   for (const provider of providers.all) {
     registerLoginRoute(app, services, provider, provider.loginPath);
+    // The sign-in screen navigates to `/auth/login/<id>`; Entra's original path stays as an alias (B22).
+    const idLoginPath = `/auth/login/${provider.id}`;
+    if (idLoginPath !== provider.loginPath) {
+      registerLoginRoute(app, services, provider, idLoginPath);
+    }
     registerCallbackRoute(app, services, provider);
   }
 

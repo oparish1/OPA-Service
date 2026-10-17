@@ -1,8 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { z } from 'zod';
-import type { ProviderId } from '../../shared/providers';
+import type { ProviderId, ProviderLinks } from '../../shared/providers';
 
 const booleanString = z.enum(['true', 'false']).transform(value => value === 'true');
+
+/** An optional URL variable: an empty value is the operator saying "not configured". */
+const optionalUrl = z.preprocess(
+  value => (value === '' ? undefined : value),
+  z.string().url().optional()
+);
 
 const baseSchema = z
   .object({
@@ -31,17 +37,17 @@ const baseSchema = z
     GOOGLE_CLIENT_ID: z.string().min(1).optional(),
     GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
     GOOGLE_HOSTED_DOMAIN: z.string().min(1).optional(),
-    GOOGLE_ISSUER: z.string().url().optional(),
+    GOOGLE_ISSUER: optionalUrl,
     GOOGLE_PROMPT_CONSENT: booleanString.default(false),
-    ENTRA_FORGOT_PASSWORD_URL: z.string().url().optional(),
-    ENTRA_CHANGE_PASSWORD_URL: z.string().url().optional(),
-    ENTRA_MANAGE_ACCOUNT_URL: z.string().url().optional(),
-    OKTA_FORGOT_PASSWORD_URL: z.string().url().optional(),
-    OKTA_CHANGE_PASSWORD_URL: z.string().url().optional(),
-    OKTA_MANAGE_ACCOUNT_URL: z.string().url().optional(),
-    GOOGLE_FORGOT_PASSWORD_URL: z.string().url().optional(),
-    GOOGLE_CHANGE_PASSWORD_URL: z.string().url().optional(),
-    GOOGLE_MANAGE_ACCOUNT_URL: z.string().url().optional(),
+    ENTRA_FORGOT_PASSWORD_URL: optionalUrl,
+    ENTRA_CHANGE_PASSWORD_URL: optionalUrl,
+    ENTRA_MANAGE_ACCOUNT_URL: optionalUrl,
+    OKTA_FORGOT_PASSWORD_URL: optionalUrl,
+    OKTA_CHANGE_PASSWORD_URL: optionalUrl,
+    OKTA_MANAGE_ACCOUNT_URL: optionalUrl,
+    GOOGLE_FORGOT_PASSWORD_URL: optionalUrl,
+    GOOGLE_CHANGE_PASSWORD_URL: optionalUrl,
+    GOOGLE_MANAGE_ACCOUNT_URL: optionalUrl,
     REQUEST_RUNNER_ALLOWED_HOSTS: z.string().optional(),
     SESSION_SECRET: z.string().min(1),
     TOKEN_ENCRYPTION_KEY: z.string().min(1),
@@ -139,13 +145,6 @@ export interface GoogleProviderConfig {
   promptConsent: boolean;
 }
 
-/** Public, provider-hosted account destinations; a link is hidden when its value is unset. */
-export interface ProviderLinks {
-  forgotPasswordUrl?: string;
-  changePasswordUrl?: string;
-  manageAccountUrl?: string;
-}
-
 export interface AppConfig {
   nodeEnv: 'development' | 'test' | 'production';
   port: number;
@@ -193,27 +192,23 @@ function oktaClientPrivateKey(value: ParsedEnv): string | undefined {
   return value.OKTA_CLIENT_PRIVATE_KEY;
 }
 
-function destination(value: string | undefined): string | undefined {
-  return value || undefined;
-}
-
 /** Never invents a destination: each link is present only when its variable is set. */
 function providerLinks(value: ParsedEnv): Record<ProviderId, ProviderLinks> {
   const links = {
     entra: {
-      forgotPasswordUrl: destination(value.ENTRA_FORGOT_PASSWORD_URL),
-      changePasswordUrl: destination(value.ENTRA_CHANGE_PASSWORD_URL),
-      manageAccountUrl: destination(value.ENTRA_MANAGE_ACCOUNT_URL),
+      forgotPasswordUrl: value.ENTRA_FORGOT_PASSWORD_URL,
+      changePasswordUrl: value.ENTRA_CHANGE_PASSWORD_URL,
+      manageAccountUrl: value.ENTRA_MANAGE_ACCOUNT_URL,
     },
     okta: {
-      forgotPasswordUrl: destination(value.OKTA_FORGOT_PASSWORD_URL),
-      changePasswordUrl: destination(value.OKTA_CHANGE_PASSWORD_URL),
-      manageAccountUrl: destination(value.OKTA_MANAGE_ACCOUNT_URL),
+      forgotPasswordUrl: value.OKTA_FORGOT_PASSWORD_URL,
+      changePasswordUrl: value.OKTA_CHANGE_PASSWORD_URL,
+      manageAccountUrl: value.OKTA_MANAGE_ACCOUNT_URL,
     },
     google: {
-      forgotPasswordUrl: destination(value.GOOGLE_FORGOT_PASSWORD_URL),
-      changePasswordUrl: destination(value.GOOGLE_CHANGE_PASSWORD_URL),
-      manageAccountUrl: destination(value.GOOGLE_MANAGE_ACCOUNT_URL),
+      forgotPasswordUrl: value.GOOGLE_FORGOT_PASSWORD_URL,
+      changePasswordUrl: value.GOOGLE_CHANGE_PASSWORD_URL,
+      manageAccountUrl: value.GOOGLE_MANAGE_ACCOUNT_URL,
     },
   } satisfies Record<ProviderId, ProviderLinks>;
   return Object.freeze(links);

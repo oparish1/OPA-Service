@@ -218,6 +218,39 @@ describe('token storage and refresh (A13)', () => {
     });
     expect(response.statusCode).toBe(401);
   });
+
+  it('reports a stored token that cannot be decrypted as a failed refresh', async () => {
+    const cookie = await signIn();
+    const sessionId = sessionIdOf(harness.app, cookie);
+    const tokens = harness.store.getTokens(sessionId);
+    if (!tokens) throw new Error('expected stored tokens');
+    harness.store.saveTokens({ ...tokens, refreshTokenEnc: 'v1.deadbeef.aaaa.bbbb.cccc' });
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: '/api/session/refresh',
+      cookies: { [cookie.name]: cookie.value },
+      headers: { 'x-csrf-token': cookie.csrf, origin: harness.config.allowedOrigin },
+    });
+    expect(response.statusCode).toBe(401);
+    expect((response.json() as { error: string }).error).toBe('refresh_failed');
+    expect(
+      harness.store.listAuditEvents().some(event => event.event === 'session.refresh.failed')
+    ).toBe(true);
+  });
+
+  it('surfaces a stored token that cannot be decrypted instead of an empty session card', async () => {
+    const cookie = await signIn();
+    const sessionId = sessionIdOf(harness.app, cookie);
+    const tokens = harness.store.getTokens(sessionId);
+    if (!tokens) throw new Error('expected stored tokens');
+    harness.store.saveTokens({ ...tokens, accessTokenEnc: 'v1.deadbeef.aaaa.bbbb.cccc' });
+    const response = await harness.app.inject({
+      method: 'GET',
+      url: '/api/session',
+      cookies: { [cookie.name]: cookie.value },
+    });
+    expect(response.statusCode).toBe(500);
+  });
 });
 
 describe('provider-shaped sessions never log token material (B16)', () => {

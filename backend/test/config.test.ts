@@ -180,6 +180,21 @@ describe('loadConfig', () => {
     expect(config.providerLinks.entra.forgotPasswordUrl).toBeUndefined();
   });
 
+  it('treats an empty optional URL variable as unset', () => {
+    const config = loadConfig(
+      testEnv({
+        ENTRA_FORGOT_PASSWORD_URL: '',
+        GOOGLE_ENABLED: 'true',
+        GOOGLE_CLIENT_ID: 'google-client',
+        GOOGLE_CLIENT_SECRET: 'google-secret',
+        GOOGLE_HOSTED_DOMAIN: 'agentic-advantage.example',
+        GOOGLE_ISSUER: '',
+      })
+    );
+    expect(config.providerLinks.entra.forgotPasswordUrl).toBeUndefined();
+    expect(config.google?.issuer).toBe('https://accounts.google.com');
+  });
+
   it('defaults the Google issuer to accounts.google.com and accepts an override', () => {
     const base = loadConfig(
       testEnv({

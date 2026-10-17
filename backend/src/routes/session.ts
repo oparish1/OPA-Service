@@ -31,23 +31,16 @@ function refreshExpiryLabel(provider: ProviderDefinition | undefined, tokens: To
   }
 }
 
-function decryptOrEmpty(cipher: Services['cipher'], value: string | undefined): string {
-  if (!value) return '';
-  try {
-    return cipher.open(value);
-  } catch {
-    return '';
-  }
-}
-
 function sessionMetadata(services: Services, sessionId: string, userId: string): SessionMetadata {
   const { store, session, cipher, config, providers } = services;
   const record = session.peek(sessionId);
   const user = store.getUserById(userId);
   const provider = providers.get(user?.provider ?? 'entra');
   const tokens = store.getTokens(sessionId);
-  const accessValue = decryptOrEmpty(cipher, tokens?.accessTokenEnc);
-  const refreshValue = decryptOrEmpty(cipher, tokens?.refreshTokenEnc);
+  // Decryption failures propagate: corruption or a key mismatch must not be reported
+  // as a legitimately absent token. An absent refresh token is stored as an empty string.
+  const accessValue = tokens ? cipher.open(tokens.accessTokenEnc) : '';
+  const refreshValue = tokens?.refreshTokenEnc ? cipher.open(tokens.refreshTokenEnc) : '';
   const hasRefresh = refreshValue.length > 0;
   return {
     provider: provider?.name ?? 'Microsoft Entra ID',
@@ -109,15 +102,17 @@ export function registerSessionRoutes(
       const metadata = await withSessionRefreshLock(sessionId, async () => {
         // Re-read inside the lock so a concurrent refresh uses the rotated token.
         const tokens = store.getTokens(sessionId);
-        if (!tokens) return { kind: 'no_refresh' as const };
-        const refreshValue = decryptOrEmpty(cipher, tokens.refreshTokenEnc);
-        if (!refreshValue) return { kind: 'no_refresh' as const };
+        if (!tokens || !tokens.refreshTokenEnc) return { kind: 'no_refresh' as const };
         try {
+          // A stored token that cannot be opened is corruption, not an unissued token:
+          // it falls through to the failure branch and is logged and audited.
+          const refreshValue = cipher.open(tokens.refreshTokenEnc);
+          if (!refreshValue) return { kind: 'no_refresh' as const };
           const refreshed = await provider.oidc.refresh(refreshValue);
           store.saveTokens({
             sessionId,
             accessTokenEnc: cipher.seal(refreshed.accessToken),
-            refreshTokenEnc: cipher.seal(refreshed.refreshToken),
+            refreshTokenEnc: refreshed.refreshToken ? cipher.seal(refreshed.refreshToken) : '',
             accessExpiresAt: refreshed.accessExpiresAt,
             refreshExpiresAt: refreshed.refreshExpiresAt,
             scopes: refreshed.scopes || tokens.scopes,

@@ -55,6 +55,9 @@ describe('Okta login and callback (B1, B2, B4, B8)', () => {
     expect(start.location.searchParams.get('redirect_uri')).toBe(
       `${harness.config.publicBaseUrl}/auth/callback/okta`
     );
+    expect((start.location.searchParams.get('scope') ?? '').split(' ')).toEqual(
+      expect.arrayContaining(['openid', 'profile', 'email', 'groups', 'offline_access'])
+    );
     const event = harness.store.listAuditEvents().find(row => row.event === 'login.start');
     expect(event?.actorProvider).toBe('okta');
   });
