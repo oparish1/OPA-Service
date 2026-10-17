@@ -1,5 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getSession, revealToken, runRequest, signOut } from './client';
+import {
+  changePassword,
+  getIdentities,
+  getProviders,
+  getSession,
+  resetPassword,
+  revealToken,
+  runRequest,
+  signIn,
+  signOut,
+} from './client';
 
 interface FakeInit {
   status?: number;
@@ -230,6 +240,62 @@ describe('real API client', () => {
     expect(response.size).toBe('—');
     expect(response.timestamp).toBe('15 Oct 2026 · 04:32:00 UTC');
     expect(response.body).toEqual({ error: 'request_timeout' });
+  });
+
+  it('signs in by navigating top-level to the provider login path', () => {
+    const assign = vi.fn();
+    vi.stubGlobal('location', { assign });
+    void signIn('okta');
+    expect(assign).toHaveBeenCalledWith('/auth/login/okta');
+  });
+
+  it('lists providers from the BFF and derives the current identity', async () => {
+    const providersPayload = {
+      providers: [
+        { id: 'entra', name: 'Microsoft Entra ID', manageAccountUrl: 'https://manage.example/entra' },
+        { id: 'okta', name: 'Okta' },
+      ],
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(fakeResponse({ body: providersPayload }))
+      .mockResolvedValueOnce(fakeResponse({ body: RAW_SESSION }))
+      .mockResolvedValueOnce(fakeResponse({ body: providersPayload }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(getProviders()).resolves.toHaveLength(2);
+    const identities = await getIdentities();
+    expect(identities).toEqual([
+      expect.objectContaining({
+        id: 'entra',
+        name: 'Microsoft Entra ID',
+        manageUrl: 'https://manage.example/entra',
+      }),
+    ]);
+  });
+
+  it('resolves password destinations from the provider list', async () => {
+    const providersPayload = {
+      providers: [
+        {
+          id: 'entra',
+          name: 'Microsoft Entra ID',
+          forgotPasswordUrl: 'https://reset.example',
+          changePasswordUrl: 'https://change.example',
+        },
+      ],
+    };
+    const fetchMock = vi.fn().mockResolvedValue(fakeResponse({ body: providersPayload }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(resetPassword('entra')).resolves.toEqual({
+      ok: true,
+      destination: 'https://reset.example',
+    });
+    await expect(changePassword('entra')).resolves.toEqual({
+      ok: true,
+      destination: 'https://change.example',
+    });
   });
 
   it('maps a dropped connection to request_failed', async () => {

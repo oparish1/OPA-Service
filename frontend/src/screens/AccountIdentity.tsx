@@ -31,7 +31,8 @@ function rowFor(identity: Identity) {
     subtitle: identity.subtitle,
     badgeTone: linked ? ('success' as const) : ('neutral' as const),
     badgeLabel: identity.status === 'primary' ? 'Primary' : linked ? 'Connected' : 'Not connected',
-    actionLabel: linked ? 'Manage' : 'Connect',
+    // No configured destination means no action; the deferred Connect flow is out of scope.
+    actionLabel: linked && identity.manageUrl ? 'Manage' : undefined,
   };
 }
 
@@ -44,6 +45,7 @@ export function AccountIdentity() {
   });
 
   function handleAction(identity: Identity) {
+    if (!identity.manageUrl) return;
     window.open(identity.manageUrl, '_blank', 'noopener,noreferrer');
   }
 

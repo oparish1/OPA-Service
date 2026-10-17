@@ -1,28 +1,31 @@
 import { useState } from 'react';
+import { isProviderId } from '../../../shared/providers';
+import type { ProviderId } from '../../../shared/providers';
 import { useApp } from '../app/app-context';
-import { signIn } from '../api';
+import { getProviders, signIn } from '../api';
 import { AuthenticationProvider } from '../components/AuthenticationProvider';
 import { Button } from '../components/Button';
 import { Notice } from '../components/Notice';
 import { ProviderIcon } from '../components/ProviderIcon';
 import { TextLink } from '../components/TextLink';
+import { useAsyncData } from '../hooks/useAsyncData';
+import { providerIcon } from '../lib/provider-icons';
 import { PublicLayout } from '../layouts/PublicLayout';
 import { GENERIC_ERROR } from '../lib/copy';
-import { ENABLED_PROVIDERS } from '../mocks/data';
-import type { ProviderId } from '../mocks/data';
 import { space } from '../styles/tokens';
 
-const ENTRA_PROVIDER = ENABLED_PROVIDERS[0];
-
-/** Home — Sign in: the Microsoft Entra ID button and provider-managed password links. */
+/** Home — Sign in: one button per provider the BFF reports as enabled. */
 export function HomeSignIn() {
   const { navigate } = useApp();
-  const [providerLoading, setProviderLoading] = useState<string | null>(null);
+  const { state, reload } = useAsyncData(getProviders);
+  const [providerLoading, setProviderLoading] = useState<ProviderId | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
+  const [lastProvider, setLastProvider] = useState<ProviderId | null>(null);
   const [callbackError] = useState(() => new URLSearchParams(window.location.search).get('error'));
 
   async function handleProvider(providerId: ProviderId) {
     setFailure(null);
+    setLastProvider(providerId);
     setProviderLoading(providerId);
     try {
       await signIn(providerId);
@@ -33,7 +36,7 @@ export function HomeSignIn() {
     }
   }
 
-  if (!ENTRA_PROVIDER) return null;
+  const providers = state.status === 'ready' ? state.data : [];
 
   return (
     <PublicLayout
@@ -52,25 +55,46 @@ export function HomeSignIn() {
           <Notice tone="error" heading="We couldn’t sign you in. Try again." />
         ) : null}
 
-        {failure ? (
+        {state.status === 'error' ? (
           <Notice
             tone="error"
-            heading={failure}
+            heading={GENERIC_ERROR}
             action={
-              <Button variant="secondary" onClick={() => void handleProvider(ENTRA_PROVIDER.id)}>
+              <Button variant="secondary" onClick={reload}>
                 Retry
               </Button>
             }
           />
         ) : null}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: space[12] }}>
-          <AuthenticationProvider
-            name={`Continue with ${ENTRA_PROVIDER.name}`}
-            icon={<ProviderIcon name={ENTRA_PROVIDER.icon} size={20} />}
-            state={providerLoading === ENTRA_PROVIDER.id ? 'in-progress' : 'default'}
-            onClick={() => void handleProvider(ENTRA_PROVIDER.id)}
+        {failure ? (
+          <Notice
+            tone="error"
+            heading={failure}
+            action={
+              lastProvider ? (
+                <Button variant="secondary" onClick={() => void handleProvider(lastProvider)}>
+                  Retry
+                </Button>
+              ) : null
+            }
           />
+        ) : null}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: space[12] }}>
+          {providers.flatMap(provider => {
+            const id = provider.id;
+            if (!isProviderId(id)) return [];
+            return [
+              <AuthenticationProvider
+                key={id}
+                name={`Continue with ${provider.name}`}
+                icon={<ProviderIcon name={providerIcon(id)} size={20} />}
+                state={providerLoading === id ? 'in-progress' : 'default'}
+                onClick={() => void handleProvider(id)}
+              />,
+            ];
+          })}
         </div>
 
         <div style={{ display: 'flex', gap: space[20] }}>
@@ -79,7 +103,7 @@ export function HomeSignIn() {
         </div>
 
         <Notice tone="neutral" heading="Your password stays with your provider">
-          We never collect your password. Microsoft Entra ID manages sign-in, recovery and password changes.
+          Your organisation’s identity provider manages sign-in, recovery and password changes.
         </Notice>
       </div>
     </PublicLayout>

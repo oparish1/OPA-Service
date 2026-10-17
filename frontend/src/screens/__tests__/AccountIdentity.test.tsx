@@ -55,7 +55,7 @@ describe('AccountIdentity', () => {
     await screen.findByText('Microsoft Entra ID');
     await user.click(screen.getByRole('button', { name: 'Manage' }));
     expect(open).toHaveBeenCalledWith(
-      'https://example.com/manage/microsoft',
+      'https://example.com/manage/entra',
       '_blank',
       'noopener,noreferrer'
     );

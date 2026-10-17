@@ -4,6 +4,7 @@ import {
   configureMocks,
   discoverSso,
   getIdentities,
+  getProviders,
   getSession,
   refreshToken,
   resetMocks,
@@ -43,7 +44,7 @@ describe('getSession', () => {
 
   it('falls back to the demo session before any sign-in', async () => {
     await expect(getSession()).resolves.toMatchObject({
-      provider: 'Google Workspace / Cloud Identity',
+      provider: 'Microsoft Entra ID',
     });
   });
 });
@@ -52,7 +53,7 @@ describe('discoverSso', () => {
   it('resolves a known domain to the provider that owns it', async () => {
     await expect(discoverSso('a@agentic-advantage.example')).resolves.toEqual({
       found: true,
-      providerId: 'microsoft',
+      providerId: 'entra',
     });
   });
 
@@ -120,10 +121,23 @@ describe('refreshToken', () => {
   });
 });
 
+describe('getProviders', () => {
+  it('returns every enabled provider in order with its destinations', async () => {
+    const providers = await getProviders();
+    expect(providers.map(provider => provider.id)).toEqual(['entra', 'okta', 'google']);
+    expect(providers[0]).toMatchObject({ name: 'Microsoft Entra ID' });
+    expect(providers[1].forgotPasswordUrl).toBe('https://example.com/reset');
+  });
+});
+
 describe('getIdentities', () => {
-  it('returns only the enabled provider', async () => {
+  it('returns only the current session provider identity', async () => {
     await expect(getIdentities()).resolves.toEqual([
-      expect.objectContaining({ id: 'microsoft', name: 'Microsoft Entra ID' }),
+      expect.objectContaining({ id: 'entra', name: 'Microsoft Entra ID' }),
+    ]);
+    await signIn('okta');
+    await expect(getIdentities()).resolves.toEqual([
+      expect.objectContaining({ id: 'okta', name: 'Okta' }),
     ]);
   });
 
@@ -142,7 +156,7 @@ describe('revealToken', () => {
 
 describe('bootstrapSession', () => {
   it('never restores a mock session', async () => {
-    await signIn('microsoft');
+    await signIn('entra');
     await expect(bootstrapSession()).resolves.toBe(false);
   });
 });

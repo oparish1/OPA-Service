@@ -10,9 +10,10 @@ interface ProviderRowProps {
   subtitle: string;
   badgeTone: BadgeTone;
   badgeLabel: string;
-  actionLabel: string;
+  /** Absent when no destination is configured, so no action is offered. */
+  actionLabel?: string;
   busy?: boolean;
-  onAction: () => void;
+  onAction?: () => void;
 }
 
 /**
@@ -57,9 +58,11 @@ export function ProviderRow({
         <span style={{ ...body[13], fontFamily: font.body, color: color.text.secondary }}>{subtitle}</span>
       </div>
       <Badge tone={badgeTone}>{badgeLabel}</Badge>
-      <Button variant="secondary" state={busy ? 'in-progress' : 'default'} onClick={onAction}>
-        {actionLabel}
-      </Button>
+      {actionLabel && onAction ? (
+        <Button variant="secondary" state={busy ? 'in-progress' : 'default'} onClick={onAction}>
+          {actionLabel}
+        </Button>
+      ) : null}
     </div>
   );
 }

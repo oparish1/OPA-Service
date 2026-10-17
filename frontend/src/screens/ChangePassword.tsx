@@ -1,6 +1,7 @@
 import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
+import { isProviderId } from '../../../shared/providers';
 import { useApp } from '../app/app-context';
 import { Button } from '../components/Button';
 import { Notice } from '../components/Notice';
@@ -9,27 +10,28 @@ import { TextLink } from '../components/TextLink';
 import { PublicLayout } from '../layouts/PublicLayout';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { GENERIC_ERROR, PROVIDER_ERROR } from '../lib/copy';
-import { changePassword, getSession } from '../api';
-import { ENABLED_PROVIDERS } from '../mocks/data';
+import { changePassword, getProviders, getSession } from '../api';
 import { body, color, font, label, space } from '../styles/tokens';
-
-const PROVIDER_OPTIONS = ENABLED_PROVIDERS.map(provider => ({
-  value: provider.id,
-  label: provider.name,
-}));
 
 /** Change password: managed-provider select with a mocked change request. */
 export function ChangePassword() {
   const { navigate } = useApp();
   const { state: sessionState } = useAsyncData(getSession);
+  const { state: providerState } = useAsyncData(getProviders);
   const [provider, setProvider] = useState('');
   const [error, setError] = useState<string | undefined>(undefined);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
   const [failure, setFailure] = useState(false);
   const [destination, setDestination] = useState('—');
   const account = sessionState.status === 'ready' ? sessionState.data.account : null;
+  const providers = providerState.status === 'ready' ? providerState.data : [];
+  const options = providers.map(info => ({ value: info.id, label: info.name }));
+  const selectedId = isProviderId(provider) ? provider : null;
+  const selected = providers.find(info => info.id === provider);
+  const hasDestination = Boolean(selected?.changePasswordUrl);
 
   async function submit(providerId: string) {
+    if (!isProviderId(providerId)) return;
     setStatus('loading');
     setFailure(false);
     try {
@@ -44,12 +46,12 @@ export function ChangePassword() {
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!provider) {
+    if (!selectedId) {
       setError(PROVIDER_ERROR);
       return;
     }
     setError(undefined);
-    void submit(provider);
+    void submit(selectedId);
   }
 
   return (
@@ -88,7 +90,7 @@ export function ChangePassword() {
             setProvider(value);
             if (error) setError(undefined);
           }}
-          options={PROVIDER_OPTIONS}
+          options={options}
           error={error}
         />
 
@@ -98,7 +100,7 @@ export function ChangePassword() {
             {account ? `${account.displayName} · ${account.email}` : '—'}
           </span>
           <span style={{ ...body[13], fontFamily: font.body, color: color.text.secondary }}>
-            Available identity provider: Microsoft Entra ID
+            Available identity providers: {options.map(option => option.label).join(', ')}
           </span>
         </div>
 
@@ -108,7 +110,17 @@ export function ChangePassword() {
         </Notice>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: space[16] }}>
-          <Button type="submit" fullWidth state={status === 'loading' ? 'in-progress' : 'default'}>
+          <Button
+            type="submit"
+            fullWidth
+            state={
+              status === 'loading'
+                ? 'in-progress'
+                : selectedId && !hasDestination
+                  ? 'disabled'
+                  : 'default'
+            }
+          >
             Change password
           </Button>
         </form>

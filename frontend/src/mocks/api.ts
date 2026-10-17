@@ -1,11 +1,13 @@
 import { PROJECTS_PATH } from '../lib/runner-url';
 import {
   EMPTY_PROJECTS_BODY,
-  ENABLED_IDENTITIES,
   MOCK_PROFILE_BODY,
   MOCK_PROJECTS_BODY,
   MOCK_SESSION,
+  PROVIDER_LINKS,
   PROVIDERS,
+  identityFor,
+  providerInfos,
 } from './data';
 import type { ProviderId } from './data';
 import type {
@@ -14,6 +16,7 @@ import type {
   ApiResponse,
   Identity,
   MockConfig,
+  ProviderInfo,
   RunnerAuth,
   Session,
   TokenKind,
@@ -37,6 +40,7 @@ let config: MockConfig = { ...DEFAULT_CONFIG };
 
 /** The mock's current session; the default demo session until a sign-in or refresh replaces it. */
 let activeSession: Session = MOCK_SESSION;
+let activeProviderId: ProviderId = 'entra';
 
 /** Test/demo seam for the mocked network. */
 export function configureMocks(partial: Partial<MockConfig>): void {
@@ -46,11 +50,17 @@ export function configureMocks(partial: Partial<MockConfig>): void {
 export function resetMocks(): void {
   config = { ...DEFAULT_CONFIG };
   activeSession = MOCK_SESSION;
+  activeProviderId = 'entra';
 }
 
 /** Clears the mocked session when the user signs out. */
 export async function signOut(): Promise<void> {
   activeSession = MOCK_SESSION;
+  activeProviderId = 'entra';
+}
+
+export async function getProviders(): Promise<ProviderInfo[]> {
+  return delay(providerInfos());
 }
 
 function delay<T>(value: T, ms = config.latencyMs): Promise<T> {
@@ -170,6 +180,7 @@ export async function signIn(providerId: ProviderId): Promise<Session> {
   const provider = PROVIDERS.find(candidate => candidate.id === providerId);
   const session = await delay({ ...MOCK_SESSION, provider: provider?.name ?? MOCK_SESSION.provider });
   activeSession = session;
+  activeProviderId = provider?.id ?? activeProviderId;
   return session;
 }
 
@@ -192,16 +203,18 @@ export async function discoverSso(email: string): Promise<SsoDiscovery> {
   return delay(provider ? { found: true, providerId: provider.id } : { found: false, providerId: null });
 }
 
-export async function resetPassword(email: string): Promise<{ ok: true; destination: string }> {
-  if (!email) return fail(new Error('Enter your work email.'));
+export async function resetPassword(providerId: ProviderId): Promise<{ ok: true; destination: string }> {
+  const destination = PROVIDER_LINKS[providerId]?.forgotPasswordUrl;
+  if (!destination) return fail(new Error('No recovery destination configured.'));
   if (config.resetPasswordFailure) return fail(new Error('Reset request failed.'));
-  return delay({ ok: true as const, destination: 'https://example.com/reset' });
+  return delay({ ok: true as const, destination });
 }
 
-export async function changePassword(providerId: string): Promise<{ ok: true; destination: string }> {
-  if (!providerId) return fail(new Error('Select a provider.'));
+export async function changePassword(providerId: ProviderId): Promise<{ ok: true; destination: string }> {
+  const destination = PROVIDER_LINKS[providerId]?.changePasswordUrl;
+  if (!destination) return fail(new Error('No change-password destination configured.'));
   if (config.changePasswordFailure) return fail(new Error('Change request failed.'));
-  return delay({ ok: true as const, destination: 'https://example.com/change' });
+  return delay({ ok: true as const, destination });
 }
 
 export async function getSession(): Promise<Session> {
@@ -215,7 +228,8 @@ export async function getIdentities(): Promise<Identity[]> {
   if (config.getIdentitiesFailure) {
     return fail(new Error('Could not load identities'));
   }
-  return delay(config.identitiesEmpty ? [] : [...ENABLED_IDENTITIES]);
+  if (config.identitiesEmpty) return delay([]);
+  return delay([identityFor(activeProviderId, activeSession.account?.email ?? '')]);
 }
 
 /**

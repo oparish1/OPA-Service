@@ -16,6 +16,15 @@ export interface ProviderConfig {
   ssoDomain: string;
 }
 
+/** The public provider list from `GET /auth/providers`; icons are a UI concern. */
+export interface ProviderInfo {
+  id: string;
+  name: string;
+  forgotPasswordUrl?: string;
+  changePasswordUrl?: string;
+  manageAccountUrl?: string;
+}
+
 export interface AccountSummary {
   displayName: string;
   email: string;
@@ -59,7 +68,8 @@ export interface Identity {
   icon: string;
   subtitle: string;
   status: ProviderStatus;
-  manageUrl: string;
+  /** Absent when the provider has no configured account-management destination. */
+  manageUrl?: string;
 }
 
 export type BodyKind = 'json' | 'text' | 'empty' | 'binary';

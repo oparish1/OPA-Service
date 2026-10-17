@@ -19,7 +19,7 @@ describe('App navigation', () => {
     render(<App />);
     await screen.findByRole('heading', { name: /welcome to your workspace/i });
 
-    await user.click(screen.getByRole('button', { name: /microsoft entra id/i }));
+    await user.click(await screen.findByRole('button', { name: /microsoft entra id/i }));
     await screen.findByRole('heading', { name: /^welcome\.$/i });
 
     await user.click(await screen.findByRole('button', { name: /open profile api/i }));
@@ -35,7 +35,7 @@ describe('App navigation', () => {
     const user = userEvent.setup();
     render(<App />);
     await screen.findByRole('heading', { name: /welcome to your workspace/i });
-    await user.click(screen.getByRole('button', { name: /microsoft entra id/i }));
+    await user.click(await screen.findByRole('button', { name: /microsoft entra id/i }));
     await screen.findByRole('heading', { name: /^welcome\.$/i });
 
     await user.click(screen.getByRole('button', { name: /account & identity/i }));
@@ -51,7 +51,7 @@ describe('App navigation', () => {
     expect(document.title).toBe('Sign in · Your Identity');
     await screen.findByRole('heading', { name: /welcome to your workspace/i });
 
-    await user.click(screen.getByRole('button', { name: /microsoft entra id/i }));
+    await user.click(await screen.findByRole('button', { name: /microsoft entra id/i }));
     await screen.findByRole('heading', { name: /^welcome\.$/i });
     expect(document.title).toBe('Overview · Your Identity');
   });

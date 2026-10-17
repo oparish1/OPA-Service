@@ -1,8 +1,16 @@
-import type { ProviderId } from '../mocks/data';
+import type { ProviderId } from '../../../shared/providers';
 import type { SsoDiscovery } from '../mocks/api';
 import * as mockApi from '../mocks/api';
 import * as realApi from './client';
-import type { AccessToken, ApiResponse, Identity, RunnerAuth, Session, TokenKind } from '../types';
+import type {
+  AccessToken,
+  ApiResponse,
+  Identity,
+  ProviderInfo,
+  RunnerAuth,
+  Session,
+  TokenKind,
+} from '../types';
 
 /**
  * The authentication seam. Component tests import the mocks directly; the running
@@ -26,6 +34,10 @@ export function getSession(): Promise<Session> {
   return useReal ? realApi.getSession() : mockApi.getSession();
 }
 
+export function getProviders(): Promise<ProviderInfo[]> {
+  return useReal ? realApi.getProviders() : mockApi.getProviders();
+}
+
 export function revealToken(kind: TokenKind): Promise<string> {
   return useReal ? realApi.revealToken(kind) : mockApi.revealToken(kind);
 }
@@ -42,11 +54,11 @@ export function discoverSso(email: string): Promise<SsoDiscovery> {
   return useReal ? realApi.discoverSso(email) : mockApi.discoverSso(email);
 }
 
-export function resetPassword(email: string): Promise<{ ok: true; destination: string }> {
-  return useReal ? realApi.resetPassword(email) : mockApi.resetPassword(email);
+export function resetPassword(providerId: ProviderId): Promise<{ ok: true; destination: string }> {
+  return useReal ? realApi.resetPassword(providerId) : mockApi.resetPassword(providerId);
 }
 
-export function changePassword(providerId: string): Promise<{ ok: true; destination: string }> {
+export function changePassword(providerId: ProviderId): Promise<{ ok: true; destination: string }> {
   return useReal ? realApi.changePassword(providerId) : mockApi.changePassword(providerId);
 }
 
