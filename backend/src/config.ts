@@ -239,19 +239,20 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   }
   const value = parsed.data;
   const publicBaseUrl = value.PUBLIC_BASE_URL.replace(/\/$/, '');
-  const oktaPrivateKey = oktaClientPrivateKey(value);
-  const okta =
-    value.OKTA_ENABLED && isOktaConfigured(value)
-      ? Object.freeze({
-          issuer: value.OKTA_ISSUER,
-          clientId: value.OKTA_CLIENT_ID,
-          // A configured private key makes Okta use private_key_jwt; the secret is not sent.
-          clientSecret: oktaPrivateKey ? undefined : value.OKTA_CLIENT_SECRET,
-          clientPrivateKey: oktaPrivateKey,
-          requiredGroup: value.OKTA_REQUIRED_GROUP,
-          apiAudience: value.OKTA_API_AUDIENCE,
-        })
-      : undefined;
+  let okta: OktaProviderConfig | undefined;
+  if (value.OKTA_ENABLED && isOktaConfigured(value)) {
+    // The key file is read only for an enabled provider, so the kill switch needs no Okta variables.
+    const clientPrivateKey = oktaClientPrivateKey(value);
+    okta = Object.freeze({
+      issuer: value.OKTA_ISSUER,
+      clientId: value.OKTA_CLIENT_ID,
+      // A configured private key makes Okta use private_key_jwt; the secret is not sent.
+      clientSecret: clientPrivateKey ? undefined : value.OKTA_CLIENT_SECRET,
+      clientPrivateKey,
+      requiredGroup: value.OKTA_REQUIRED_GROUP,
+      apiAudience: value.OKTA_API_AUDIENCE,
+    });
+  }
   const google =
     value.GOOGLE_ENABLED && isGoogleConfigured(value)
       ? Object.freeze({

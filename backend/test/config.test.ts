@@ -158,6 +158,13 @@ describe('loadConfig', () => {
     expect(message).toContain('OKTA_CLIENT_PRIVATE_KEY_FILE');
   });
 
+  it('does not read OKTA_CLIENT_PRIVATE_KEY_FILE while Okta is disabled', () => {
+    const config = loadConfig(
+      testEnv({ OKTA_ENABLED: 'false', OKTA_CLIENT_PRIVATE_KEY_FILE: '/no/such/okta-key.pem' })
+    );
+    expect(config.okta).toBeUndefined();
+  });
+
   it('builds provider links only for variables that are set', () => {
     const config = loadConfig(
       testEnv({
