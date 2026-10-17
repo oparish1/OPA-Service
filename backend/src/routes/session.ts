@@ -185,10 +185,13 @@ export function registerSessionRoutes(
       }
       const tokens = store.getTokens(auth.sessionId);
       if (!tokens) return reply.code(401).send({ error: 'unauthorized' });
+      const refreshTokenEnc = tokens.refreshTokenEnc;
       const value =
         body.kind === 'access'
           ? cipher.open(tokens.accessTokenEnc)
-          : cipher.open(tokens.refreshTokenEnc);
+          : refreshTokenEnc
+            ? cipher.open(refreshTokenEnc)
+            : '';
       audit.record({
         event: 'token.reveal',
         outcome: 'success',

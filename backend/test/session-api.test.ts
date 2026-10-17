@@ -140,6 +140,23 @@ describe('token reveal (A12)', () => {
     expect(response.statusCode).toBe(401);
   });
 
+  it('returns an empty value when the session has no refresh token', async () => {
+    const cookie = await signIn();
+    const sessionId = sessionIdOf(harness.app, cookie);
+    const tokens = harness.store.getTokens(sessionId);
+    if (!tokens) throw new Error('expected stored tokens');
+    harness.store.saveTokens({ ...tokens, refreshTokenEnc: '' });
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: '/api/session/tokens/reveal',
+      cookies: { [cookie.name]: cookie.value },
+      headers: { 'x-csrf-token': cookie.csrf, origin: harness.config.allowedOrigin },
+      payload: { kind: 'refresh' },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ kind: 'refresh', value: '' });
+  });
+
   it('never writes a revealed token to the logs', async () => {
     const logs: string[] = [];
     const loggedIdp = new TestIdp({ tenantId: 'tenant-1', clientId: 'client-1' });
