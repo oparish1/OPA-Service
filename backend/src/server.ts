@@ -1,15 +1,15 @@
 import { fileURLToPath } from 'node:url';
-import { buildApp } from './app';
-import { loadConfig } from './config';
-import { Store } from './db';
-import { runRetention } from './retention';
+import { loadConfig, PROVIDER_MODULES } from './providers';
+import { buildApp } from './core/app';
+import { Store } from './core/db';
+import { runRetention } from './core/retention';
 
 const config = loadConfig();
 const store = new Store(config.databaseUrl);
 store.migrate();
 
-const frontendDist = fileURLToPath(new URL('../../frontend/dist', import.meta.url));
-const { app, services } = await buildApp({ config, store, frontendDist });
+const frontendDist = fileURLToPath(new URL('../frontend/dist', import.meta.url));
+const { app, services } = await buildApp({ config, store, modules: PROVIDER_MODULES, frontendDist });
 
 runRetention(services, config, app.log);
 const retentionTimer = setInterval(

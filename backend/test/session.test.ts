@@ -1,15 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { completeLogin, createHarness, sessionCookie, sessionCsrf, sessionIdOf } from './helpers/harness';
+import {
+  completeLogin,
+  createTestHarness,
+  sessionCookie,
+  sessionCsrf,
+  sessionIdOf,
+} from './helpers/harness';
 import type { Harness } from './helpers/harness';
-import { TestIdp } from './helpers/idp';
+import { createTestIdp } from '../src/core/testing';
+import type { TestIdp } from '../src/core/testing';
 
 let idp: TestIdp;
 let harness: Harness;
 
 beforeEach(async () => {
-  idp = new TestIdp({ tenantId: 'tenant-1', clientId: 'client-1' });
+  idp = createTestIdp();
   await idp.start();
-  harness = await createHarness({ idp });
+  harness = await createTestHarness({ idp });
 });
 
 afterEach(async () => {
@@ -27,13 +34,10 @@ async function signIn(): Promise<{ name: string; value: string; csrf: string }> 
 
 describe('session timeouts (A7)', () => {
   it('rejects a session idle for more than 30 minutes', async () => {
-    const user = harness.store.upsertUser({
-      tid: 'tenant-1',
-      oid: 'o1',
-      email: 'a@x',
-      displayName: 'A',
-      organisation: 'AA',
-    });
+    const user = harness.store.upsertUserByIdentity(
+      { provider: 'test', issuer: 'https://test.example', subject: 'o1' },
+      { email: 'a@x', displayName: 'A', organisation: 'AA' }
+    );
     harness.store.createSession({
       id: 'idle-session',
       userId: user.id,
@@ -51,13 +55,10 @@ describe('session timeouts (A7)', () => {
   });
 
   it('rejects a session older than 8 hours even when recently active', async () => {
-    const user = harness.store.upsertUser({
-      tid: 'tenant-1',
-      oid: 'o1',
-      email: 'a@x',
-      displayName: 'A',
-      organisation: 'AA',
-    });
+    const user = harness.store.upsertUserByIdentity(
+      { provider: 'test', issuer: 'https://test.example', subject: 'o1' },
+      { email: 'a@x', displayName: 'A', organisation: 'AA' }
+    );
     harness.store.createSession({
       id: 'old-session',
       userId: user.id,

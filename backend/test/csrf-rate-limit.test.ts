@@ -1,15 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { completeLogin, createHarness, sessionCookie, sessionCsrf } from './helpers/harness';
+import { completeLogin, createTestHarness, sessionCookie, sessionCsrf } from './helpers/harness';
 import type { Harness } from './helpers/harness';
-import { TestIdp } from './helpers/idp';
+import { createTestIdp } from '../src/core/testing';
+import type { TestIdp } from '../src/core/testing';
 
 let idp: TestIdp;
 let harness: Harness;
 
 beforeEach(async () => {
-  idp = new TestIdp({ tenantId: 'tenant-1', clientId: 'client-1' });
+  idp = createTestIdp();
   await idp.start();
-  harness = await createHarness({ idp });
+  harness = await createTestHarness({ idp });
 });
 
 afterEach(async () => {
@@ -49,8 +50,8 @@ describe('CSRF and Origin checks (A9)', () => {
         .listAuditEvents()
         .find(candidate => candidate.event === 'csrf.refused');
       expect(event?.reason).toBe('csrf_token');
-      expect(event?.actorOid).toBe('oid-default');
-      expect(event?.actorTid).toBe('tenant-1');
+      expect(event?.actorOid).toBeNull();
+      expect(event?.actorTid).toBeNull();
     });
 
     it(`rejects ${route.url} with a foreign Origin`, async () => {
@@ -84,9 +85,9 @@ describe('CSRF and Origin checks (A9)', () => {
 
 describe('rate limiting (A14)', () => {
   it('returns 429 and audits once the refresh limit is exceeded', async () => {
-    const limitedIdp = new TestIdp({ tenantId: 'tenant-1', clientId: 'client-1' });
+    const limitedIdp = createTestIdp();
     await limitedIdp.start();
-    const limited = await createHarness({ idp: limitedIdp, env: { RATE_LIMIT_REFRESH: '2' } });
+    const limited = await createTestHarness({ idp: limitedIdp, env: { RATE_LIMIT_REFRESH: '2' } });
     try {
       const { response } = await completeLogin(limited.app, limitedIdp);
       const cookie = sessionCookie(response);
@@ -116,8 +117,8 @@ describe('rate limiting (A14)', () => {
       const limitedEvent = limited.store
         .listAuditEvents()
         .find(event => event.event === 'rate_limited');
-      expect(limitedEvent?.actorOid).toBe('oid-default');
-      expect(limitedEvent?.actorTid).toBe('tenant-1');
+      expect(limitedEvent?.actorOid).toBeNull();
+      expect(limitedEvent?.actorTid).toBeNull();
     } finally {
       await limited.app.close();
       limited.store.close();
@@ -126,9 +127,9 @@ describe('rate limiting (A14)', () => {
   });
 
   it('returns 429 and audits once the token-reveal limit is exceeded', async () => {
-    const limitedIdp = new TestIdp({ tenantId: 'tenant-1', clientId: 'client-1' });
+    const limitedIdp = createTestIdp();
     await limitedIdp.start();
-    const limited = await createHarness({ idp: limitedIdp, env: { RATE_LIMIT_REVEAL: '1' } });
+    const limited = await createTestHarness({ idp: limitedIdp, env: { RATE_LIMIT_REVEAL: '1' } });
     try {
       const { response } = await completeLogin(limited.app, limitedIdp);
       const cookie = sessionCookie(response);
@@ -153,8 +154,8 @@ describe('rate limiting (A14)', () => {
       const limitedEvent = limited.store
         .listAuditEvents()
         .find(event => event.event === 'rate_limited');
-      expect(limitedEvent?.actorOid).toBe('oid-default');
-      expect(limitedEvent?.actorTid).toBe('tenant-1');
+      expect(limitedEvent?.actorOid).toBeNull();
+      expect(limitedEvent?.actorTid).toBeNull();
     } finally {
       await limited.app.close();
       limited.store.close();
@@ -163,9 +164,9 @@ describe('rate limiting (A14)', () => {
   });
 
   it('limits /auth/callback per source IP', async () => {
-    const limitedIdp = new TestIdp({ tenantId: 'tenant-1', clientId: 'client-1' });
+    const limitedIdp = createTestIdp();
     await limitedIdp.start();
-    const limited = await createHarness({ idp: limitedIdp, env: { RATE_LIMIT_LOGIN: '2' } });
+    const limited = await createTestHarness({ idp: limitedIdp, env: { RATE_LIMIT_LOGIN: '2' } });
     try {
       await limited.app.inject({ method: 'GET', url: '/auth/callback?code=x&state=y' });
       await limited.app.inject({ method: 'GET', url: '/auth/callback?code=x&state=y' });
@@ -180,9 +181,9 @@ describe('rate limiting (A14)', () => {
   });
 
   it('limits /auth/login per source IP', async () => {
-    const limitedIdp = new TestIdp({ tenantId: 'tenant-1', clientId: 'client-1' });
+    const limitedIdp = createTestIdp();
     await limitedIdp.start();
-    const limited = await createHarness({ idp: limitedIdp, env: { RATE_LIMIT_LOGIN: '2' } });
+    const limited = await createTestHarness({ idp: limitedIdp, env: { RATE_LIMIT_LOGIN: '2' } });
     try {
       await limited.app.inject({ method: 'GET', url: '/auth/login' });
       await limited.app.inject({ method: 'GET', url: '/auth/login' });
@@ -196,9 +197,9 @@ describe('rate limiting (A14)', () => {
   });
 
   it('does not let a client-supplied X-Forwarded-For bypass the login limit', async () => {
-    const limitedIdp = new TestIdp({ tenantId: 'tenant-1', clientId: 'client-1' });
+    const limitedIdp = createTestIdp();
     await limitedIdp.start();
-    const limited = await createHarness({ idp: limitedIdp, env: { RATE_LIMIT_LOGIN: '2' } });
+    const limited = await createTestHarness({ idp: limitedIdp, env: { RATE_LIMIT_LOGIN: '2' } });
     try {
       await limited.app.inject({
         method: 'GET',

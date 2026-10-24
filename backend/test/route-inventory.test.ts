@@ -1,17 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import type { RouteOptions } from 'fastify';
-import { createRouteInventory } from '../src/routes/inventory';
-import { createHarness } from './helpers/harness';
+import { createRouteInventory } from '../src/core/routes/inventory';
+import { createTestHarness } from './helpers/harness';
 import type { Harness } from './helpers/harness';
-import { TestIdp } from './helpers/idp';
+import { createTestIdp } from '../src/core/testing';
+import type { TestIdp } from '../src/core/testing';
 
 let idp: TestIdp;
 let harness: Harness;
 
 beforeEach(async () => {
-  idp = new TestIdp({ tenantId: 'tenant-1', clientId: 'client-1' });
+  idp = createTestIdp();
   await idp.start();
-  harness = await createHarness({ idp });
+  harness = await createTestHarness({ idp });
 });
 
 afterEach(async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { RUNNER_ACCEPT, RUNNER_BODY_CAP, relayRequest } from '../src/request-runner';
-import type { RelayOptions, RelaySuccess } from '../src/request-runner';
+import { RUNNER_ACCEPT, RUNNER_BODY_CAP, relayRequest } from '../src/core/request-runner';
+import type { RelayOptions, RelaySuccess } from '../src/core/request-runner';
 
 const OWN_ORIGIN = 'http://localhost:3000';
 const OWN_HOST = 'localhost:3000';

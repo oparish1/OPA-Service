@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { runRetention } from '../src/retention';
+import { runRetention } from '../src/core/retention';
 
 describe('retention job error boundary', () => {
   it('runs the login-transaction purge even when the audit purge throws', () => {

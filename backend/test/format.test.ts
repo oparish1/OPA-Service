@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { formatTimestamp, maskToken } from '../src/format';
+import { formatTimestamp, maskToken } from '../src/core/format';
 
 describe('formatTimestamp', () => {
   it('renders the approved shape with seconds', () => {

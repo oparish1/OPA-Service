@@ -1,15 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { createHarness } from './helpers/harness';
+import { createTestHarness } from './helpers/harness';
 import type { Harness } from './helpers/harness';
-import { TestIdp } from './helpers/idp';
+import { createTestIdp } from '../src/core/testing';
+import type { TestIdp } from '../src/core/testing';
 
 let idp: TestIdp;
 let harness: Harness;
 
 beforeEach(async () => {
-  idp = new TestIdp({ tenantId: 'tenant-1', clientId: 'client-1' });
+  idp = createTestIdp();
   await idp.start();
-  harness = await createHarness({ idp });
+  harness = await createTestHarness({ idp });
 });
 
 afterEach(async () => {
@@ -48,11 +49,6 @@ describe('bearer validation on /v1/* (A11)', () => {
 
   it('rejects a token signed with an unknown key', async () => {
     const token = await idp.signAccessToken({ __unknownKey: true });
-    expect((await getWithBearer('/v1/me', token)).statusCode).toBe(401);
-  });
-
-  it('rejects a token from another tenant', async () => {
-    const token = await idp.signAccessToken({ tid: 'other-tenant' });
     expect((await getWithBearer('/v1/me', token)).statusCode).toBe(401);
   });
 

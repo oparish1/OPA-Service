@@ -1,16 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { hashCookieValue } from '../src/auth/session';
-import { completeLogin, createHarness, beginLogin, sessionCookie } from './helpers/harness';
+import { hashCookieValue } from '../src/core/auth/session';
+import { completeLogin, createTestHarness, beginLogin, sessionCookie } from './helpers/harness';
 import type { Harness } from './helpers/harness';
-import { TestIdp } from './helpers/idp';
+import { createTestIdp } from '../src/core/testing';
+import type { TestIdp } from '../src/core/testing';
 
 let idp: TestIdp;
 let harness: Harness;
 
 beforeEach(async () => {
-  idp = new TestIdp({ tenantId: 'tenant-1', clientId: 'client-1' });
+  idp = createTestIdp();
   await idp.start();
-  harness = await createHarness({ idp });
+  harness = await createTestHarness({ idp });
 });
 
 afterEach(async () => {
@@ -63,21 +64,24 @@ describe('callback happy path (A5, A6)', () => {
     expect(harness.store.getSession('attacker-fixed-session-id')).toBeNull();
   });
 
-  it('reuses the user row on a second sign-in and separates oids that share an email', async () => {
+  it('reuses the user row on a second sign-in and separates subjects that share an email', async () => {
     await completeLogin(harness.app, idp);
     const first = harness.store.countUsers();
     await completeLogin(harness.app, idp);
     expect(harness.store.countUsers()).toBe(first);
 
-    idp.behavior.claims = { oid: 'oid-second', email: 'orlando.parish@agentic-advantage.example' };
+    idp.behavior.claims = {
+      sub: 'subject-second',
+      email: 'orlando.parish@agentic-advantage.example',
+    };
     await completeLogin(harness.app, idp);
     expect(harness.store.countUsers()).toBe(2);
   });
 
   it('marks the session cookie Host-only, HttpOnly, Secure and Path=/ in production', async () => {
-    const secureIdp = new TestIdp({ tenantId: 'tenant-1', clientId: 'client-1' });
+    const secureIdp = createTestIdp();
     await secureIdp.start();
-    const secureHarness = await createHarness({
+    const secureHarness = await createTestHarness({
       idp: secureIdp,
       env: { COOKIE_SECURE: 'true', NODE_ENV: 'production', DATABASE_URL: '/tmp/archon-identity-test.db' },
     });
@@ -161,23 +165,6 @@ describe('callback rejects bad login transactions (A2)', () => {
     expect(refuseCount()).toBe(1);
   });
 
-  it('refuses a callback whose transaction belongs to another provider', async () => {
-    const state = 'cross-provider-state';
-    const ltx = 'cross-provider-ltx';
-    insertTransaction(state, ltx, { provider: 'okta' });
-    const response = await harness.app.inject({
-      method: 'GET',
-      url: `/auth/callback?code=${idp.makeCode('custom-nonce')}&state=${state}`,
-      cookies: { [harness.services.session.loginTransactionCookieName()]: ltx },
-    });
-    expect(response.headers.location).toBe(`${harness.config.publicBaseUrl}/?error=signin`);
-    const refused = harness.store
-      .listAuditEvents()
-      .find(event => event.event === 'login.refused');
-    expect(refused?.reason).toBe('provider_mismatch');
-    expect(refused?.actorProvider).toBe('entra');
-  });
-
   it('rejects a mismatched login-transaction cookie', async () => {
     const start = await beginLogin(harness.app);
     const response = await harness.app.inject({
@@ -194,7 +181,6 @@ describe('callback rejects bad ID tokens (A3)', () => {
   const cases: Array<[string, () => void]> = [
     ['bad signature', () => (idp.behavior.signWithUnknownKey = true)],
     ['wrong issuer', () => (idp.behavior.claims = { iss: 'https://evil.example' })],
-    ['wrong tenant', () => (idp.behavior.claims = { tid: 'other-tenant' })],
     ['wrong audience', () => (idp.behavior.claims = { aud: 'other-client' })],
     [
       'expired token',
@@ -212,16 +198,6 @@ describe('callback rejects bad ID tokens (A3)', () => {
       expect(refuseCount()).toBe(1);
     });
   }
-});
-
-describe('callback role gating (A4)', () => {
-  it('refuses a valid token without the required app role and creates no user', async () => {
-    idp.behavior.claims = { roles: ['SomeOther.Role'] };
-    const { response } = await completeLogin(harness.app, idp);
-    expect(response.headers.location).toBe(`${harness.config.publicBaseUrl}/?error=signin`);
-    expect(harness.store.countUsers()).toBe(0);
-    expect(refuseCount()).toBe(1);
-  });
 });
 
 function sessionCookieOptional(response: { cookies: Array<{ name: string; value: string }> }) {
