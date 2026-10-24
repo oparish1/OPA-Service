@@ -1,15 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { completeLogin, createHarness, sessionCookie, sessionCsrf, sessionIdOf } from './helpers/harness';
+import {
+  completeLogin,
+  createTestHarness,
+  sessionCookie,
+  sessionCsrf,
+  sessionIdOf,
+} from './helpers/harness';
 import type { Harness } from './helpers/harness';
-import { TestIdp } from './helpers/idp';
+import { createTestIdp } from '../src/core/testing';
+import type { TestIdp } from '../src/core/testing';
 
 let idp: TestIdp;
 let harness: Harness;
 
 beforeEach(async () => {
-  idp = new TestIdp({ tenantId: 'tenant-1', clientId: 'client-1' });
+  idp = createTestIdp();
   await idp.start();
-  harness = await createHarness({ idp });
+  harness = await createTestHarness({ idp });
 });
 
 afterEach(async () => {
@@ -43,6 +50,7 @@ describe('GET /api/session', () => {
         'issuedAt',
         'issuer',
         'provider',
+        'providerId',
         'refreshToken',
         'snapshot',
       ].sort()
@@ -88,6 +96,29 @@ describe('GET /api/session', () => {
     expect((response.json() as { account: unknown }).account).toBeNull();
   });
 
+  it('keeps the stored account id and provider id when the provider module is disabled', async () => {
+    const user = harness.store.upsertUserByIdentity(
+      { provider: 'dormant', issuer: 'https://dormant.example', subject: 'dormant-subject-1' },
+      { email: 'dormant@example.com', displayName: 'Dormant User', organisation: 'Agentic Advantage' }
+    );
+    harness.store.createSession({
+      id: 'disabled-provider',
+      userId: user.id,
+      csrfToken: 'csrf',
+      createdAt: Date.now(),
+      lastSeenAt: Date.now(),
+    });
+    const response = await harness.app.inject({
+      method: 'GET',
+      url: '/api/session',
+      cookies: { aa_session: harness.app.signCookie('disabled-provider') },
+    });
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as { providerId: string; account: { accountId: string } };
+    expect(body.providerId).toBe('dormant');
+    expect(body.account.accountId).toBe('acct_dormant_dormant-subject-1');
+  });
+
   it('returns metadata without token values', async () => {
     const cookie = await signIn();
     const response = await harness.app.inject({
@@ -97,7 +128,7 @@ describe('GET /api/session', () => {
     });
     expect(response.statusCode).toBe(200);
     const body = response.json() as Record<string, unknown>;
-    expect(body.provider).toBe('Microsoft Entra ID');
+    expect(body.provider).toBe('Test Provider');
     expect((body.account as { displayName: string }).displayName).toBe('Orlando Parish');
     expect(body.csrfToken).toBe(cookie.csrf);
     expect(body.account).toMatchObject({
@@ -105,7 +136,7 @@ describe('GET /api/session', () => {
       email: 'orlando.parish@agentic-advantage.example',
       organisation: 'Agentic Advantage',
       role: 'User',
-      accountId: 'acct_oid-default',
+      accountId: 'acct_test_subject-default',
     });
     const serialised = JSON.stringify(body);
     expect(serialised).not.toContain('access-token');
@@ -159,9 +190,9 @@ describe('token reveal (A12)', () => {
 
   it('never writes a revealed token to the logs', async () => {
     const logs: string[] = [];
-    const loggedIdp = new TestIdp({ tenantId: 'tenant-1', clientId: 'client-1' });
+    const loggedIdp = createTestIdp();
     await loggedIdp.start();
-    const loggedHarness = await createHarness({
+    const loggedHarness = await createTestHarness({
       idp: loggedIdp,
       env: { LOG_LEVEL: 'info' },
       loggerStream: { write: message => logs.push(message) },
@@ -213,13 +244,10 @@ describe('token storage and refresh (A13)', () => {
   });
 
   it('refuses refresh when the session has no stored tokens', async () => {
-    const user = harness.store.upsertUser({
-      tid: 'tenant-1',
-      oid: 'o1',
-      email: 'a@x',
-      displayName: 'A',
-      organisation: 'AA',
-    });
+    const user = harness.store.upsertUserByIdentity(
+      { provider: 'test', issuer: 'https://test.example', subject: 'o1' },
+      { email: 'a@x', displayName: 'A', organisation: 'AA' }
+    );
     harness.store.createSession({
       id: 'no-tokens',
       userId: user.id,
@@ -268,48 +296,4 @@ describe('token storage and refresh (A13)', () => {
     });
     expect(response.statusCode).toBe(500);
   });
-});
-
-describe('provider-shaped sessions never log token material (B16)', () => {
-  for (const kind of ['okta', 'google'] as const) {
-    it(`never writes a revealed ${kind} token to the logs`, async () => {
-      const logs: string[] = [];
-      const providerIdp = new TestIdp({
-        tenantId: 'tenant-1',
-        clientId: `${kind}-client`,
-        kind,
-        apiAudience: 'api://default',
-        hostedDomain: 'agentic-advantage.com',
-      });
-      await providerIdp.start();
-      const multi = await createHarness({
-        idp,
-        ...(kind === 'okta' ? { oktaIdp: providerIdp } : { googleIdp: providerIdp }),
-        env: { LOG_LEVEL: 'info' },
-        loggerStream: { write: message => logs.push(message) },
-      });
-      try {
-        const { response } = await completeLogin(multi.app, providerIdp, {
-          loginPath: `/auth/login/${kind}`,
-          callbackPath: `/auth/callback/${kind}`,
-        });
-        const cookie = sessionCookie(response);
-        const csrf = await sessionCsrf(multi.app, cookie);
-        const reveal = await multi.app.inject({
-          method: 'POST',
-          url: '/api/session/tokens/reveal',
-          cookies: { [cookie.name]: cookie.value },
-          headers: { 'x-csrf-token': csrf, origin: multi.config.allowedOrigin },
-          payload: { kind: 'refresh' },
-        });
-        const revealed = (reveal.json() as { value: string }).value;
-        expect(revealed.length).toBeGreaterThan(10);
-        expect(logs.join('\n')).not.toContain(revealed);
-      } finally {
-        await multi.app.close();
-        multi.store.close();
-        providerIdp.stop();
-      }
-    });
-  }
 });

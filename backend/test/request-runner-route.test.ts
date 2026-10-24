@@ -2,13 +2,14 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import type { FastifyInstance } from 'fastify';
 import {
   completeLogin,
-  createHarness,
+  createTestHarness,
   sessionCookie,
   sessionCsrf,
   sessionIdOf,
 } from './helpers/harness';
 import type { Harness } from './helpers/harness';
-import { TestIdp } from './helpers/idp';
+import { createTestIdp } from '../src/core/testing';
+import type { TestIdp } from '../src/core/testing';
 
 interface SignedIn {
   name: string;
@@ -62,11 +63,11 @@ async function listen(app: FastifyInstance, onPort: number): Promise<void> {
 }
 
 beforeEach(async () => {
-  idp = new TestIdp({ tenantId: 'tenant-1', clientId: 'client-1' });
+  idp = createTestIdp();
   await idp.start();
   port = reservePort();
   logs.length = 0;
-  harness = await createHarness({
+  harness = await createTestHarness({
     idp,
     loggerStream: { write: message => logs.push(message) },
     env: {
@@ -219,10 +220,10 @@ describe('request-runner route', () => {
 
 describe('request-runner rate limiting', () => {
   it('returns 429 and audits once the request-runner limit is exceeded', async () => {
-    const limitedIdp = new TestIdp({ tenantId: 'tenant-1', clientId: 'client-1' });
+    const limitedIdp = createTestIdp();
     await limitedIdp.start();
     const limitedPort = reservePort();
-    const limited = await createHarness({
+    const limited = await createTestHarness({
       idp: limitedIdp,
       loggerStream: { write: () => undefined },
       env: { PUBLIC_BASE_URL: `http://127.0.0.1:${limitedPort}`, RATE_LIMIT_REQUEST_RUNNER: '2' },

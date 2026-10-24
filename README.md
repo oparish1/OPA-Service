@@ -5,6 +5,22 @@ ID session. The frontend is a React + Vite SPA; the backend is a Bun + Fastify
 BFF that owns the Entra authorization-code flow, stores tokens server-side, and
 serves `/v1/me` and `/v1/projects`.
 
+Each identity provider lives entirely in its own folder so it can be taken on
+its own:
+
+- `backend/src/core/` and `frontend/src/core/` hold provider-neutral code.
+- `backend/src/providers/{entra,okta,google}/` and
+  `frontend/src/providers/{entra,okta,google}/` hold one provider each.
+- `backend/src/providers/index.ts` and `frontend/src/providers/index.ts` are the
+  single registries that compose the providers; `shared/providers.ts` remains
+  the provider-neutral wire contract.
+
+Adding a provider touches its folder, adds its id to `shared/providers.ts` and
+adds one registry entry; removing one deletes its folder and registry entry.
+Every package's test suite enforces (`shared/provider-isolation.ts`) that only
+the registries, `shared/providers.ts` and the per-provider folders name more
+than one provider.
+
 ## Local setup
 
 Install dependencies in each package with the committed lockfile:
@@ -124,3 +140,13 @@ Each package defines its own gates:
 cd frontend && bun run lint && bun run typecheck && bun run test && bun run build
 cd backend && bun run lint && bun run typecheck && bun test && bun run build
 ```
+
+The provider boundaries have two extra checks, run from the repository root:
+
+```sh
+scripts/check-reuse-bundle.sh     # core + shared + one provider + registry typechecks
+scripts/check-provider-deletion.sh # deleting a provider leaves the full surviving suites green
+```
+
+The isolation check runs inside `bun test` (backend) and `bun run test`
+(frontend), so the package gates above cover it.

@@ -1,8 +1,12 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { App } from './App';
-import './styles/global.css';
-import { color, focus, font } from './styles/tokens';
+import { App } from './core/App';
+import { setProviderRegistry } from './core/providers/active';
+import './core/styles/global.css';
+import { color, focus, font } from './core/styles/tokens';
+import { PROVIDER_MODULES } from './providers';
+
+setProviderRegistry(PROVIDER_MODULES);
 
 const root = document.documentElement;
 root.style.setProperty('--aa-focus', focus.color);

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'bun:test';
-import { AuditLogger } from '../src/audit';
-import { TokenCipher } from '../src/crypto';
-import { Store } from '../src/db';
+import { AuditLogger } from '../src/core/audit';
+import { TokenCipher } from '../src/core/crypto';
+import { Store } from '../src/core/db';
 
 const keyA = Buffer.alloc(32, 1).toString('base64');
 const keyB = Buffer.alloc(32, 2).toString('base64');
@@ -26,15 +26,21 @@ describe('Store migrations', () => {
     expect(db.countUsers()).toBe(0);
   });
 
-  it('enforces the (tid, oid) uniqueness and reuses the row', () => {
+  it('reuses the row for one identity and separates distinct subjects', () => {
     const db = store();
-    const first = db.upsertUser({ tid: 't1', oid: 'o1', email: 'a@x', displayName: 'A', organisation: 'AA' });
-    const second = db.upsertUser({ tid: 't1', oid: 'o1', email: 'b@x', displayName: 'B', organisation: 'AA' });
+    const identity = { provider: 'test', issuer: 'https://issuer.example', subject: 'subject-1' };
+    const profile = { email: 'a@x', displayName: 'A', organisation: 'AA' };
+    const first = db.upsertUserByIdentity(identity, profile);
+    const second = db.upsertUserByIdentity(identity, {
+      ...profile,
+      email: 'b@x',
+      displayName: 'B',
+    });
     expect(second.id).toBe(first.id);
     expect(second.email).toBe('b@x');
     expect(db.countUsers()).toBe(1);
 
-    db.upsertUser({ tid: 't1', oid: 'o2', email: 'b@x', displayName: 'B', organisation: 'AA' });
+    db.upsertUserByIdentity({ ...identity, subject: 'subject-2' }, profile);
     expect(db.countUsers()).toBe(2);
   });
 });

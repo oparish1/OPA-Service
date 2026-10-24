@@ -1,9 +1,11 @@
 import type { FastifyInstance } from 'fastify';
-import { buildApp } from '../../src/app';
-import type { BuiltApp } from '../../src/app';
-import { loadConfig } from '../../src/config';
-import { Store } from '../../src/db';
-import type { TestIdp } from './idp';
+import { buildApp } from '../../src/core/app';
+import type { BuiltApp } from '../../src/core/app';
+import { createConfig } from '../../src/core/config';
+import { Store } from '../../src/core/db';
+import type { ProviderModule } from '../../src/core/provider';
+import { testProviderEnv, testProviderModule } from '../../src/core/testing';
+import type { TestIdp } from '../../src/core/testing';
 
 export const TEST_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString('base64');
 
@@ -13,9 +15,6 @@ export function testEnv(
   return {
     NODE_ENV: 'test',
     DATABASE_URL: ':memory:',
-    ENTRA_TENANT_ID: 'tenant-1',
-    ENTRA_CLIENT_ID: 'client-1',
-    ENTRA_CLIENT_SECRET: 'secret-1',
     SESSION_SECRET: 'session-secret-value',
     TOKEN_ENCRYPTION_KEY: TEST_ENCRYPTION_KEY,
     ALLOW_INSECURE_ISSUER: 'true',
@@ -29,48 +28,39 @@ export interface Harness extends BuiltApp {
   config: BuiltApp['services']['config'];
 }
 
-export interface HarnessIdps {
-  idp: TestIdp;
-  oktaIdp?: TestIdp;
-  googleIdp?: TestIdp;
-}
-
-function providerEnv(options: HarnessIdps): Record<string, string | undefined> {
-  const env: Record<string, string | undefined> = { ENTRA_ISSUER: options.idp.origin };
-  if (options.oktaIdp) {
-    Object.assign(env, {
-      OKTA_ENABLED: 'true',
-      OKTA_ISSUER: options.oktaIdp.origin,
-      OKTA_CLIENT_ID: 'okta-client',
-      OKTA_CLIENT_SECRET: 'okta-secret',
-      OKTA_REQUIRED_GROUP: 'Workspace User',
-      OKTA_API_AUDIENCE: 'api://default',
-    });
-  }
-  if (options.googleIdp) {
-    Object.assign(env, {
-      GOOGLE_ENABLED: 'true',
-      GOOGLE_ISSUER: options.googleIdp.origin,
-      GOOGLE_CLIENT_ID: 'google-client',
-      GOOGLE_CLIENT_SECRET: 'google-secret',
-      GOOGLE_HOSTED_DOMAIN: 'agentic-advantage.com',
-    });
-  }
-  return env;
-}
-
 export async function createHarness(options: {
-  idp: TestIdp;
-  oktaIdp?: TestIdp;
-  googleIdp?: TestIdp;
+  modules: readonly ProviderModule[];
   env?: Record<string, string | undefined>;
   loggerStream?: { write(message: string): void };
 }): Promise<Harness> {
-  const config = loadConfig(testEnv({ ...providerEnv(options), ...options.env }));
+  const config = createConfig(testEnv(options.env), options.modules);
   const store = new Store(':memory:');
   store.migrate();
-  const built = await buildApp({ config, store, loggerStream: options.loggerStream });
+  const built = await buildApp({
+    config,
+    store,
+    modules: options.modules,
+    loggerStream: options.loggerStream,
+  });
   return { ...built, store, config };
+}
+
+/**
+ * Core harness: composes the neutral test provider plus any extra modules and
+ * derives the test provider env from its local issuer. Provider tests add
+ * their own module and env on top so no core test names a real provider.
+ */
+export async function createTestHarness(options: {
+  idp: TestIdp;
+  extraModules?: readonly ProviderModule[];
+  env?: Record<string, string | undefined>;
+  loggerStream?: { write(message: string): void };
+}): Promise<Harness> {
+  return createHarness({
+    modules: [testProviderModule, ...(options.extraModules ?? [])],
+    env: { ...testProviderEnv(options.idp), ...options.env },
+    loggerStream: options.loggerStream,
+  });
 }
 
 export interface LoginStart {

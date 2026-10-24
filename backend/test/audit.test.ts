@@ -1,15 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { completeLogin, createHarness, sessionCookie, sessionCsrf } from './helpers/harness';
+import { completeLogin, createTestHarness, sessionCookie, sessionCsrf } from './helpers/harness';
 import type { Harness } from './helpers/harness';
-import { TestIdp } from './helpers/idp';
+import { createTestIdp } from '../src/core/testing';
+import type { TestIdp } from '../src/core/testing';
 
 let idp: TestIdp;
 let harness: Harness;
 
 beforeEach(async () => {
-  idp = new TestIdp({ tenantId: 'tenant-1', clientId: 'client-1' });
+  idp = createTestIdp();
   await idp.start();
-  harness = await createHarness({ idp });
+  harness = await createTestHarness({ idp });
 });
 
 afterEach(async () => {
@@ -26,10 +27,10 @@ describe('audit logging (A20)', () => {
       .listAuditEvents()
       .find(candidate => candidate.event === 'login.success');
     expect(event).toBeDefined();
-    expect(event?.actorOid).toBe('oid-default');
-    expect(event?.actorTid).toBe('tenant-1');
-    expect(event?.actorProvider).toBe('entra');
-    expect(event?.actorSubject).toBe('oid-default');
+    expect(event?.actorOid).toBeNull();
+    expect(event?.actorTid).toBeNull();
+    expect(event?.actorProvider).toBe('test');
+    expect(event?.actorSubject).toBe('subject-default');
     expect(event?.outcome).toBe('success');
     expect(event?.sessionHash).toBeTruthy();
     expect(event?.ip).toBeTruthy();
@@ -81,65 +82,10 @@ describe('audit logging (A20)', () => {
     const events = harness.store.listAuditEvents();
     for (const name of ['session.refresh', 'token.reveal', 'logout']) {
       const event = events.find(candidate => candidate.event === name);
-      expect(event?.actorOid).toBe('oid-default');
-      expect(event?.actorTid).toBe('tenant-1');
-      expect(event?.actorProvider).toBe('entra');
-      expect(event?.actorSubject).toBe('oid-default');
-    }
-  });
-});
-
-describe('audit logging for non-Entra providers (B18)', () => {
-  let okta: TestIdp;
-  let multi: Harness;
-
-  beforeEach(async () => {
-    okta = new TestIdp({ tenantId: 'tenant-1', clientId: 'okta-client', kind: 'okta' });
-    await okta.start();
-    multi = await createHarness({ idp, oktaIdp: okta });
-  });
-
-  afterEach(async () => {
-    await multi.app.close();
-    multi.store.close();
-    okta.stop();
-  });
-
-  it('records the Okta actor on login, refresh, reveal and logout', async () => {
-    const { response } = await completeLogin(multi.app, okta, {
-      loginPath: '/auth/login/okta',
-      callbackPath: '/auth/callback/okta',
-    });
-    const cookie = sessionCookie(response);
-    const csrf = await sessionCsrf(multi.app, cookie);
-    const headers = { 'x-csrf-token': csrf, origin: multi.config.allowedOrigin };
-    await multi.app.inject({
-      method: 'POST',
-      url: '/api/session/refresh',
-      cookies: { [cookie.name]: cookie.value },
-      headers,
-    });
-    await multi.app.inject({
-      method: 'POST',
-      url: '/api/session/tokens/reveal',
-      cookies: { [cookie.name]: cookie.value },
-      headers,
-      payload: { kind: 'refresh' },
-    });
-    await multi.app.inject({
-      method: 'POST',
-      url: '/auth/logout',
-      cookies: { [cookie.name]: cookie.value },
-      headers,
-    });
-    const events = multi.store.listAuditEvents();
-    const success = events.find(event => event.event === 'login.success');
-    expect(success?.actorProvider).toBe('okta');
-    expect(success?.actorSubject).toBe('okta-user-1');
-    for (const name of ['session.refresh', 'token.reveal', 'logout']) {
-      const event = events.find(candidate => candidate.event === name);
-      expect(event?.actorProvider).toBe('okta');
-      expect(event?.actorSubject).toBe('okta-user-1');
+      expect(event?.actorOid).toBeNull();
+      expect(event?.actorTid).toBeNull();
+      expect(event?.actorProvider).toBe('test');
+      expect(event?.actorSubject).toBe('subject-default');
     }
   });
 });
