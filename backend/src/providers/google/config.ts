@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { ProviderLinks } from '../../../../shared/providers';
 import { booleanString, firstString, optionalUrl } from '../../core/provider';
-import type { ProviderEnv, ProviderRequirement } from '../../core/provider';
+import type { ProviderEnv } from '../../core/provider';
 
 const GOOGLE_REQUIRED_FIELDS = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_HOSTED_DOMAIN'] as const;
 
@@ -32,10 +32,8 @@ export function googleEnabled(env: ProviderEnv): boolean {
   return env.GOOGLE_ENABLED === true;
 }
 
-export function googleRequirements(env: ProviderEnv): ReadonlyArray<ProviderRequirement> {
-  return GOOGLE_REQUIRED_FIELDS.filter(field => !firstString(env[field])).map(field => ({
-    path: field,
-  }));
+export function googleRequirements(env: ProviderEnv): readonly string[] {
+  return GOOGLE_REQUIRED_FIELDS.filter(field => !firstString(env[field]));
 }
 
 export function googleLinks(env: ProviderEnv): ProviderLinks {

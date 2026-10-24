@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { hashCookieValue } from '../src/core/auth/session';
 import { completeLogin, createTestHarness, beginLogin, sessionCookie } from './helpers/harness';
 import type { Harness } from './helpers/harness';
-import { createTestIdp } from '../src/core/testing';
+import { createTestIdp, testProviderModule } from '../src/core/testing';
 import type { TestIdp } from '../src/core/testing';
 
 let idp: TestIdp;
@@ -24,6 +24,13 @@ function refuseCount(): number {
   return harness.store.listAuditEvents().filter(event => event.event === 'login.refused').length;
 }
 
+function lastRefusalReason(): string | null | undefined {
+  const refused = harness.store
+    .listAuditEvents()
+    .filter(event => event.event === 'login.refused');
+  return refused[refused.length - 1]?.reason;
+}
+
 function insertTransaction(
   state: string,
   ltxValue: string,
@@ -35,6 +42,7 @@ function insertTransaction(
     nonce: overrides.nonce ?? 'custom-nonce',
     codeVerifierEnc: harness.services.cipher.seal('custom-verifier'),
     returnTo: '/',
+    provider: testProviderModule.id,
     createdAt: Date.now(),
     expiresAt: Date.now() + 60_000,
     ...overrides,
@@ -140,6 +148,7 @@ describe('callback rejects bad login transactions (A2)', () => {
       nonce: 'nonce',
       codeVerifierEnc: '',
       returnTo: '/',
+      provider: testProviderModule.id,
       createdAt: Date.now(),
       expiresAt: Date.now() + 60_000,
     });
@@ -150,6 +159,7 @@ describe('callback rejects bad login transactions (A2)', () => {
     });
     expect(response.headers.location).toBe(`${harness.config.publicBaseUrl}/?error=signin`);
     expect(refuseCount()).toBe(1);
+    expect(lastRefusalReason()).toBe('missing_pkce');
   });
 
   it('rejects an expired transaction', async () => {
@@ -163,6 +173,7 @@ describe('callback rejects bad login transactions (A2)', () => {
     });
     expect(response.headers.location).toBe(`${harness.config.publicBaseUrl}/?error=signin`);
     expect(refuseCount()).toBe(1);
+    expect(lastRefusalReason()).toBe('expired_transaction');
   });
 
   it('rejects a mismatched login-transaction cookie', async () => {

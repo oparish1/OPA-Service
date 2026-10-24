@@ -1,8 +1,9 @@
 import { CircleDot } from 'lucide-react';
+import type { ProviderId } from '../../../../shared/providers';
 import type { FrontendProviderModule } from '../../core/providers/types';
 
 export const oktaModule: FrontendProviderModule = {
-  id: 'okta',
+  id: 'okta' satisfies ProviderId,
   name: 'Okta',
   ssoDomain: 'agentic-advantage.example',
   links: {

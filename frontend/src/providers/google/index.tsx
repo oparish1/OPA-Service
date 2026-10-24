@@ -1,8 +1,9 @@
+import type { ProviderId } from '../../../../shared/providers';
 import type { FrontendProviderModule } from '../../core/providers/types';
 import { GoogleIcon } from './icon';
 
 export const googleModule: FrontendProviderModule = {
-  id: 'google',
+  id: 'google' satisfies ProviderId,
   name: 'Google Workspace / Cloud Identity',
   ssoDomain: 'agentic-advantage.example',
   links: {

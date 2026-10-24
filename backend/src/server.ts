@@ -8,7 +8,7 @@ const config = loadConfig();
 const store = new Store(config.databaseUrl);
 store.migrate();
 
-const frontendDist = fileURLToPath(new URL('../frontend/dist', import.meta.url));
+const frontendDist = fileURLToPath(new URL('../../frontend/dist', import.meta.url));
 const { app, services } = await buildApp({ config, store, modules: PROVIDER_MODULES, frontendDist });
 
 runRetention(services, config, app.log);

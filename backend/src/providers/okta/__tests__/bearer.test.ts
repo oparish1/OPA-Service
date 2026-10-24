@@ -70,7 +70,7 @@ describe('Okta bearer validation (B11, B12)', () => {
     expect((await getWithBearer('/v1/me', token)).statusCode).toBe(401);
   });
 
-  it('rejects an Okta token signed by the provider key but claiming the Entra issuer', async () => {
+  it('rejects an Okta token signed by the provider key but claiming the neutral test issuer', async () => {
     const token = await okta.signAccessToken({ iss: neutral.origin });
     expect((await getWithBearer('/v1/me', token)).statusCode).toBe(401);
   });

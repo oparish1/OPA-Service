@@ -1,3 +1,4 @@
+import type { ProviderId } from '../../../../shared/providers';
 import { BearerValidator } from '../../core/auth/bearer';
 import { OidcError, OidcService } from '../../core/auth/oidc';
 import type { AppConfig } from '../../core/config';
@@ -28,7 +29,7 @@ export function createOktaDefinition(
     enforceScope: false,
   });
   return {
-    id: 'okta',
+    id: 'okta' satisfies ProviderId,
     name: 'Okta',
     issuer: okta.issuer,
     loginPath: '/auth/login/okta',

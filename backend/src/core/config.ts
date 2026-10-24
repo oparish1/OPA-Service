@@ -94,7 +94,7 @@ export function createConfig(
     if (!module.enabled(value)) continue;
     const requirements = module.requirements(value);
     if (requirements.length > 0) {
-      missing.push(...requirements.map(requirement => requirement.path));
+      missing.push(...requirements);
       continue;
     }
     providerConfigs[module.id] = module.parse(value);

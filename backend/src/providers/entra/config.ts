@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { ProviderLinks } from '../../../../shared/providers';
 import { booleanString, firstString, optionalUrl } from '../../core/provider';
-import type { ProviderEnv, ProviderRequirement } from '../../core/provider';
+import type { ProviderEnv } from '../../core/provider';
 
 export const entraEnvShape: z.ZodRawShape = {
   ENTRA_TENANT_ID: z.string().min(1),
@@ -33,9 +33,9 @@ export function entraEnabled(): boolean {
   return true;
 }
 
-export function entraRequirements(env: ProviderEnv): ReadonlyArray<ProviderRequirement> {
+export function entraRequirements(env: ProviderEnv): readonly string[] {
   if (firstString(env.ENTRA_CLIENT_SECRET, env.ENTRA_CLIENT_PRIVATE_KEY)) return [];
-  return [{ path: 'ENTRA_CLIENT_SECRET' }];
+  return ['ENTRA_CLIENT_SECRET'];
 }
 
 /** Never invents a destination: each link is present only when its variable is set. */

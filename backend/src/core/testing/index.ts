@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { BearerValidator } from '../auth/bearer';
 import { OidcError, OidcService } from '../auth/oidc';
 import { firstString, optionalUrl } from '../provider';
-import type { ProviderDefinition, ProviderEnv, ProviderModule, ProviderRequirement } from '../provider';
+import type { ProviderDefinition, ProviderEnv, ProviderModule } from '../provider';
 import { TestIdp } from './idp';
 import { neutralIdpProfile } from './neutral-claims';
 
@@ -80,7 +80,7 @@ function createDefinition(
   };
 }
 
-const noRequirements = (): ReadonlyArray<ProviderRequirement> => [];
+const noRequirements = (): readonly string[] => [];
 
 /** A provider-neutral module for core tests and harnesses; never in the production registry. */
 export const testProviderModule: ProviderModule = {

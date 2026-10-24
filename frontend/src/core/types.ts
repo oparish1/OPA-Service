@@ -1,5 +1,9 @@
 import type { RunnerAuth, RunnerErrorCode } from '../../../shared/request-runner';
-import type { AccountSummary } from '../../../shared/session';
+import type {
+  SessionAccessToken,
+  SessionMetadata,
+  SessionRefreshToken,
+} from '../../../shared/session';
 
 export type Screen =
   | 'sign-in'
@@ -14,31 +18,20 @@ export type Screen =
 export type { ProviderInfo } from '../../../shared/providers';
 export type { AccountSummary } from '../../../shared/session';
 
-export interface AccessToken {
-  /** Masked value shown by default in the token card. */
-  masked: string;
+export interface AccessToken extends SessionAccessToken {
   /** Full value revealed by the Reveal action. Empty until revealed by the real client. */
   value: string;
-  expiresAt: string;
-  scopes: string;
 }
 
-export interface RefreshToken {
-  masked: string;
+export interface RefreshToken extends SessionRefreshToken {
+  /** Full value revealed by the Reveal action. Empty until revealed by the real client. */
   value: string;
-  expiresAt: string;
-  grant: string;
 }
 
-export interface Session {
-  provider: string;
-  providerId: string;
-  account: AccountSummary | null;
+export interface Session
+  extends Omit<SessionMetadata, 'accessToken' | 'refreshToken' | 'csrfToken'> {
   accessToken: AccessToken;
   refreshToken: RefreshToken;
-  issuer: string;
-  issuedAt: string;
-  snapshot: string;
 }
 
 export type ProviderStatus = 'primary' | 'connected' | 'not-connected';

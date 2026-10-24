@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { completeLogin, createHarness } from '../../../../test/helpers/harness';
+import { completeLogin, createHarness, sessionCookie } from '../../../../test/helpers/harness';
 import type { Harness } from '../../../../test/helpers/harness';
 import type { TestIdp } from '../../../core/testing/idp';
 import { entraModule } from '../index';
@@ -25,6 +25,20 @@ function refuseCount(): number {
 }
 
 describe('Entra callback gating (A3, A4)', () => {
+  it('keeps the oid-shaped account id on the session card', async () => {
+    const { response } = await completeLogin(harness.app, idp);
+    const cookie = sessionCookie(response);
+    const session = await harness.app.inject({
+      method: 'GET',
+      url: '/api/session',
+      cookies: { [cookie.name]: cookie.value },
+    });
+    expect(session.statusCode).toBe(200);
+    expect((session.json() as { account: { accountId: string } }).account.accountId).toBe(
+      'acct_oid-default'
+    );
+  });
+
   it('refuses a valid token without the required app role and creates no user', async () => {
     idp.behavior.claims = { roles: ['SomeOther.Role'] };
     const { response } = await completeLogin(harness.app, idp);

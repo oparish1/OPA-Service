@@ -1,3 +1,4 @@
+import type { ProviderId } from '../../../../shared/providers';
 import { OidcError, OidcService } from '../../core/auth/oidc';
 import type { AppConfig } from '../../core/config';
 import { firstString } from '../../core/provider';
@@ -30,7 +31,7 @@ export function createGoogleDefinition(
     endSession: false,
   });
   return {
-    id: 'google',
+    id: 'google' satisfies ProviderId,
     name: 'Google Workspace / Cloud Identity',
     issuer: google.issuer,
     loginPath: '/auth/login/google',

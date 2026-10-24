@@ -1,3 +1,4 @@
+import type { ProviderId } from '../../../../shared/providers';
 import { BearerValidator } from '../../core/auth/bearer';
 import { OidcError, OidcService } from '../../core/auth/oidc';
 import type { AppConfig } from '../../core/config';
@@ -37,7 +38,7 @@ export function createEntraDefinition(
     requireTenantId: entra.tenantId,
   });
   return {
-    id: 'entra',
+    id: 'entra' satisfies ProviderId,
     name: 'Microsoft Entra ID',
     issuer: entra.issuer,
     loginPath: '/auth/login',

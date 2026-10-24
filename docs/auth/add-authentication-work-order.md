@@ -161,6 +161,8 @@ Verify versions and APIs against current docs at implementation time. The items 
 
 Verified against the tree at commit `373d5bd`. *new* = does not exist yet.
 
+> **Tree note (#11).** The paths below are historical. After the provider-isolation refactor, provider-neutral backend files live under `backend/src/core/` (`core/config.ts`, `core/auth/{oidc,session,guard,bearer}.ts`, `core/db.ts`, `core/routes/{session,v1}.ts`, `core/audit.ts`), the frontend seams live under `frontend/src/core/` (`core/mocks/api.ts`, `core/mocks/data.ts`, `core/api/client.ts`, `core/screens/*`, `core/app/AppProvider.tsx`), and each provider's own code lives in `backend/src/providers/<id>/` and `frontend/src/providers/<id>/`, composed by the single registry in each package. `shared/` stays at the repository root.
+
 **Backend — all new** (suggested location `backend/`; confirm in planning):
 
 - `backend/package.json`, `tsconfig.json` — *new*

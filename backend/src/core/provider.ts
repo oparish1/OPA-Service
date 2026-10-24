@@ -44,16 +44,13 @@ export interface ProviderRegistry {
 /** The parsed environment fields a provider module reads; provider-neutral by type. */
 export type ProviderEnv = Record<string, unknown>;
 
-export interface ProviderRequirement {
-  readonly path: string;
-}
-
 /** One provider's self-contained slice: env schema, parsing and runtime definition. */
 export interface ProviderModule {
   readonly id: string;
   readonly envShape: z.ZodRawShape;
   enabled(env: ProviderEnv): boolean;
-  requirements(env: ProviderEnv): ReadonlyArray<ProviderRequirement>;
+  /** Env field names the module needs when enabled; empty when it is ready to parse. */
+  requirements(env: ProviderEnv): readonly string[];
   parse(env: ProviderEnv): unknown;
   createDefinition(config: AppConfig, providerConfig: unknown): ProviderDefinition;
 }

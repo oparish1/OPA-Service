@@ -1,10 +1,11 @@
+import type { ProviderId } from '../../../../shared/providers';
 import type { ProviderModule } from '../../core/provider';
 import { oktaEnabled, oktaEnvShape, oktaRequirements, parseOkta } from './config';
 import type { OktaProviderConfig } from './config';
 import { createOktaDefinition } from './definition';
 
 export const oktaModule: ProviderModule = {
-  id: 'okta',
+  id: 'okta' satisfies ProviderId,
   envShape: oktaEnvShape,
   enabled: oktaEnabled,
   requirements: oktaRequirements,

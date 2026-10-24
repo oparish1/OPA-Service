@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { z } from 'zod';
 import type { ProviderLinks } from '../../../../shared/providers';
 import { booleanString, firstString, optionalUrl } from '../../core/provider';
-import type { ProviderEnv, ProviderRequirement } from '../../core/provider';
+import type { ProviderEnv } from '../../core/provider';
 
 export const oktaEnvShape: z.ZodRawShape = {
   OKTA_ENABLED: booleanString.default(false),
@@ -39,16 +39,14 @@ export function oktaEnabled(env: ProviderEnv): boolean {
   return env.OKTA_ENABLED === true;
 }
 
-export function oktaRequirements(env: ProviderEnv): ReadonlyArray<ProviderRequirement> {
-  const missing: ProviderRequirement[] = OKTA_REQUIRED_FIELDS.filter(
-    field => !firstString(env[field])
-  ).map(field => ({ path: field }));
+export function oktaRequirements(env: ProviderEnv): readonly string[] {
+  const missing: string[] = OKTA_REQUIRED_FIELDS.filter(field => !firstString(env[field]));
   const hasCredential = firstString(
     env.OKTA_CLIENT_SECRET,
     env.OKTA_CLIENT_PRIVATE_KEY,
     env.OKTA_CLIENT_PRIVATE_KEY_FILE
   );
-  if (!hasCredential) missing.push({ path: 'OKTA_CLIENT_SECRET' });
+  if (!hasCredential) missing.push('OKTA_CLIENT_SECRET');
   return missing;
 }
 
