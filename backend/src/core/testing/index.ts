@@ -62,9 +62,6 @@ function createDefinition(
     links: {},
     oidc,
     bearer,
-    accountId: user => `acct_${user.provider}_${user.subject}`,
-    findUser: (store, identity) =>
-      store.getUserByIdentity(identity.provider, identity.issuer, identity.subject),
     gate(claims) {
       if (!firstString(claims.sub)) {
         throw new OidcError('Missing subject', 'missing_subject');

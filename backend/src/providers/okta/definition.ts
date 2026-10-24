@@ -38,9 +38,6 @@ export function createOktaDefinition(
     links: okta.links,
     oidc,
     bearer,
-    accountId: user => `acct_${user.provider}_${user.subject}`,
-    findUser: (store, identity) =>
-      store.getUserByIdentity(identity.provider, identity.issuer, identity.subject),
     gate(claims) {
       if (!stringArray(claims.groups).includes(okta.requiredGroup)) {
         throw new OidcError('Missing required group', 'no_group');

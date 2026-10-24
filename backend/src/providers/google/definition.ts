@@ -43,9 +43,6 @@ export function createGoogleDefinition(
     revokeRefresh(token) {
       return oidc.revoke(token);
     },
-    accountId: user => `acct_${user.provider}_${user.subject}`,
-    findUser: (store, identity) =>
-      store.getUserByIdentity(identity.provider, identity.issuer, identity.subject),
     gate(claims) {
       if (!googleIssuerIsExact(claims.iss, google.issuer)) {
         throw new OidcError('Wrong issuer', 'wrong_issuer');

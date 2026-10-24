@@ -138,7 +138,7 @@ function registerCallbackRoute(
       const subject = provider.subject(tokens.claims);
       const profile = provider.profile(tokens.claims);
       const identity = { provider: provider.id, issuer: provider.issuer, subject };
-      const user = store.upsertUserByIdentity(identity, profile, provider.findUser(store, identity));
+      const user = store.upsertUserByIdentity(identity, profile, provider.findUser?.(store, identity));
       const record = session.create(user.id);
       store.saveTokens({
         sessionId: record.id,

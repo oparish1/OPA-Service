@@ -26,10 +26,10 @@ export interface ProviderDefinition {
   /** The `(provider, issuer, subject)` subject for this token. */
   subject(claims: Record<string, unknown>): string;
   profile(claims: Record<string, unknown>): UserProfile;
-  /** The account id the session card shows; derived from the provider's own claims. */
-  accountId(user: UserRecord): string;
-  /** Matches the stored row for an identity, including any legacy provider lookup. */
-  findUser(store: Store, identity: IdentityKey): UserRecord | null;
+  /** The account id the session card shows; defaults to the core's provider-neutral form. */
+  accountId?(user: UserRecord): string;
+  /** Matches the stored row for an identity; defaults to the core's exact-identity lookup. */
+  findUser?(store: Store, identity: IdentityKey): UserRecord | null;
   /** Bearer-derived context for audit; only providers with a bearer validator supply it. */
   bearerContext?(identity: BearerIdentity): { oid?: string; tid?: string };
 }

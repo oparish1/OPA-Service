@@ -101,11 +101,13 @@ export class Guard {
         if (!provider.bearer) continue;
         try {
           const identity = await provider.bearer.validate(token, routeConfig?.scope);
-          const user = provider.findUser(this.store, {
-            provider: provider.id,
-            issuer: provider.issuer,
-            subject: identity.subject,
-          });
+          const user =
+            provider.findUser?.(this.store, {
+              provider: provider.id,
+              issuer: provider.issuer,
+              subject: identity.subject,
+            }) ??
+            this.store.getUserByIdentity(provider.id, provider.issuer, identity.subject);
           const context = provider.bearerContext?.(identity) ?? {};
           request.auth = {
             userId: user?.id,

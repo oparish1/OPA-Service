@@ -87,7 +87,7 @@ describe('migration 002 on a seeded Entra database (B9)', () => {
     expect(legacy?.id).toBe(seeds.userId);
     const provider = entraProvider(config);
     expect(
-      provider.findUser(store, { provider: 'entra', issuer: idp.origin, subject: seeds.oid })?.id
+      provider.findUser!(store, { provider: 'entra', issuer: idp.origin, subject: seeds.oid })?.id
     ).toBe(seeds.userId);
     expect(store.getTokens(seeds.sessionId)).not.toBeNull();
 
@@ -115,7 +115,7 @@ describe('migration 002 on a seeded Entra database (B9)', () => {
         displayName: 'Changed User',
         organisation: 'AA',
       },
-      provider.findUser(store, identity)
+      provider.findUser!(store, identity)
     );
     expect(updated.id).toBe(seeds.userId);
     expect(updated.issuer).toBe(idp.origin);
@@ -147,7 +147,7 @@ describe('migration 002 on a seeded Entra database (B9)', () => {
         displayName: 'Second User',
         organisation: 'AA',
       },
-      provider.findUser(store, identity)
+      provider.findUser!(store, identity)
     );
     expect(reused.id).toBe('legacy-user-2');
     expect(reused.issuer).toBe(idp.origin);
