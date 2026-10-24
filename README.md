@@ -1,7 +1,6 @@
 # Your Identity
 
-A signed-in workspace for exercising protected APIs with a real Microsoft Entra
-ID session. The frontend is a React + Vite SPA; the backend is a Bun + Fastify
+A signed-in workspace for exercising protected APIs with Microsoft Entra, Okta and Google. The frontend is a React + Vite SPA; the backend is a Bun + Fastify
 BFF that owns the Entra authorization-code flow, stores tokens server-side, and
 serves `/v1/me` and `/v1/projects`.
 
