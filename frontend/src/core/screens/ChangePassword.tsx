@@ -36,6 +36,8 @@ export function ChangePassword() {
     try {
       const result = await changePassword(providerId);
       setDestination(result.destination);
+      if (new URL(result.destination).protocol !== 'https:') throw new Error('Unsafe destination');
+      window.open(result.destination, '_blank', 'noopener,noreferrer');
       setStatus('success');
     } catch {
       setStatus('idle');

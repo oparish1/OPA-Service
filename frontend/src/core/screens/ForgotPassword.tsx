@@ -38,6 +38,8 @@ export function ForgotPassword() {
     try {
       const result = await resetPassword(selectedId);
       setDestination(result.destination);
+      if (new URL(result.destination).protocol !== 'https:') throw new Error('Unsafe destination');
+      window.open(result.destination, '_blank', 'noopener,noreferrer');
       setStatus('success');
     } catch {
       setStatus('idle');
@@ -142,12 +144,12 @@ export function ForgotPassword() {
 
         {status === 'success' ? (
           <Notice tone="success" heading="Password reset request sent">
-            Check your provider inbox to continue.
+            Provider recovery page opened.
           </Notice>
         ) : null}
         <Notice tone="neutral" heading="You’re leaving this workspace">
-          Your identity provider will verify your identity and guide you through its recovery options. Your
-          organisation’s policy applies.
+          Continue on your provider’s site to reset your password. This
+          app does not send a recovery email. When you finish, return here and sign in again.
         </Notice>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[4] }}>
