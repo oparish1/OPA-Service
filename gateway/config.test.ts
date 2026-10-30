@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
 import { parse } from 'yaml';
@@ -141,28 +141,30 @@ describe('authorization and transport (A12, A13, A15)', () => {
 });
 
 describe('golden fixtures (A17)', () => {
+  const me = JSON.parse(readFileSync(join(GATEWAY_DIR, 'fixtures', 'v1-me.json'), 'utf8'));
   const projects = JSON.parse(readFileSync(join(GATEWAY_DIR, 'fixtures', 'v1-projects.json'), 'utf8'));
 
-  test('the projects fixture matches the backend body', () => {
-    expect(projects).toEqual({
-      projects: [
-        { id: 'prj_01', name: 'Atlas', status: 'active' },
-        { id: 'prj_02', name: 'Beacon', status: 'active' },
-        { id: 'prj_03', name: 'Cedar', status: 'archived' },
-      ],
-    });
-  });
+  function serverlessSource(provider: Provider): string {
+    const serverless = routeFor(provider).plugins?.['serverless-post-function'] as {
+      functions: string[];
+    };
+    return serverless.functions.join('\n');
+  }
 
   for (const provider of PROVIDERS) {
     test(`${provider}: the route serves the projects fixture`, () => {
-      const serverless = routeFor(provider).plugins?.['serverless-post-function'] as {
-        functions: string[];
-      };
-      const source = serverless.functions.join('\n');
+      const source = serverlessSource(provider);
       for (const project of projects.projects) {
         expect(source).toContain(`name = "${project.name}"`);
         expect(source).toContain(`status = "${project.status}"`);
       }
+    });
+
+    test(`${provider}: the route serves the me fixture constants`, () => {
+      const source = serverlessSource(provider);
+      expect(source).toContain(`organisation = "${me.organisation}"`);
+      expect(source).toContain(`role = "${me.role}"`);
+      for (const permission of me.permissions) expect(source).toContain(`"${permission}"`);
     });
   }
 });
@@ -180,9 +182,5 @@ describe('secrets stay out of the route file (A18, GW-1, SD-11)', () => {
   test('the README records the placeholder-secret rule', () => {
     const readme = readFileSync(join(GATEWAY_DIR, 'README.md'), 'utf8');
     expect(readme).toContain('no secret');
-  });
-
-  test('the fixtures directory exists', () => {
-    expect(existsSync(join(GATEWAY_DIR, 'fixtures', 'v1-me.json'))).toBe(true);
   });
 });

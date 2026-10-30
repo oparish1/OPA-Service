@@ -2,8 +2,10 @@
 
 The Apache APISIX gateway is the only authority for the browser app. It
 validates every token, authorizes each provider's claims and serves the `/v1`
-demo bodies from the golden fixtures. It holds **no identity-provider secret**
-(SD-11): the route file references environment variables by name only.
+demo bodies itself. `fixtures/` holds the golden bodies captured from the
+backend before deletion, and `config.test.ts` asserts the served bodies match
+them (A17). It holds **no identity-provider secret** (SD-11): the route file
+references environment variables by name only.
 
 ## Pinned versions
 

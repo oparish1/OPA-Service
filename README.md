@@ -45,8 +45,9 @@ The gateway runs in declarative (standalone) mode from `gateway/`. The
 `openid-connect` plugin verifies each bearer token (signature, `iss`, `aud`,
 `exp`, `nbf`, algorithm) and the `opa` plugin enforces the per-provider scope,
 claim and method rules, then sets `X-User-Issuer`, `X-User-Subject` and
-`X-User-Provider` from the validated token. The `/v1/me` and `/v1/projects`
-bodies are golden fixtures served by the gateway itself.
+`X-User-Provider` from the validated token. The gateway itself serves the
+`/v1/me` and `/v1/projects` demo bodies; the golden bodies captured from the
+backend before deletion are kept in `gateway/fixtures/` as the A17 reference.
 
 ## Local setup
 
