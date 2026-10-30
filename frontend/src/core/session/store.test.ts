@@ -10,6 +10,7 @@ import {
   setOnExpire,
   setSession,
   setSessionLimits,
+  updateSession,
 } from './store';
 
 const SESSION: Session = {
@@ -72,5 +73,22 @@ describe('session store', () => {
 
     for (let i = 0; i < 10; i += 1) vi.advanceTimersByTime(600);
     expect(hasSession()).toBe(false);
+  });
+
+  it('keeps the original absolute deadline across a token renewal (A7)', () => {
+    vi.useFakeTimers();
+    setSessionLimits({ idleMs: 4000, absoluteMs: 5000 });
+    const onExpire = vi.fn();
+    setOnExpire(onExpire);
+    setSession(SESSION);
+
+    vi.advanceTimersByTime(3000);
+    updateSession({ ...SESSION, accessToken: { ...SESSION.accessToken, value: 'renewed' } });
+
+    vi.advanceTimersByTime(1999);
+    expect(hasSession()).toBe(true);
+    vi.advanceTimersByTime(1);
+    expect(hasSession()).toBe(false);
+    expect(onExpire).toHaveBeenCalledOnce();
   });
 });

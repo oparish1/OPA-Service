@@ -29,8 +29,8 @@ function api() {
   return mode === 'real' ? realApi : mockApi;
 }
 
-export function signIn(providerId: string): Promise<Session> {
-  return api().signIn(providerId);
+export async function signIn(providerId: string): Promise<void> {
+  await api().signIn(providerId);
 }
 
 export function signOut(): Promise<void> {

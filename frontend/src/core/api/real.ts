@@ -8,6 +8,7 @@ import {
   hasSession,
   revealToken as revealStore,
   setSession,
+  updateSession,
 } from '../session/store';
 import type {
   AccessToken,
@@ -62,7 +63,7 @@ function refreshStoredSession(): void {
   const providerId = readStore()?.providerId;
   if (!providerId) return;
   const providerSession = getProviderRegistry().get(providerId)?.auth?.session();
-  if (providerSession) setSession(toSession(providerSession));
+  if (providerSession) updateSession(toSession(providerSession));
 }
 
 function requireProvider(providerId: string) {
@@ -71,10 +72,11 @@ function requireProvider(providerId: string) {
   return module.auth;
 }
 
-export function signIn(providerId: string): Promise<Session> {
+export async function signIn(providerId: string): Promise<void> {
   const auth = requireProvider(providerId);
-  void auth.signIn();
-  return new Promise<Session>(() => undefined);
+  await auth.signIn();
+  const providerSession = auth.session();
+  if (providerSession) setSession(toSession(providerSession));
 }
 
 /** Adopts a provider redirect callback into the in-memory session (A3). */

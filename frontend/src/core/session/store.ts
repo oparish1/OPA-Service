@@ -49,6 +49,18 @@ export function setSession(next: Session): void {
   absoluteTimer = setTimeout(expire, limits.absoluteMs);
 }
 
+/**
+ * Replaces the stored session after a token renewal. Renewal is activity, so the
+ * idle clock restarts, but the absolute deadline belongs to the original
+ * authentication and must not (A7).
+ */
+export function updateSession(next: Session): void {
+  session = next;
+  if (absoluteTimer === null) absoluteTimer = setTimeout(expire, limits.absoluteMs);
+  if (idleTimer !== null) clearTimeout(idleTimer);
+  idleTimer = setTimeout(expire, limits.idleMs);
+}
+
 /** Resets the idle timer; called on a request so activity keeps the session alive. */
 export function touch(): void {
   if (!session) return;
