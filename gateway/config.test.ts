@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
 import { parse } from 'yaml';
+import { findProviderIsolationViolations } from '../shared/provider-isolation';
 
 /**
  * Docker-free gateway gate. Parses the declarative APISIX route file and
@@ -30,6 +31,13 @@ function routeFor(provider: Provider): Route {
   return route;
 }
 
+function serverlessSource(provider: Provider): string {
+  const serverless = routeFor(provider).plugins?.['serverless-post-function'] as {
+    functions: string[];
+  };
+  return serverless.functions.join('\n');
+}
+
 const credentials = [
   ['ENTRA_API_RESOURCE', 'api://test-entra-client'],
   ['OKTA_API_AUDIENCE', 'api://default'],
@@ -42,6 +50,14 @@ describe('APISIX surface', () => {
     expect(health).toBeDefined();
     expect(health?.uri).toBe('/health');
     expect(health?.plugins?.['openid-connect']).toBeUndefined();
+  });
+
+  test('the health route is rate limited like every other route (A16, GW-7)', () => {
+    const health = config.routes.find(route => route.id === 'health');
+    const limit = health?.plugins?.['limit-count'] as Record<string, unknown> | undefined;
+    expect(limit?.count).toBe(20);
+    expect(limit?.time_window).toBe(60);
+    expect(limit?.rejected_code).toBe(429);
   });
 
   test('every configured provider has exactly one prefixed route', () => {
@@ -70,12 +86,13 @@ describe('token validation (GW-3, A9, A10)', () => {
       expect(oidc?.client_secret).toBe(`\${{${provider.toUpperCase()}_CLIENT_SECRET}}`);
     });
 
-    test(`${provider}: the issuer is pinned and the audience is required`, () => {
+    test(`${provider}: the issuer is pinned; OPA owns the audience check`, () => {
       const validator = oidc?.claim_validator as Record<string, unknown>;
       const issuers = validator.issuer as { valid_issuers: string[] };
       expect(issuers.valid_issuers).toHaveLength(1);
-      const audience = validator.audience as { required: boolean };
-      expect(audience.required).toBe(true);
+      // `claim_validator.audience` applies only on the introspection path, which
+      // SD-11 excludes, so the OPA policy is the audience owner (R6).
+      expect(validator.audience).toBeUndefined();
     });
 
     test(`${provider}: the route labels carry the expected audience`, () => {
@@ -85,7 +102,9 @@ describe('token validation (GW-3, A9, A10)', () => {
     test(`${provider}: opa decodes the verified token with route config`, () => {
       const opa = route.plugins?.opa as Record<string, unknown> | undefined;
       expect(opa?.host).toBe('http://opa:8181');
-      expect(opa?.policy).toBe(`${provider}/allow`);
+      // Package-only: a `pkg/allow` path returns a bare boolean, discarding the
+      // `headers`/`reason` custom response the audit log depends on.
+      expect(opa?.policy).toBe(provider);
       expect(opa?.with_route).toBe(true);
       const headers = opa?.send_headers_upstream as string[];
       expect(headers).toContain('X-User-Issuer');
@@ -107,7 +126,7 @@ describe('token validation (GW-3, A9, A10)', () => {
   });
 });
 
-describe('authorization and transport (A12, A13, A15)', () => {
+describe('authorization and transport (A12, A13, A15, GW-7)', () => {
   for (const provider of PROVIDERS) {
     const route = routeFor(provider);
 
@@ -140,33 +159,61 @@ describe('authorization and transport (A12, A13, A15)', () => {
   }
 });
 
+describe('structured audit log (GW-8)', () => {
+  const configYaml = readFileSync(join(GATEWAY_DIR, 'apisix', 'config.yaml'), 'utf8');
+
+  test('the access log format carries route, provider, subject, decision and reason', () => {
+    for (const field of ['route', 'provider', 'subject', 'decision', 'reason']) {
+      expect(configYaml).toContain(`"${field}"`);
+    }
+    expect(configYaml).toContain('$sent_http_x_auth_provider');
+    expect(configYaml).toContain('$sent_http_x_auth_subject');
+    expect(configYaml).toContain('$sent_http_x_auth_decision');
+    expect(configYaml).toContain('$sent_http_x_auth_reason');
+  });
+
+  test('each authenticated route sets the audit response headers on allow', () => {
+    for (const provider of PROVIDERS) {
+      const source = serverlessSource(provider);
+      expect(source).toContain('set_header("X-Auth-Provider"');
+      expect(source).toContain('set_header("X-Auth-Subject"');
+      expect(source).toContain('set_header("X-Auth-Decision", "allow")');
+      expect(source).toContain('set_header("X-Auth-Reason", "")');
+    }
+  });
+});
+
 describe('golden fixtures (A17)', () => {
   const me = JSON.parse(readFileSync(join(GATEWAY_DIR, 'fixtures', 'v1-me.json'), 'utf8'));
   const projects = JSON.parse(readFileSync(join(GATEWAY_DIR, 'fixtures', 'v1-projects.json'), 'utf8'));
 
-  function serverlessSource(provider: Provider): string {
-    const serverless = routeFor(provider).plugins?.['serverless-post-function'] as {
-      functions: string[];
-    };
-    return serverless.functions.join('\n');
-  }
-
   for (const provider of PROVIDERS) {
-    test(`${provider}: the route serves the projects fixture`, () => {
+    test(`${provider}: the route serves every fixture project field`, () => {
       const source = serverlessSource(provider);
       for (const project of projects.projects) {
+        expect(source).toContain(`id = "${project.id}"`);
         expect(source).toContain(`name = "${project.name}"`);
         expect(source).toContain(`status = "${project.status}"`);
       }
     });
 
-    test(`${provider}: the route serves the me fixture constants`, () => {
+    test(`${provider}: the me fixture matches the served constants and bindings`, () => {
       const source = serverlessSource(provider);
+      expect(me.id).toMatch(/^usr_/);
+      expect(source).toContain('id = "usr_" .. subject');
+      expect(source).toContain('display_name = name');
+      expect(source).toContain('email = email');
       expect(source).toContain(`organisation = "${me.organisation}"`);
       expect(source).toContain(`role = "${me.role}"`);
       for (const permission of me.permissions) expect(source).toContain(`"${permission}"`);
     });
   }
+});
+
+describe('provider isolation (A21)', () => {
+  test('only the exempt registries name more than one provider', () => {
+    expect(findProviderIsolationViolations(join(GATEWAY_DIR, '..'))).toEqual([]);
+  });
 });
 
 describe('secrets stay out of the route file (A18, GW-1, SD-11)', () => {

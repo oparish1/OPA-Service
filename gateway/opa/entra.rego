@@ -40,6 +40,8 @@ allow if {
 
 headers := common.user_headers("entra", payload) if allow
 
+headers := common.deny_headers("entra", payload, reason) if not allow
+
 reasons contains "no_role" if not has_role
 reasons contains "wrong_audience" if not audience_ok
 reasons contains "wrong_tenant" if not tenant_ok

@@ -1,12 +1,20 @@
 # Declarative APISIX standalone configuration (SD-7). Every provider value is an
 # environment-variable reference so no secret is stored here (SD-11). The
-# security boundary is: openid-connect verifies the token cryptographically, OPA
-# authorizes the claims, and serverless-post-function builds the /v1 fixtures
-# (SD-1). See gateway/README.md for the variables.
+# security boundary is: openid-connect verifies the token cryptographically
+# (signature, issuer, expiry, algorithm), OPA authorizes the audience and claims,
+# and serverless-post-function builds the /v1 fixtures (SD-1). See
+# gateway/README.md for the variables.
 routes:
   - id: health
     uri: /health
     plugins:
+      limit-count:
+        count: 20
+        time_window: 60
+        key_type: var
+        key: remote_addr
+        rejected_code: 429
+        policy: local
       serverless-post-function:
         phase: access
         functions:
@@ -38,11 +46,9 @@ routes:
           issuer:
             valid_issuers:
               - "${{ENTRA_ISSUER}}"
-          audience:
-            required: true
       opa:
         host: "http://opa:8181"
-        policy: "entra/allow"
+        policy: "entra"
         with_route: true
         send_headers_upstream:
           - X-User-Issuer
@@ -78,9 +84,14 @@ routes:
               local core = require("apisix.core")
               local method = core.request.get_method()
               local path = ctx.var.uri
+              local provider = core.request.header(ctx, "X-User-Provider") or ""
               local subject = core.request.header(ctx, "X-User-Subject") or ""
               local email = core.request.header(ctx, "X-User-Email") or ""
               local name = core.request.header(ctx, "X-User-Name") or ""
+              core.response.set_header("X-Auth-Provider", provider)
+              core.response.set_header("X-Auth-Subject", subject)
+              core.response.set_header("X-Auth-Decision", "allow")
+              core.response.set_header("X-Auth-Reason", "")
               if method == "GET" and string.find(path, "/v1/projects", 1, true) then
                 core.response.exit(200, {projects = {{id = "prj_01", name = "Atlas", status = "active"}, {id = "prj_02", name = "Beacon", status = "active"}, {id = "prj_03", name = "Cedar", status = "archived"}}})
                 return
@@ -114,11 +125,9 @@ routes:
           issuer:
             valid_issuers:
               - "${{OKTA_ISSUER}}"
-          audience:
-            required: true
       opa:
         host: "http://opa:8181"
-        policy: "okta/allow"
+        policy: "okta"
         with_route: true
         send_headers_upstream:
           - X-User-Issuer
@@ -154,9 +163,14 @@ routes:
               local core = require("apisix.core")
               local method = core.request.get_method()
               local path = ctx.var.uri
+              local provider = core.request.header(ctx, "X-User-Provider") or ""
               local subject = core.request.header(ctx, "X-User-Subject") or ""
               local email = core.request.header(ctx, "X-User-Email") or ""
               local name = core.request.header(ctx, "X-User-Name") or ""
+              core.response.set_header("X-Auth-Provider", provider)
+              core.response.set_header("X-Auth-Subject", subject)
+              core.response.set_header("X-Auth-Decision", "allow")
+              core.response.set_header("X-Auth-Reason", "")
               if method == "GET" and string.find(path, "/v1/projects", 1, true) then
                 core.response.exit(200, {projects = {{id = "prj_01", name = "Atlas", status = "active"}, {id = "prj_02", name = "Beacon", status = "active"}, {id = "prj_03", name = "Cedar", status = "archived"}}})
                 return
@@ -191,11 +205,9 @@ routes:
           issuer:
             valid_issuers:
               - "${{GOOGLE_ISSUER}}"
-          audience:
-            required: true
       opa:
         host: "http://opa:8181"
-        policy: "google/allow"
+        policy: "google"
         with_route: true
         send_headers_upstream:
           - X-User-Issuer
@@ -231,9 +243,14 @@ routes:
               local core = require("apisix.core")
               local method = core.request.get_method()
               local path = ctx.var.uri
+              local provider = core.request.header(ctx, "X-User-Provider") or ""
               local subject = core.request.header(ctx, "X-User-Subject") or ""
               local email = core.request.header(ctx, "X-User-Email") or ""
               local name = core.request.header(ctx, "X-User-Name") or ""
+              core.response.set_header("X-Auth-Provider", provider)
+              core.response.set_header("X-Auth-Subject", subject)
+              core.response.set_header("X-Auth-Decision", "allow")
+              core.response.set_header("X-Auth-Reason", "")
               if method == "GET" and string.find(path, "/v1/projects", 1, true) then
                 core.response.exit(200, {projects = {{id = "prj_01", name = "Atlas", status = "active"}, {id = "prj_02", name = "Beacon", status = "active"}, {id = "prj_03", name = "Cedar", status = "archived"}}})
                 return

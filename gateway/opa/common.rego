@@ -2,8 +2,9 @@ package common
 
 # Provider-neutral helpers for the APISIX OPA policies. The APISIX
 # `openid-connect` plugin has already verified the token signature, issuer,
-# audience presence, expiry and algorithm before these policies run, so the
-# helpers only decode and interpret claims.
+# expiry and algorithm before these policies run, so the helpers only decode
+# the verified payload and interpret its claims (including the audience, which
+# the plugin does not check on the JWKS path).
 
 # The bearer token from the Authorization header; undefined when absent or
 # malformed, which makes every dependent rule undefined and the default deny.
@@ -47,4 +48,13 @@ user_headers(provider, payload) := {
 	"X-User-Provider": provider,
 	"X-User-Email": claim_or(payload, "email", ""),
 	"X-User-Name": claim_or(payload, "name", ""),
+}
+
+# On deny the APISIX `opa` plugin copies these into the response headers, which
+# the access-log format reads for GW-8's route/provider/subject/decision/reason.
+deny_headers(provider, payload, reason) := {
+	"X-Auth-Provider": provider,
+	"X-Auth-Subject": claim_or(payload, "sub", ""),
+	"X-Auth-Decision": "deny",
+	"X-Auth-Reason": reason,
 }

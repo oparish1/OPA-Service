@@ -37,6 +37,8 @@ allow if {
 
 headers := common.user_headers("okta", payload) if allow
 
+headers := common.deny_headers("okta", payload, reason) if not allow
+
 reasons contains "no_group" if not has_group
 reasons contains "no_uid" if not has_uid
 reasons contains "wrong_audience" if not audience_ok

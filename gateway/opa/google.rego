@@ -8,7 +8,7 @@ config := input.route.labels
 
 payload := common.claims(common.bearer)
 
-read_only if common.safe_method
+read_only if input.request.method == "GET"
 
 hosted_domain_ok if {
 	common.claim_or(payload, "hd", "") == config.hosted_domain
@@ -37,6 +37,8 @@ allow if {
 }
 
 headers := common.user_headers("google", payload) if allow
+
+headers := common.deny_headers("google", payload, reason) if not allow
 
 reasons contains "method_not_allowed" if not read_only
 reasons contains "wrong_hd" if not hosted_domain_ok

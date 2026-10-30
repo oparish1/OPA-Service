@@ -24,5 +24,7 @@ nginx_config:
   http:
     enable_access_log: true
     access_log: /dev/stdout
-    access_log_format: '{"time":"$time_iso8601","remote_addr":"$remote_addr","method":"$request_method","uri":"$uri","status":$status,"bytes":$body_bytes_sent,"request_time":$request_time}'
+    # GW-8: route/provider/subject/decision/reason come from the response
+    # headers OPA sets on deny and serverless-post-function sets on allow.
+    access_log_format: '{"time":"$time_iso8601","remote_addr":"$remote_addr","method":"$request_method","route":"$uri","provider":"$sent_http_x_auth_provider","subject":"$sent_http_x_auth_subject","decision":"$sent_http_x_auth_decision","reason":"$sent_http_x_auth_reason","status":$status,"bytes":$body_bytes_sent,"request_time":$request_time}'
     access_log_format_escape: json

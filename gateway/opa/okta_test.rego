@@ -53,3 +53,10 @@ test_headers_come_from_the_token if {
 test_reason_reports_the_first_failure if {
 	reason == "no_group" with input as testutil.input_for("GET", object.remove(base_payload, ["groups"]), base_labels)
 }
+
+test_deny_headers_report_provider_subject_decision_and_reason if {
+	headers["X-Auth-Provider"] == "okta" with input as testutil.input_for("GET", object.remove(base_payload, ["groups"]), base_labels)
+	headers["X-Auth-Subject"] == "sub-1" with input as testutil.input_for("GET", object.remove(base_payload, ["groups"]), base_labels)
+	headers["X-Auth-Decision"] == "deny" with input as testutil.input_for("GET", object.remove(base_payload, ["groups"]), base_labels)
+	headers["X-Auth-Reason"] == "no_group" with input as testutil.input_for("GET", object.remove(base_payload, ["groups"]), base_labels)
+}
