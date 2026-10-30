@@ -201,7 +201,7 @@ export function Overview() {
             onCopy={() => accessCopy.copy(revealedAccess)}
             details={[
               { label: 'EXPIRES AT', value: data.accessToken.expiresAt },
-              { label: 'SCOPES', value: data.accessToken.scopes },
+              { label: 'SCOPES', value: data.accessToken.scopes || '—' },
             ]}
           />
         </div>

@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@azure/msal-browser": "3.30.0",
+    "@okta/okta-auth-js": "7.14.5",
     "lucide-react": "^0.460.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

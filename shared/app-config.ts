@@ -13,6 +13,8 @@ export interface ProviderConfig {
   issuer: string;
   /** Entra only: the API application id URI scopes are composed against. */
   apiResource?: string;
+  /** Google only: the Workspace hosted domain the ID token must carry. */
+  hostedDomain?: string;
   /** Scopes to request; defaults to `workspace:read`. */
   scopes?: string[];
   forgotPasswordUrl?: string;
@@ -129,6 +131,10 @@ export function parseAppConfig(raw: unknown): AppConfig {
         provider.apiResource === undefined
           ? undefined
           : requireString(provider.apiResource, `providers[${index}].apiResource`),
+      hostedDomain:
+        provider.hostedDomain === undefined
+          ? undefined
+          : requireString(provider.hostedDomain, `providers[${index}].hostedDomain`),
       scopes: scopes as string[] | undefined,
       forgotPasswordUrl:
         provider.forgotPasswordUrl === undefined
