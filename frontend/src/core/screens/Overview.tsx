@@ -140,7 +140,7 @@ export function Overview() {
   const data = session ?? state.data;
   if (!data) return null;
 
-  const canRefresh = data.refreshToken.masked !== '';
+  const canRefresh = data.renewable ?? data.refreshToken.masked !== '';
   const refreshControl = canRefresh ? (
     <Button state={refreshState === 'loading' ? 'in-progress' : 'default'} onClick={handleRefresh}>
       Refresh session

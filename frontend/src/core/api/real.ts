@@ -51,6 +51,7 @@ function toSession(providerSession: ProviderSession): Session {
           grant: providerSession.refreshToken.grant,
         }
       : { value: '', masked: '', expiresAt: '—', grant: '—' },
+    renewable: providerSession.renewable ?? Boolean(providerSession.refreshToken),
     issuer: providerSession.issuer,
     issuedAt: now,
     snapshot: `${providerSession.providerId} · ${now}`,

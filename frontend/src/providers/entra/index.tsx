@@ -1,11 +1,13 @@
 import { Building2 } from 'lucide-react';
 import type { ProviderId } from '../../../../shared/providers';
 import type { FrontendProviderModule } from '../../core/providers/types';
+import { createEntraAuth } from './auth';
 
 export const entraModule: FrontendProviderModule = {
   id: 'entra' satisfies ProviderId,
   name: 'Microsoft Entra ID',
   ssoDomain: 'agentic-advantage.example',
+  auth: createEntraAuth(),
   links: {
     forgotPasswordUrl: 'https://example.com/reset',
     changePasswordUrl: 'https://example.com/change',

@@ -18,6 +18,8 @@ export interface ProviderSession {
     expiresAt: string;
     grant: string;
   };
+  /** True when the provider renews silently without exposing a refresh token. */
+  renewable?: boolean;
 }
 
 /**
