@@ -8,6 +8,7 @@ interface MockGlobal {
   __silentResult?: unknown;
   __cleared?: boolean;
   __pendingReject?: Error;
+  __msalOptions?: { cache?: { cacheLocation?: string } };
 }
 
 const globalMock = globalThis as unknown as MockGlobal;
@@ -21,6 +22,9 @@ vi.mock('@azure/msal-browser', () => {
     localAccountId: 'acct-1',
   };
   class PublicClientApplication {
+    constructor(options: unknown) {
+      (globalThis as unknown as MockGlobal).__msalOptions = options as MockGlobal['__msalOptions'];
+    }
     async initialize(): Promise<void> {}
     async loginRedirect(request: { scopes: string[] }): Promise<void> {
       (globalThis as unknown as MockGlobal).__lastLogin = request;
@@ -99,7 +103,7 @@ describe('Entra auth', () => {
   it('maps a redirect result into the in-memory session', async () => {
     globalMock.__handleRedirect = () => RESULT;
     const handled = await AUTH.handleRedirect(new URL('http://localhost:5173/#code=abc&state=xyz'));
-    expect(handled).toBe(true);
+    expect(handled).toBe('handled');
     const session = AUTH.session();
     expect(session?.accessToken.value).toBe('access-token-value');
     expect(session?.accessToken.scopes).toContain('workspace:read');
@@ -111,8 +115,12 @@ describe('Entra auth', () => {
       'AADSTS50011 error_description=state mismatch; the raw provider text'
     );
     const handled = await AUTH.handleRedirect(new URL('http://localhost:5173/#code=abc&state=xyz'));
-    expect(handled).toBe(false);
+    expect(handled).toBe('rejected');
     expect(AUTH.session()).toBeNull();
+  });
+
+  it('configures MSAL with an in-memory cache (A4, SD-3)', () => {
+    expect(globalMock.__msalOptions?.cache?.cacheLocation).toBe('memory');
   });
 
   it('clears memory and the library cache on sign-out (SD-5)', async () => {

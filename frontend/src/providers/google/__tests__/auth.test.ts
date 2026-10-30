@@ -23,7 +23,10 @@ function idToken(payload: Record<string, unknown>): string {
 
 let issuedNonce = '';
 
-function installGis(credential: () => string): { disableAutoSelect: ReturnType<typeof vi.fn> } {
+function installGis(
+  credential: () => string,
+  behavior: 'credential' | 'dismissed' = 'credential'
+): { disableAutoSelect: ReturnType<typeof vi.fn> } {
   const disableAutoSelect = vi.fn();
   window.google = {
     accounts: {
@@ -32,7 +35,11 @@ function installGis(credential: () => string): { disableAutoSelect: ReturnType<t
           issuedNonce = config.nonce ?? '';
           capturedCallback = config.callback;
         },
-        prompt() {
+        prompt(momentListener?: (moment: { isDismissedMoment?: () => boolean }) => void) {
+          if (behavior === 'dismissed') {
+            momentListener?.({ isDismissedMoment: () => true });
+            return;
+          }
           capturedCallback({ credential: credential() });
         },
         disableAutoSelect,
@@ -93,6 +100,11 @@ describe('Google auth', () => {
 
   it('rejects a wrong nonce (A2)', async () => {
     installGis(() => idToken(claims({ nonce: 'wrong-nonce' })));
+    await expect(AUTH.signIn()).rejects.toThrow('We couldn’t sign you in');
+  });
+
+  it('settles with the generic error when the prompt is dismissed (FE-7)', async () => {
+    installGis(() => idToken(claims()), 'dismissed');
     await expect(AUTH.signIn()).rejects.toThrow('We couldn’t sign you in');
   });
 

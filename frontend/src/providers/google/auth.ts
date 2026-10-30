@@ -29,9 +29,16 @@ interface GoogleIdConfiguration {
   use_fedcm_for_prompt?: boolean;
 }
 
+/** The subset of GIS's `PromptMomentNotification` the dismissal check reads. */
+interface GooglePromptMoment {
+  isNotDisplayed?(): boolean;
+  isSkippedMoment?(): boolean;
+  isDismissedMoment?(): boolean;
+}
+
 interface GoogleAccountsId {
   initialize(config: GoogleIdConfiguration): void;
-  prompt(): void;
+  prompt(momentListener?: (moment: GooglePromptMoment) => void): void;
   disableAutoSelect(): void;
 }
 
@@ -157,14 +164,24 @@ export function createGoogleAuth(): ProviderAuth {
           reject(new Error(GENERIC_ERROR));
           return;
         }
-        gis.prompt();
+        // A dismissed or undisplayed prompt never fires the credential
+        // callback, so settle the promise here instead of hanging (FE-7).
+        gis.prompt(moment => {
+          if (
+            moment.isNotDisplayed?.() ||
+            moment.isSkippedMoment?.() ||
+            moment.isDismissedMoment?.()
+          ) {
+            reject(new Error(GENERIC_ERROR));
+          }
+        });
       });
     },
 
     // Google Identity Services returns a credential through a callback, never
     // through a navigation, so there is no redirect to handle.
     async handleRedirect() {
-      return false;
+      return 'ignored';
     },
 
     async getAccessToken() {

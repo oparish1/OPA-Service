@@ -99,16 +99,16 @@ export function createOktaAuth(): ProviderAuth {
     },
 
     async handleRedirect(url) {
+      if (!url.search.includes('code=') || !url.search.includes('state=')) return 'ignored';
       const oktaAuth = getClient();
-      if (!url.search.includes('code=') || !url.search.includes('state=')) return false;
       try {
         await oktaAuth.handleLoginRedirect();
         const session = await toSession(oktaAuth);
-        if (!session) return false;
+        if (!session) return 'rejected';
         current = session;
-        return true;
+        return 'handled';
       } catch {
-        return false;
+        return 'rejected';
       }
     },
 

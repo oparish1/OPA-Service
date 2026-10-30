@@ -23,6 +23,14 @@ export interface ProviderSession {
 }
 
 /**
+ * The outcome of offering a redirect URL to one provider's library. `ignored`
+ * means the URL is not this provider's callback; `rejected` means it was, but
+ * the library refused it (for example a bad or reused state) and the screen
+ * must show the generic sign-in error; `handled` means it produced a session.
+ */
+export type RedirectOutcome = 'handled' | 'rejected' | 'ignored';
+
+/**
  * The one browser auth interface each provider folder implements (FE-2). The
  * gateway repeats every check and is the authority; these methods only drive
  * the user experience and hold tokens in memory.
@@ -30,8 +38,8 @@ export interface ProviderSession {
 export interface ProviderAuth {
   /** Starts the library's code + PKCE (Entra, Okta) or identity flow (Google). */
   signIn(): Promise<void>;
-  /** Handles a provider redirect callback; returns false when it is not one. */
-  handleRedirect(url: URL): Promise<boolean>;
+  /** Handles a provider redirect callback; `ignored` when it is not one. */
+  handleRedirect(url: URL): Promise<RedirectOutcome>;
   /** The current access token (or Google ID token), or null. */
   getAccessToken(): Promise<string | null>;
   /** Silent renewal where the provider supports it; false when it does not. */

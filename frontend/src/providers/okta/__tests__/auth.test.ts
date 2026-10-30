@@ -7,6 +7,7 @@ interface MockGlobal {
   __oktaTokens?: Record<string, unknown>;
   __oktaPendingReject?: Error;
   __oktaCleared?: boolean;
+  __oktaOptions?: { tokenManager?: { storage?: string } };
 }
 
 const globalMock = globalThis as unknown as MockGlobal;
@@ -26,6 +27,7 @@ vi.mock('@okta/okta-auth-js', () => {
 
     constructor(options: unknown) {
       this.options = options;
+      (globalThis as unknown as MockGlobal).__oktaOptions = options as MockGlobal['__oktaOptions'];
     }
 
     async signInWithRedirect(options: { scopes: string[] }): Promise<void> {
@@ -104,7 +106,7 @@ describe('Okta auth', () => {
   it('maps a redirect result into the in-memory session', async () => {
     globalMock.__oktaTokens = { accessToken: ACCESS, idToken: ID };
     const handled = await AUTH.handleRedirect(new URL('http://localhost:5173/?code=abc&state=xyz'));
-    expect(handled).toBe(true);
+    expect(handled).toBe('handled');
     const session = AUTH.session();
     expect(session?.accessToken.value).toBe('okta-access-value');
     expect(session?.account?.email).toBe('okta.user@agentic-advantage.example');
@@ -113,8 +115,12 @@ describe('Okta auth', () => {
   it('rejects a state error without surfacing the library text (A1, A8)', async () => {
     globalMock.__oktaPendingReject = new Error('error_description=state mismatch');
     const handled = await AUTH.handleRedirect(new URL('http://localhost:5173/?code=abc&state=xyz'));
-    expect(handled).toBe(false);
+    expect(handled).toBe('rejected');
     expect(AUTH.session()).toBeNull();
+  });
+
+  it('configures the Okta token manager with memory storage (A4, SD-3)', () => {
+    expect(globalMock.__oktaOptions?.tokenManager?.storage).toBe('memory');
   });
 
   it('clears the in-memory token manager on sign-out (SD-5)', async () => {

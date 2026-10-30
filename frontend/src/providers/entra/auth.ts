@@ -116,17 +116,17 @@ export function createEntraAuth(): ProviderAuth {
     },
 
     async handleRedirect(url) {
-      if (!url.hash && !url.search) return false;
+      if (!url.hash && !url.search) return 'ignored';
       const msal = await getClient();
       try {
         const result = await msal.handleRedirectPromise(url.hash);
-        if (!result) return false;
+        if (!result) return 'ignored';
         msal.setActiveAccount(result.account);
         current = toSession(result);
-        return true;
+        return 'handled';
       } catch {
         // A missing, wrong or reused state must not surface the library text.
-        return false;
+        return 'rejected';
       }
     },
 

@@ -30,8 +30,10 @@ function clearTimers(): void {
 }
 
 function expire(): void {
-  clearSession();
+  // The hook reads the provider id from the store to clear the provider
+  // library's cache, so it must run before the store is emptied.
   onExpire?.();
+  clearSession();
 }
 
 export function setSessionLimits(next: Partial<SessionStoreLimits>): void {
