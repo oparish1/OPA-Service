@@ -60,11 +60,12 @@ except where issue #12 explicitly reverses them.
     no server banner and strict security headers.
   - `apisix/apisix.yaml` declares one route per provider plus a tokenless health
     route. Each authenticated route runs `openid-connect` (bearer-only, JWKS)
-    for cryptographic validation and `opa` for scope, claim and method
+    for cryptographic validation and `opa` for audience, scope, claim and method
     authorization, then `serverless-post-function` builds the `/v1` golden
     fixture body.
   - `opa/*.rego` decode the verified token and return `allow`, the `X-User-*`
-    headers and a `reason` for the structured log.
+    headers, and on deny the `X-Auth-*` audit headers (provider, subject,
+    decision, reason) the access log reads for GW-8.
   - `fixtures/` holds the `/v1` golden bodies captured from the deleted backend.
   - `test-issuers/` is the local OIDC issuer the Docker integration script uses;
     it never calls a real provider.
@@ -101,6 +102,6 @@ except where issue #12 explicitly reverses them.
 - Tests sit next to each provider (`frontend/src/providers/*/__tests__`) and
   cover gateway behaviour in `gateway/config.test.ts` and `gateway/opa/*_test.rego`.
 - Commit messages are short and imperative, describing the result.
-- **Checks:** `bun run lint && bun run typecheck && bun run test && bun run build`
+- **Checks:** `bun run lint && bun run typecheck && bun run build && bun run test`
   in `frontend/`; `bun test gateway` and `opa test gateway/opa` from the root.
   The two provider-boundary scripts run from the repository root.

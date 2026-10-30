@@ -30,11 +30,11 @@ references environment variables by name only.
 
 `openid-connect` `required_scopes` is evaluated only on the introspection path,
 and introspection is excluded because it would require a client secret
-(SD-11). `claim_validator` can express only issuer and audience presence. So
-`openid-connect` performs the cryptographic validation (signature, `iss`,
-`aud` presence, `exp`/`nbf`, algorithm) and the `opa` plugin performs the
-per-provider scope, claim and method rules, returning the `X-User-*` headers
-and a `reason` for the access log.
+(SD-11). On the JWKS path `claim_validator` applies only `issuer`, so the plugin
+performs the cryptographic validation (signature, `iss`, `exp`/`nbf`, algorithm)
+and the `opa` plugin owns the audience plus the per-provider scope, claim and
+method rules. OPA returns the `X-User-*` headers and, on deny, the `X-Auth-*`
+audit headers the access log reads.
 
 ## Secret placeholders
 
@@ -54,7 +54,12 @@ The gateway listens on `http://localhost:9080`; OPA on `:8181`.
 
 ## Checks
 
+Install the gateway dependencies once on a fresh clone, then run the two
+gates from the repository root:
+
 ```sh
+cd gateway && bun install --frozen-lockfile
+cd ..
 bun test gateway        # Docker-free route config assertions
 opa test gateway/opa    # Rego policy unit tests
 ```

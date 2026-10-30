@@ -42,9 +42,9 @@ APISIX gateway: one route per provider, own issuer, audience, key source and cla
 ```
 
 The gateway runs in declarative (standalone) mode from `gateway/`. The
-`openid-connect` plugin verifies each bearer token (signature, `iss`, `aud`,
-`exp`, `nbf`, algorithm) and the `opa` plugin enforces the per-provider scope,
-claim and method rules, then sets `X-User-Issuer`, `X-User-Subject` and
+`openid-connect` plugin verifies each bearer token (signature, `iss`, `exp`,
+`nbf`, algorithm) and the `opa` plugin enforces the per-provider audience,
+scope, claim and method rules, then sets `X-User-Issuer`, `X-User-Subject` and
 `X-User-Provider` from the validated token. The gateway itself serves the
 `/v1/me` and `/v1/projects` demo bodies; the golden bodies captured from the
 backend before deletion are kept in `gateway/fixtures/` as the A17 reference.
@@ -109,15 +109,19 @@ checked at the gateway.
 
 ## Checks
 
-The frontend package defines its gates:
+The frontend package defines its gates. Build before the tests so the A18
+bundle scan inspects `dist/`:
 
 ```sh
-cd frontend && bun run lint && bun run typecheck && bun run test && bun run build
+cd frontend && bun run lint && bun run typecheck && bun run build && bun run test
 ```
 
-The gateway has its own Docker-free gates:
+The gateway has its own Docker-free gates; install its dependencies once on a
+fresh clone:
 
 ```sh
+cd gateway && bun install --frozen-lockfile
+cd ..
 bun test gateway                 # parses and asserts the APISIX route config
 opa test gateway/opa             # Rego policy unit tests
 ```
