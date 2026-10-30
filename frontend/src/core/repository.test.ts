@@ -60,6 +60,25 @@ describe('repository acceptance', () => {
     expect(existsSync(join(REPO_ROOT, 'frontend', 'public', 'config.json'))).toBe(false);
   });
 
+  it('A18 scans the production bundle when one has been built', () => {
+    const dist = join(REPO_ROOT, 'frontend', 'dist');
+    if (!existsSync(dist)) return;
+    const files: string[] = [];
+    const collect = (dir: string): void => {
+      for (const entry of readdirSync(dir)) {
+        const full = join(dir, entry);
+        if (statSync(full).isDirectory()) collect(full);
+        else files.push(full);
+      }
+    };
+    collect(dist);
+    for (const file of files) {
+      const content = readFileSync(file, 'utf8');
+      expect(content, file).not.toMatch(/-----BEGIN [A-Z ]*PRIVATE KEY-----/);
+      expect(content, file).not.toMatch(/test-entra-secret|test-okta-secret|test-google-secret/);
+    }
+  });
+
   it('A19 names no retired scope anywhere', () => {
     for (const file of scannedFiles()) {
       const content = read(file);
