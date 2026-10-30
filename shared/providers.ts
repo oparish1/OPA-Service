@@ -1,7 +1,7 @@
 /**
- * The identity providers the product supports. The backend registers these ids
- * and the frontend renders their buttons, so the list lives in one module rather
- * than as two hand-written sets that can drift apart.
+ * The identity providers the product supports. The frontend registry, the
+ * public config schema and the gateway routes all key off these ids, so the
+ * list lives in one module rather than as hand-written sets that can drift.
  */
 
 export const PROVIDER_IDS = ['entra', 'okta', 'google'] as const;
@@ -19,8 +19,9 @@ export interface ProviderLinks {
 }
 
 /**
- * The `GET /auth/providers` wire contract. The backend serialises it and the
- * frontend consumes it, so the destination field names have one owner.
+ * The provider list the sign-in and recovery screens render. The browser
+ * builds it from the public config, so the destination field names have one
+ * owner.
  */
 export interface ProviderInfo extends ProviderLinks {
   id: string;

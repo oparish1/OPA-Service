@@ -122,7 +122,7 @@ opa test gateway/opa             # Rego policy unit tests
 ```
 
 The Docker Compose integration script
-(`gateway/test-issuers/run-acceptance.sh`) is the second gateway gate and
+(`bun run gateway/test-issuers/acceptance.ts`) is the second gateway gate and
 requires Docker; it exercises A9–A17 end-to-end against the local test issuers.
 
 The provider boundaries have two extra checks, run from the repository root:

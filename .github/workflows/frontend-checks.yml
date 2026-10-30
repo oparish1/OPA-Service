@@ -5,11 +5,19 @@ on:
     paths:
       - 'frontend/**'
       - 'shared/**'
+      - 'gateway/**'
+      - 'scripts/**'
+      - 'docs/**'
+      - 'README.md'
       - '.github/workflows/frontend-checks.yml'
   pull_request:
     paths:
       - 'frontend/**'
       - 'shared/**'
+      - 'gateway/**'
+      - 'scripts/**'
+      - 'docs/**'
+      - 'README.md'
       - '.github/workflows/frontend-checks.yml'
 
 jobs:
@@ -27,3 +35,4 @@ jobs:
       - run: bun run lint
       - run: bun run typecheck
       - run: bun run test
+      - run: bun run build

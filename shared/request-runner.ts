@@ -1,7 +1,6 @@
 /**
- * The `POST /api/request-runner` wire contract. The backend relay and the
- * frontend client import this single module so the auth enum, error codes, URL
- * limit and envelope cannot drift apart between the two packages.
+ * The browser runner's URL, timeout, response-cap and header rules. The runner
+ * and its tests import this single module so the limits cannot drift apart.
  */
 
 export const RUNNER_AUTH_VALUES = ['session', 'valid-token-123', 'expired-token', 'none'] as const;
@@ -29,26 +28,6 @@ export type RunnerErrorCode =
   | 'session_token_not_allowed_for_host'
   | 'request_timeout'
   | 'request_failed';
-
-export interface RelaySuccess {
-  status: number;
-  statusText: string;
-  headers: string[];
-  contentType: string | null;
-  body: string;
-  truncated: boolean;
-  size: number;
-  durationMs: number;
-  receivedAt: string;
-}
-
-export interface RelayFailure {
-  error: RunnerErrorCode;
-  durationMs?: number;
-  receivedAt: string;
-}
-
-export type RelayOutcome = RelaySuccess | RelayFailure;
 
 /** Parses a request target, enforcing the shared URL rules; `null` when unusable. */
 export function parseRunnerUrl(value: string): URL | null {

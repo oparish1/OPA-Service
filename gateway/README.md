@@ -57,5 +57,5 @@ bun test gateway        # Docker-free route config assertions
 opa test gateway/opa    # Rego policy unit tests
 ```
 
-The Docker integration gate is `gateway/test-issuers/run-acceptance.sh`; it
+The Docker integration gate is `bun run gateway/test-issuers/acceptance.ts`; it
 runs only when Docker is available. Record which gate ran in the PR.

@@ -77,6 +77,19 @@ export function signIn(providerId: string): Promise<Session> {
   return new Promise<Session>(() => undefined);
 }
 
+/** Adopts a provider redirect callback into the in-memory session (A3). */
+export async function handleRedirect(url: URL): Promise<boolean> {
+  for (const module of getProviderRegistry().all) {
+    if (!module.auth) continue;
+    if (await module.auth.handleRedirect(url)) {
+      const providerSession = module.auth.session();
+      if (providerSession) setSession(toSession(providerSession));
+      return true;
+    }
+  }
+  return false;
+}
+
 export async function signOut(): Promise<void> {
   const providerId = readStore()?.providerId;
   if (providerId) await getProviderRegistry().get(providerId)?.auth?.signOut();

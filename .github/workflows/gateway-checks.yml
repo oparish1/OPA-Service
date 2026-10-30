@@ -1,0 +1,33 @@
+name: Gateway checks
+
+on:
+  push:
+    paths:
+      - 'gateway/**'
+      - 'shared/**'
+      - '.github/workflows/gateway-checks.yml'
+  pull_request:
+    paths:
+      - 'gateway/**'
+      - 'shared/**'
+      - '.github/workflows/gateway-checks.yml'
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install gateway dependencies
+        working-directory: gateway
+        run: bun install --frozen-lockfile
+      - name: Gateway config tests
+        run: bun test gateway
+      - name: Install OPA
+        run: |
+          curl -fsSL -o /usr/local/bin/opa https://openpolicyagent.org/downloads/v1.4.2/opa_linux_amd64_static
+          chmod +x /usr/local/bin/opa
+      - name: Rego policy tests
+        run: opa test gateway/opa

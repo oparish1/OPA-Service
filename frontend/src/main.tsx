@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './core/App';
 import { setApiMode, signOut } from './core/api';
+import { handleRedirect } from './core/api/real';
 import { setAppConfig } from './core/config';
 import { setProviderRegistry } from './core/providers/active';
 import { setOnExpire } from './core/session/store';
@@ -34,11 +35,8 @@ async function start(): Promise<void> {
         void signOut();
       });
       const url = new URL(window.location.href);
-      for (const module of PROVIDER_MODULES) {
-        if (await module.auth?.handleRedirect(url)) {
-          window.history.replaceState({}, '', url.pathname);
-          break;
-        }
+      if (await handleRedirect(url)) {
+        window.history.replaceState({}, '', url.pathname);
       }
     }
   } catch {
