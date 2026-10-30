@@ -14,7 +14,7 @@ export function registerV1Routes(app: FastifyInstance, services: Services): void
 
   app.get(
     '/v1/me',
-    { config: { auth: 'required', scope: 'profile.read' } },
+    { config: { auth: 'required', scope: 'workspace:read' } },
     async request => {
       const auth = request.auth;
       const user = auth?.userId ? store.getUserById(auth.userId) : null;
@@ -24,14 +24,14 @@ export function registerV1Routes(app: FastifyInstance, services: Services): void
         email: user?.email ?? '',
         organisation: user?.organisation ?? 'Agentic Advantage',
         role: 'developer',
-        permissions: ['profile.read', 'projects.read'],
+        permissions: ['workspace:read', 'workspace:write'],
       };
     }
   );
 
   app.get(
     '/v1/projects',
-    { config: { auth: 'required', scope: 'projects.read' } },
+    { config: { auth: 'required', scope: 'workspace:write' } },
     async () => PROJECTS
   );
 }

@@ -128,7 +128,7 @@ function errorResponse(kind: ApiErrorKind): ApiResponse {
         duration: '96 ms',
         size: '162 B',
         timestamp: '14:30 UTC',
-        body: { error: 'forbidden', message: 'Missing scope profile.read' },
+        body: { error: 'forbidden', message: 'Missing scope workspace:read' },
         headers: responseHeaders('403 Forbidden'),
         bodyKind: 'json',
         sizeBytes: 162,
@@ -291,7 +291,7 @@ export async function refreshToken(): Promise<AccessToken> {
     masked: 'demo_at_refreshed…b21c',
     value: 'demo_at_refreshed_20261010_orlando_parish_b21c',
     expiresAt: '10 Oct 2026 · 15:00:00 UTC',
-    scopes: 'profile.read · projects.read',
+    scopes: 'workspace:read · workspace:write',
   };
   activeSession = { ...activeSession, accessToken: refreshed };
   return delay(refreshed);

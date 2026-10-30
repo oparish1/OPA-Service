@@ -30,9 +30,9 @@ describe('route inventory (A10)', () => {
     const me = harness.inventory.routes.find(route => route.url === '/v1/me');
     const projects = harness.inventory.routes.find(route => route.url === '/v1/projects');
     expect(me?.auth).toBe('required');
-    expect(me?.scope).toBe('profile.read');
+    expect(me?.scope).toBe('workspace:read');
     expect(projects?.auth).toBe('required');
-    expect(projects?.scope).toBe('projects.read');
+    expect(projects?.scope).toBe('workspace:write');
   });
 
   it('declares the request runner as requiring auth', () => {

@@ -191,7 +191,7 @@ export class TestIdp {
       expires_in: 3600,
       access_token: await this.signAccessToken(),
       refresh_token: 'refresh-token-1',
-      scope: 'openid profile email offline_access profile.read projects.read',
+      scope: 'openid profile email offline_access workspace:read workspace:write',
     };
     if (!this.behavior.omitIdToken) {
       body.id_token = await this.signIdToken(nonce);
@@ -209,7 +209,7 @@ export class TestIdp {
       token_type: 'Bearer',
       expires_in: 3600,
       access_token: `access-token-refreshed-${this.refreshCount}`,
-      scope: 'openid profile email offline_access profile.read projects.read',
+      scope: 'openid profile email offline_access workspace:read workspace:write',
     };
     if (!this.behavior.omitRefreshedRefreshToken) {
       const rotated = `refresh-token-${this.refreshCount + 1}`;

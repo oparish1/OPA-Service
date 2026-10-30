@@ -42,7 +42,7 @@ const RAW_SESSION: SessionMetadata = {
     accountId: 'acct_oid-default',
     createdAt: '10 Oct 2026 · 13:30:00 UTC',
   },
-  accessToken: { masked: 'at…1234', expiresAt: '10 Oct 2026', scopes: 'profile.read' },
+  accessToken: { masked: 'at…1234', expiresAt: '10 Oct 2026', scopes: 'workspace:read' },
   refreshToken: { masked: 'rt…5678', expiresAt: '11 Oct 2026', grant: 'offline_access' },
   issuer: 'https://login.microsoftonline.com/tenant/v2.0',
   issuedAt: '10 Oct 2026',

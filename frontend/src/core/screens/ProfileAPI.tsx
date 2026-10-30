@@ -160,7 +160,7 @@ export function ProfileAPI() {
 
       {response?.status === 200 ? (
         <Notice tone="neutral" heading="Request authorised">
-          Request authorised with profile.read. Your refresh token was not sent to this endpoint.
+          Request authorised with workspace:read. Your refresh token was not sent to this endpoint.
         </Notice>
       ) : null}
       <TextLink onClick={() => navigate('projects-api')}>Try Projects API</TextLink>

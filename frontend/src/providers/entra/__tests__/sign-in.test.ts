@@ -24,7 +24,7 @@ describe('Entra mock sign-in', () => {
   it('returns the Entra session for a known provider', async () => {
     const session = await signIn('entra');
     expect(session.provider).toBe('Microsoft Entra ID');
-    expect(session.accessToken.scopes).toContain('profile.read');
+    expect(session.accessToken.scopes).toContain('workspace:read');
   });
 
   it('resolves the seeded domain to Entra', async () => {

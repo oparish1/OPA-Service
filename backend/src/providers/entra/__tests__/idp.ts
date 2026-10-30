@@ -13,7 +13,7 @@ export const entraIdpProfile: IdpProfile = {
     aud: options.apiAudience ?? options.clientId,
     oid: 'oid-default',
     tid: options.tenantId,
-    scp: 'profile.read projects.read',
+    scp: 'workspace:read workspace:write',
   }),
   scopes: ['openid', 'profile', 'email', 'offline_access'],
 };

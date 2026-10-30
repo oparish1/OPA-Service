@@ -19,7 +19,7 @@ export function mockSession(): Session {
       masked: 'demo_at_op…9b4e',
       value: 'demo_at_op_20261010_orlando_parish_9b4e',
       expiresAt: '10 Oct 2026 · 14:30:00 UTC',
-      scopes: 'profile.read · projects.read',
+      scopes: 'workspace:read · workspace:write',
     },
     refreshToken: {
       masked: 'demo_rt_agadv…7c2f',
@@ -39,7 +39,7 @@ export const MOCK_PROFILE_BODY = {
   email: 'orlando.parish@agadv.example',
   organisation: 'Agentic Advantage',
   role: 'developer',
-  permissions: ['profile.read', 'projects.read'],
+  permissions: ['workspace:read', 'workspace:write'],
 };
 
 export const MOCK_PROJECTS_BODY = {

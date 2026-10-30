@@ -53,7 +53,7 @@ describe('bearer validation on /v1/* (A11)', () => {
   });
 
   it('rejects a token missing the route scope', async () => {
-    const token = await idp.signAccessToken({ scp: 'profile.read' });
+    const token = await idp.signAccessToken({ scp: 'workspace:read' });
     expect((await getWithBearer('/v1/projects', token)).statusCode).toBe(401);
   });
 

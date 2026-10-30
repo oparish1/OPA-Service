@@ -14,7 +14,7 @@ export const neutralIdpProfile: IdpProfile = {
   accessTokenClaims: options => ({
     aud: options.clientId,
     sub: 'subject-default',
-    scp: 'profile.read projects.read',
+    scp: 'workspace:read workspace:write',
   }),
   scopes: ['openid', 'profile', 'email', 'offline_access'],
 };

@@ -30,7 +30,7 @@ This work order makes that model real for **one provider, Microsoft Entra ID**.
 
 The workspace's purpose is to show a developer their real identity, session and tokens, and to let them call protected APIs with those tokens. With mocks, none of that is real. The owner wants Agentic Advantage employees to sign in with the organisation's Entra tenant.
 
-Stakes, per the owner: a compromised account can **read its own profile and project list** (`profile.read`, `projects.read`). It cannot change shared data. There is no regulated data. Entra Conditional Access enforces MFA. There is no deadline.
+Stakes, per the owner: a compromised account can **read its own profile and project list** (`workspace:read`, `workspace:write`). It cannot change shared data. There is no regulated data. Entra Conditional Access enforces MFA. There is no deadline.
 
 ## 3. Outcome
 
@@ -120,7 +120,7 @@ Each statement needs at least one automated test, unless marked *manual*. Negati
 | D-13 | Session/user store | **unresolved** | unresolved | No database exists. *Suggestion:* PostgreSQL for `users`, `sessions` and `audit_events`. SQLite is acceptable only for a single-instance deployment. Question: "What database, and where is it hosted?" |
 | D-14 | `/v1/*` authentication mode | **unresolved** | unresolved | The SPA's RequestPanel sends a bearer token (`runRequest(token, endpoint)`). *Suggestion:* `/v1/*` accepts **either** the session cookie **or** an Entra access token whose `aud` is this app's exposed API. The API Explorer then calls it with the revealed token, as designed. Question: "Should the API Explorer send the real access token as a Bearer header?" |
 | D-15 | "Expired token" demo in Projects API | **unresolved** | unresolved | Projects API starts with `EXPIRED_ACCESS_TOKEN` to demo the 401 recovery. *Suggestion:* keep the recovery UI, but trigger it only from a genuine 401. Seed the selector with the previously rotated (now expired) access token if one exists; otherwise start in the valid state. Change "DEMO VALUE" labels to real-value labels. |
-| D-16 | Access token scopes | **unresolved** | unresolved | *Suggestion:* expose API scopes `profile.read` and `projects.read` on the app registration (UI copy already shows these). `api.read` appears in mocks with no consumer; drop it unless needed. |
+| D-16 | Access token scopes | **unresolved** | unresolved | *Suggestion:* expose API scopes `workspace:read` and `workspace:write` on the app registration (UI copy already shows these). `api.read` appears in mocks with no consumer; drop it unless needed. |
 | D-17 | Hosting / TLS termination | **unresolved** | unresolved | Same origin is decided, but host, reverse proxy and TLS are not. Needed for the exact redirect URI and the `__Host-` cookie. |
 | D-18 | Compliance regime | None | owner | "none" |
 | D-19 | Timeline | No deadline | owner | "no deadline" |
