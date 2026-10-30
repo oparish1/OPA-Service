@@ -217,8 +217,8 @@ Verified against the tree at commit `373d5bd`. *new* = does not exist yet.
 
 **Rollback / kill switch:**
 
-- The frontend reads a build-time flag, `VITE_AUTH_MODE=mock|entra`. The BFF reads `AUTH_ENABLED`.
-- Rolling back = redeploy the previous build, or set the flag back to `mock` for a demo deployment.
+- The frontend selected a build-time mode flag (mock or Entra). The BFF read `AUTH_ENABLED`.
+- Rolling back = redeploy the previous build, or set the flag back to the mock mode for a demo deployment.
 - Because there are no pre-existing real users, rollback cannot lock anyone out of data that previously worked.
 - To disable sign-in in an emergency **without** a deploy, the tenant admin sets the enterprise app's "Enabled for users to sign-in?" to **No** in Entra. That stops new tokens immediately. Then invalidate all sessions by rotating `SESSION_SECRET` / truncating the session table.
 

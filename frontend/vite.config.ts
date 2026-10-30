@@ -17,8 +17,5 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './vitest.setup.ts',
     css: false,
-    // Unit tests exercise the mock API seam; the running app selects the real
-    // BFF client from .env.local.
-    env: { VITE_AUTH_MODE: 'mock' },
   },
 });
