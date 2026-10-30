@@ -1,4 +1,5 @@
 import { PROVIDER_IDS } from './providers';
+import type { ProviderLinks } from './providers';
 
 /**
  * The static public configuration the browser loads at runtime (FE-1). It is
@@ -6,7 +7,7 @@ import { PROVIDER_IDS } from './providers';
  * may name more than one provider id (A21).
  */
 
-export interface ProviderConfig {
+export interface ProviderConfig extends ProviderLinks {
   id: (typeof PROVIDER_IDS)[number];
   name: string;
   clientId: string;
@@ -17,9 +18,6 @@ export interface ProviderConfig {
   hostedDomain?: string;
   /** Scopes to request; defaults to `workspace:read`. */
   scopes?: string[];
-  forgotPasswordUrl?: string;
-  changePasswordUrl?: string;
-  manageAccountUrl?: string;
 }
 
 export interface AppConfig {

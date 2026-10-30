@@ -34,5 +34,6 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run lint
       - run: bun run typecheck
-      - run: bun run test
+      # Build before the tests so the A18 bundle scan sees `dist/`.
       - run: bun run build
+      - run: bun run test
