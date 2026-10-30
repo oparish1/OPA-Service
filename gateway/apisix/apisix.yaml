@@ -1,0 +1,252 @@
+# Declarative APISIX standalone configuration (SD-7). Every provider value is an
+# environment-variable reference so no secret is stored here (SD-11). The
+# security boundary is: openid-connect verifies the token cryptographically, OPA
+# authorizes the claims, and serverless-post-function builds the /v1 fixtures
+# (SD-1). See gateway/README.md for the variables.
+routes:
+  - id: health
+    uri: /health
+    plugins:
+      serverless-post-function:
+        phase: access
+        functions:
+          - |
+            return function(conf, ctx)
+              require("apisix.core").response.exit(200, {status = "ok"})
+              return
+            end
+    upstream:
+      type: roundrobin
+      nodes:
+        "127.0.0.1:1980": 1
+
+  - id: entra-v1
+    uri: /entra/*
+    labels:
+      provider: entra
+      audience: "${{ENTRA_API_RESOURCE}}"
+      tenant: "${{ENTRA_TENANT_ID}}"
+    plugins:
+      openid-connect:
+        client_id: "${{ENTRA_CLIENT_ID}}"
+        client_secret: "${{ENTRA_CLIENT_SECRET}}"
+        discovery: "${{ENTRA_DISCOVERY}}"
+        bearer_only: true
+        use_jwks: true
+        realm: entra
+        claim_validator:
+          issuer:
+            valid_issuers:
+              - "${{ENTRA_ISSUER}}"
+          audience:
+            required: true
+      opa:
+        host: "http://opa:8181"
+        policy: "entra/allow"
+        with_route: true
+        send_headers_upstream:
+          - X-User-Issuer
+          - X-User-Subject
+          - X-User-Provider
+          - X-User-Email
+          - X-User-Name
+      limit-count:
+        count: 20
+        time_window: 60
+        key_type: var
+        key: remote_addr
+        rejected_code: 429
+        policy: local
+      cors:
+        allow_origins: "${{APP_ORIGIN}}"
+        allow_methods: "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS"
+        allow_headers: "Authorization,Content-Type,Accept,X-Requested-With"
+        expose_headers: "Content-Type,Content-Length,Date,Cache-Control,ETag,WWW-Authenticate,Retry-After,X-Request-ID"
+        max_age: 3600
+        allow_credential: false
+      response-rewrite:
+        headers:
+          set:
+            X-Content-Type-Options: nosniff
+            Referrer-Policy: strict-origin-when-cross-origin
+            Strict-Transport-Security: "max-age=31536000; includeSubDomains"
+      serverless-post-function:
+        phase: access
+        functions:
+          - |
+            return function(conf, ctx)
+              local core = require("apisix.core")
+              local method = core.request.get_method()
+              local path = ctx.var.uri
+              local subject = core.request.header(ctx, "X-User-Subject") or ""
+              local email = core.request.header(ctx, "X-User-Email") or ""
+              local name = core.request.header(ctx, "X-User-Name") or ""
+              if method == "GET" and string.find(path, "/v1/projects", 1, true) then
+                core.response.exit(200, {projects = {{id = "prj_01", name = "Atlas", status = "active"}, {id = "prj_02", name = "Beacon", status = "active"}, {id = "prj_03", name = "Cedar", status = "archived"}}})
+                return
+              end
+              if method == "POST" then
+                core.response.exit(200, {ok = true})
+                return
+              end
+              core.response.exit(200, {id = "usr_" .. subject, display_name = name, email = email, organisation = "Agentic Advantage", role = "developer", permissions = {"workspace:read", "workspace:write"}})
+              return
+            end
+    upstream:
+      type: roundrobin
+      nodes:
+        "127.0.0.1:1980": 1
+
+  - id: okta-v1
+    uri: /okta/*
+    labels:
+      provider: okta
+      audience: "${{OKTA_API_AUDIENCE}}"
+    plugins:
+      openid-connect:
+        client_id: "${{OKTA_CLIENT_ID}}"
+        client_secret: "${{OKTA_CLIENT_SECRET}}"
+        discovery: "${{OKTA_DISCOVERY}}"
+        bearer_only: true
+        use_jwks: true
+        realm: okta
+        claim_validator:
+          issuer:
+            valid_issuers:
+              - "${{OKTA_ISSUER}}"
+          audience:
+            required: true
+      opa:
+        host: "http://opa:8181"
+        policy: "okta/allow"
+        with_route: true
+        send_headers_upstream:
+          - X-User-Issuer
+          - X-User-Subject
+          - X-User-Provider
+          - X-User-Email
+          - X-User-Name
+      limit-count:
+        count: 20
+        time_window: 60
+        key_type: var
+        key: remote_addr
+        rejected_code: 429
+        policy: local
+      cors:
+        allow_origins: "${{APP_ORIGIN}}"
+        allow_methods: "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS"
+        allow_headers: "Authorization,Content-Type,Accept,X-Requested-With"
+        expose_headers: "Content-Type,Content-Length,Date,Cache-Control,ETag,WWW-Authenticate,Retry-After,X-Request-ID"
+        max_age: 3600
+        allow_credential: false
+      response-rewrite:
+        headers:
+          set:
+            X-Content-Type-Options: nosniff
+            Referrer-Policy: strict-origin-when-cross-origin
+            Strict-Transport-Security: "max-age=31536000; includeSubDomains"
+      serverless-post-function:
+        phase: access
+        functions:
+          - |
+            return function(conf, ctx)
+              local core = require("apisix.core")
+              local method = core.request.get_method()
+              local path = ctx.var.uri
+              local subject = core.request.header(ctx, "X-User-Subject") or ""
+              local email = core.request.header(ctx, "X-User-Email") or ""
+              local name = core.request.header(ctx, "X-User-Name") or ""
+              if method == "GET" and string.find(path, "/v1/projects", 1, true) then
+                core.response.exit(200, {projects = {{id = "prj_01", name = "Atlas", status = "active"}, {id = "prj_02", name = "Beacon", status = "active"}, {id = "prj_03", name = "Cedar", status = "archived"}}})
+                return
+              end
+              if method == "POST" then
+                core.response.exit(200, {ok = true})
+                return
+              end
+              core.response.exit(200, {id = "usr_" .. subject, display_name = name, email = email, organisation = "Agentic Advantage", role = "developer", permissions = {"workspace:read", "workspace:write"}})
+              return
+            end
+    upstream:
+      type: roundrobin
+      nodes:
+        "127.0.0.1:1980": 1
+
+  - id: google-v1
+    uri: /google/*
+    labels:
+      provider: google
+      audience: "${{GOOGLE_CLIENT_ID}}"
+      hosted_domain: "${{GOOGLE_HOSTED_DOMAIN}}"
+    plugins:
+      openid-connect:
+        client_id: "${{GOOGLE_CLIENT_ID}}"
+        client_secret: "${{GOOGLE_CLIENT_SECRET}}"
+        discovery: "${{GOOGLE_DISCOVERY}}"
+        bearer_only: true
+        use_jwks: true
+        realm: google
+        claim_validator:
+          issuer:
+            valid_issuers:
+              - "${{GOOGLE_ISSUER}}"
+          audience:
+            required: true
+      opa:
+        host: "http://opa:8181"
+        policy: "google/allow"
+        with_route: true
+        send_headers_upstream:
+          - X-User-Issuer
+          - X-User-Subject
+          - X-User-Provider
+          - X-User-Email
+          - X-User-Name
+      limit-count:
+        count: 20
+        time_window: 60
+        key_type: var
+        key: remote_addr
+        rejected_code: 429
+        policy: local
+      cors:
+        allow_origins: "${{APP_ORIGIN}}"
+        allow_methods: "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS"
+        allow_headers: "Authorization,Content-Type,Accept,X-Requested-With"
+        expose_headers: "Content-Type,Content-Length,Date,Cache-Control,ETag,WWW-Authenticate,Retry-After,X-Request-ID"
+        max_age: 3600
+        allow_credential: false
+      response-rewrite:
+        headers:
+          set:
+            X-Content-Type-Options: nosniff
+            Referrer-Policy: strict-origin-when-cross-origin
+            Strict-Transport-Security: "max-age=31536000; includeSubDomains"
+      serverless-post-function:
+        phase: access
+        functions:
+          - |
+            return function(conf, ctx)
+              local core = require("apisix.core")
+              local method = core.request.get_method()
+              local path = ctx.var.uri
+              local subject = core.request.header(ctx, "X-User-Subject") or ""
+              local email = core.request.header(ctx, "X-User-Email") or ""
+              local name = core.request.header(ctx, "X-User-Name") or ""
+              if method == "GET" and string.find(path, "/v1/projects", 1, true) then
+                core.response.exit(200, {projects = {{id = "prj_01", name = "Atlas", status = "active"}, {id = "prj_02", name = "Beacon", status = "active"}, {id = "prj_03", name = "Cedar", status = "archived"}}})
+                return
+              end
+              if method == "POST" then
+                core.response.exit(200, {ok = true})
+                return
+              end
+              core.response.exit(200, {id = "usr_" .. subject, display_name = name, email = email, organisation = "Agentic Advantage", role = "developer", permissions = {"workspace:read", "workspace:write"}})
+              return
+            end
+    upstream:
+      type: roundrobin
+      nodes:
+        "127.0.0.1:1980": 1
+#END

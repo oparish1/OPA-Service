@@ -1,0 +1,82 @@
+# Local gateway stack. APISIX runs in standalone mode and OPA serves the
+# policies; the test issuers stand in for the real identity providers so the
+# acceptance script never calls Entra, Okta or Google.
+#
+#   docker compose -f gateway/docker-compose.yml up
+#
+# The values below are local test placeholders. No real client secret is used.
+services:
+  apisix:
+    image: apache/apisix:3.13.0-debian
+    depends_on:
+      - opa
+    ports:
+      - "9080:9080"
+    volumes:
+      - ./apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - ./apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
+    environment:
+      APP_ORIGIN: "http://localhost:5173"
+      ENTRA_CLIENT_ID: "test-entra-client"
+      ENTRA_CLIENT_SECRET: "test-entra-secret"
+      ENTRA_DISCOVERY: "http://entra-issuer:8090/.well-known/openid-configuration"
+      ENTRA_API_RESOURCE: "api://test-entra-client"
+      ENTRA_TENANT_ID: "tenant-1"
+      ENTRA_ISSUER: "http://entra-issuer:8090"
+      OKTA_CLIENT_ID: "test-okta-client"
+      OKTA_CLIENT_SECRET: "test-okta-secret"
+      OKTA_DISCOVERY: "http://okta-issuer:8091/.well-known/openid-configuration"
+      OKTA_API_AUDIENCE: "api://default"
+      OKTA_ISSUER: "http://okta-issuer:8091"
+      GOOGLE_CLIENT_ID: "test-google-client"
+      GOOGLE_CLIENT_SECRET: "test-google-secret"
+      GOOGLE_DISCOVERY: "http://google-issuer:8092/.well-known/openid-configuration"
+      GOOGLE_HOSTED_DOMAIN: "agentic-advantage.com"
+      GOOGLE_ISSUER: "https://accounts.google.com"
+
+  opa:
+    image: openpolicyagent/opa:1.4.2-static
+    command: ["run", "--server", "--addr=0.0.0.0:8181", "--log-level=error", "/policies"]
+    volumes:
+      - ./opa:/policies:ro
+    ports:
+      - "8181:8181"
+
+  entra-issuer:
+    image: oven/bun:1
+    working_dir: /issuer
+    command: ["run", "index.ts"]
+    volumes:
+      - ./test-issuers:/issuer:ro
+    environment:
+      PORT: "8090"
+      ISSUER_ORIGIN: "http://entra-issuer:8090"
+      PROVIDER: "entra"
+    ports:
+      - "8090:8090"
+
+  okta-issuer:
+    image: oven/bun:1
+    working_dir: /issuer
+    command: ["run", "index.ts"]
+    volumes:
+      - ./test-issuers:/issuer:ro
+    environment:
+      PORT: "8091"
+      ISSUER_ORIGIN: "http://okta-issuer:8091"
+      PROVIDER: "okta"
+    ports:
+      - "8091:8091"
+
+  google-issuer:
+    image: oven/bun:1
+    working_dir: /issuer
+    command: ["run", "index.ts"]
+    volumes:
+      - ./test-issuers:/issuer:ro
+    environment:
+      PORT: "8092"
+      ISSUER_ORIGIN: "http://google-issuer:8092"
+      PROVIDER: "google"
+    ports:
+      - "8092:8092"
