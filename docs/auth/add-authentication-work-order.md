@@ -1,3 +1,11 @@
+> **SUPERSEDED (issue #12).** This work order describes the backend-for-frontend
+> (BFF) direction that issue #12 replaced. It is kept for history only. The
+> app is now browser-only: the SPA signs in directly with Entra, Okta and
+> Google, keeps tokens in memory, and calls `/v1` through the APISIX gateway,
+> which is the only authorization authority. `backend/` no longer exists. Do
+> not implement anything below as written; see `docs/ARCHITECTURE.md` and
+> `.archon/design-decisions.md` for the current direction.
+
 # Work order: Microsoft Entra ID sign-in for the Your Identity workspace
 
 - **Prepared:** 2026-10-14, using the `add-authentication` skill
