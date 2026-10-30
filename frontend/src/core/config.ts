@@ -1,6 +1,5 @@
 import { parseAppConfig } from '../../../shared/app-config';
 import type { AppConfig, ProviderConfig } from '../../../shared/app-config';
-import type { ProviderId } from '../../../shared/providers';
 
 /**
  * The one runtime owner of the loaded public config. `main.tsx` loads and
@@ -24,8 +23,4 @@ export function getProviderConfig(id: string): ProviderConfig | undefined {
 
 export function gatewayUrl(): string | null {
   return config?.gatewayUrl ?? null;
-}
-
-export function providerPathPrefix(id: ProviderId): string {
-  return `/${id}`;
 }
