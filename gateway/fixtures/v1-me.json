@@ -1,0 +1,8 @@
+{
+  "id": "usr_subject-default",
+  "display_name": "Orlando Parish",
+  "email": "orlando.parish@agentic-advantage.example",
+  "organisation": "Agentic Advantage",
+  "role": "developer",
+  "permissions": ["workspace:read", "workspace:write"]
+}

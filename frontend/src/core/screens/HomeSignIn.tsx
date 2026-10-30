@@ -44,7 +44,7 @@ export function HomeSignIn() {
       section="CONNECT"
       subtitle="One trusted identity. A clear path from sign-in to your next API call."
       title="Welcome to your workspace"
-      description="Sign in with your organisation’s identity provider. Your first sign-in creates your account automatically."
+      description="Sign in with your organisation’s identity provider."
       minHeight={1080}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: space[20] }}>

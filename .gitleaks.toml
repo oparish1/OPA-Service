@@ -6,6 +6,6 @@ useDefault = true
 [allowlist]
 description = "Placeholder credentials in tests and demo fixtures"
 paths = [
-  '''backend/test/.*''',
-  '''frontend/src/mocks/.*''',
+  '''frontend/src/core/testing/.*''',
+  '''gateway/test-issuers/.*''',
 ]

@@ -20,7 +20,7 @@ export interface SessionRefreshToken {
   grant: string;
 }
 
-/** The `GET /api/session` payload written by the backend and read by the frontend. */
+/** The session metadata shape the mock layer produces and the frontend consumes. */
 export interface SessionMetadata {
   provider: string;
   providerId: string;

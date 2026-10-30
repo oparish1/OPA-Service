@@ -1,6 +1,6 @@
 import type { SsoDiscovery } from '../mocks/api';
 import * as mockApi from '../mocks/api';
-import * as realApi from './client';
+import * as realApi from './real';
 import type {
   AccessToken,
   ApiResponse,
@@ -12,55 +12,67 @@ import type {
 } from '../types';
 
 /**
- * The authentication seam. Component tests import the mocks directly; the running
- * app resolves here and picks the real BFF client when VITE_AUTH_MODE=entra.
+ * The authentication seam. Component tests and the mock demo use the mock
+ * layer; `main.tsx` switches to the real provider-backed client only after it
+ * has loaded and validated the public config. No build-time mode flag remains.
  */
-const useReal = import.meta.env.VITE_AUTH_MODE === 'entra';
 
-export function signIn(providerId: string): Promise<Session> {
-  return useReal ? realApi.signIn(providerId) : mockApi.signIn(providerId);
+export type ApiMode = 'mock' | 'real';
+
+let mode: ApiMode = 'mock';
+
+export function setApiMode(next: ApiMode): void {
+  mode = next;
+}
+
+function api() {
+  return mode === 'real' ? realApi : mockApi;
+}
+
+export async function signIn(providerId: string): Promise<void> {
+  await api().signIn(providerId);
 }
 
 export function signOut(): Promise<void> {
-  return useReal ? realApi.signOut() : mockApi.signOut();
+  return api().signOut();
 }
 
 export function bootstrapSession(): Promise<boolean> {
-  return useReal ? realApi.bootstrapSession() : mockApi.bootstrapSession();
+  return api().bootstrapSession();
 }
 
 export function getSession(): Promise<Session> {
-  return useReal ? realApi.getSession() : mockApi.getSession();
+  return api().getSession();
 }
 
 export function getProviders(): Promise<ProviderInfo[]> {
-  return useReal ? realApi.getProviders() : mockApi.getProviders();
+  return api().getProviders();
 }
 
 export function revealToken(kind: TokenKind): Promise<string> {
-  return useReal ? realApi.revealToken(kind) : mockApi.revealToken(kind);
+  return api().revealToken(kind);
 }
 
 export function refreshToken(): Promise<AccessToken> {
-  return useReal ? realApi.refreshToken() : mockApi.refreshToken();
+  return api().refreshToken();
 }
 
 export function getIdentities(): Promise<Identity[]> {
-  return useReal ? realApi.getIdentities() : mockApi.getIdentities();
+  return api().getIdentities();
 }
 
 export function discoverSso(email: string): Promise<SsoDiscovery> {
-  return useReal ? realApi.discoverSso(email) : mockApi.discoverSso(email);
+  return api().discoverSso(email);
 }
 
 export function resetPassword(providerId: string): Promise<{ ok: true; destination: string }> {
-  return useReal ? realApi.resetPassword(providerId) : mockApi.resetPassword(providerId);
+  return api().resetPassword(providerId);
 }
 
 export function changePassword(providerId: string): Promise<{ ok: true; destination: string }> {
-  return useReal ? realApi.changePassword(providerId) : mockApi.changePassword(providerId);
+  return api().changePassword(providerId);
 }
 
 export function runRequest(auth: RunnerAuth, url: string): Promise<ApiResponse> {
-  return useReal ? realApi.runRequest(auth, url) : mockApi.runRequest(auth, url);
+  return api().runRequest(auth, url);
 }

@@ -4,6 +4,7 @@ import { bootstrapSession, signOut as endSession } from '../api';
 import { Notice } from '../components/Notice';
 import { TextLink } from '../components/TextLink';
 import type { Screen } from '../mocks/types';
+import { setOnExpire } from '../session/store';
 import { AppContext } from './app-context';
 import type { AppContextValue } from './app-context';
 
@@ -43,6 +44,15 @@ export function AppProvider({
       setSignOutError(true);
     }
   }, [performSignOut]);
+
+  // The idle/absolute timers live in the store; routing them here makes an
+  // expired session clear the provider library and return to sign-in (A7).
+  useEffect(() => {
+    setOnExpire(() => {
+      void signOut();
+    });
+    return () => setOnExpire(null);
+  }, [signOut]);
 
   const value = useMemo<AppContextValue>(
     () => ({ screen, navigate, signOut, signOutError, dismissSignOutError }),

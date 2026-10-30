@@ -56,3 +56,43 @@ EOF
 - **Account & identity:** the screen lists only the current session's identity with its `Primary` badge. A `Manage` action appears only when that provider has a configured `_MANAGE_ACCOUNT_URL`; there is no `Connect` action.
 - **Forgot / Change password:** the provider list is the enabled provider list from `GET /auth/providers`. The action is disabled when the selected provider has no configured destination; no destination is hard-coded.
 - **Overview:** when the session has no refresh token, the Refresh control is disabled ("Refresh not available for this session") and a "Sign in again" link is offered instead; the refresh card badge reads `Not issued`.
+
+## Browser-only direction (issue #12, supersedes the BFF decisions)
+
+This issue is the maintainer's explicit decision to replace the
+backend-for-frontend direction. These decisions are **binding** and supersede
+anything above that conflicts:
+
+- **SD-1** The gateway serves the `/v1` demo endpoints itself from golden
+  fixtures; no separate service.
+- **SD-2** Okta uses `@okta/okta-auth-js`, Entra uses `@azure/msal-browser`,
+  Google uses the Google Identity Services script. No hand-written OAuth, PKCE
+  or JWT code.
+- **SD-3** Tokens are held in memory only; never `localStorage`, cookies or
+  IndexedDB. A library with no in-memory option may use `sessionStorage` for
+  that library only, with the risk recorded in the README.
+- **SD-4** Entra and Okta use their library's silent renewal; Google has no
+  renewal and shows the "Sign in again" treatment.
+- **SD-5** Sign-out is local only for all three providers.
+- **SD-6** The gateway writes structured JSON access logs; existing backend
+  audit data is development data and is discarded.
+- **SD-7** Apache APISIX in declarative standalone mode under `gateway/`, run
+  with Docker Compose, pinned to an exact released 3.x image tag.
+- **SD-8** Entra uses a new Single-page-application registration.
+- **SD-9** 30-minute idle and 8-hour absolute limits are enforced in the
+  browser as a courtesy; the security bound is the token lifetime at the
+  gateway.
+- **SD-10** Google users call read endpoints only (GET) through
+  `/google/v1/*`, authenticated by a validated Google ID token; any other
+  method returns 403. The in-process relay is deleted.
+- **SD-11** The gateway holds no identity-provider secret. Route files
+  reference placeholder environment-variable names only.
+
+Superseded by this direction: O-05, O-08, O-09, O-10, O-15, the server-side
+request runner and its safety rules, Invariant 5's server-side session rules,
+and "Entra frontend and backend must remain untouched".
+
+The Round 5 "Provider-driven sign-in" decision's `GET /auth/providers` source is
+superseded by the static public configuration file; the provider-row ordering
+Entra, Okta, Google and the provider-neutral notice copy remain binding. The
+Round 3/4 UI decisions remain binding.

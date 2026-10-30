@@ -5,11 +5,19 @@ on:
     paths:
       - 'frontend/**'
       - 'shared/**'
+      - 'gateway/**'
+      - 'scripts/**'
+      - 'docs/**'
+      - 'README.md'
       - '.github/workflows/frontend-checks.yml'
   pull_request:
     paths:
       - 'frontend/**'
       - 'shared/**'
+      - 'gateway/**'
+      - 'scripts/**'
+      - 'docs/**'
+      - 'README.md'
       - '.github/workflows/frontend-checks.yml'
 
 jobs:
@@ -26,4 +34,6 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run lint
       - run: bun run typecheck
+      # Build before the tests so the A18 bundle scan sees `dist/`.
+      - run: bun run build
       - run: bun run test

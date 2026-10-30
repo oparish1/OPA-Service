@@ -1,0 +1,30 @@
+# APISIX standalone (file-driven) configuration, pinned to 3.13.0. The routes
+# live in gateway/apisix/apisix.yaml. See gateway/README.md.
+apisix:
+  node_listen: 9080
+  enable_admin: false
+  enable_server_tokens: false
+  ssl:
+    enable: false
+
+deployment:
+  role: data_plane
+  role_data_plane:
+    config_provider: yaml
+
+plugins:
+  - openid-connect
+  - opa
+  - cors
+  - limit-count
+  - response-rewrite
+  - serverless-post-function
+
+nginx_config:
+  http:
+    enable_access_log: true
+    access_log: /dev/stdout
+    # GW-8: route/provider/subject/decision/reason come from the response
+    # headers OPA sets on deny and serverless-post-function sets on allow.
+    access_log_format: '{"time":"$time_iso8601","remote_addr":"$remote_addr","method":"$request_method","route":"$uri","provider":"$sent_http_x_auth_provider","subject":"$sent_http_x_auth_subject","decision":"$sent_http_x_auth_decision","reason":"$sent_http_x_auth_reason","status":$status,"bytes":$body_bytes_sent,"request_time":$request_time}'
+    access_log_format_escape: json

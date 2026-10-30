@@ -1,151 +1,140 @@
 # Your Identity
 
-A signed-in workspace for exercising protected APIs with Microsoft Entra, Okta and Google. The frontend is a React + Vite SPA; the backend is a Bun + Fastify
-BFF that owns the Entra authorization-code flow, stores tokens server-side, and
-serves `/v1/me` and `/v1/projects`.
+A signed-in workspace for exercising protected APIs with Microsoft Entra, Okta
+and Google. The app is **browser-only**: a React + Vite static SPA signs users
+in directly with each identity provider, keeps tokens in memory only, and calls
+APIs through an Apache APISIX gateway that validates every token and is the
+single authorization authority. There is no backend-for-frontend and no
+identity-provider secret in the app, the repository or the gateway route files.
 
 Each identity provider lives entirely in its own folder so it can be taken on
 its own:
 
-- `backend/src/core/` and `frontend/src/core/` hold provider-neutral code.
-- `backend/src/providers/{entra,okta,google}/` and
-  `frontend/src/providers/{entra,okta,google}/` hold one provider each.
-- `backend/src/providers/index.ts` and `frontend/src/providers/index.ts` are the
-  single registries that compose the providers; `shared/providers.ts` remains
-  the provider-neutral wire contract.
+- `frontend/src/core/` holds provider-neutral code; `gateway/opa/` holds the
+  provider-neutral policy helpers.
+- `frontend/src/providers/{entra,okta,google}/` and the matching
+  `gateway/opa/<id>.rego` hold one provider each.
+- `frontend/src/providers/index.ts` is the single frontend registry that
+  composes the providers; `shared/providers.ts` remains the provider-neutral
+  wire contract; `shared/app-config.ts` is the shared public-config schema.
+- `shared/provider-isolation.ts` enforces that only the registries,
+  `shared/providers.ts`, `shared/app-config.ts`, the per-provider folders and
+  `gateway/apisix/apisix.yaml` name more than one provider.
 
-Adding a provider touches its folder, adds its id to `shared/providers.ts` and
-adds one registry entry; removing one deletes its folder and registry entry.
-Every package's test suite enforces (`shared/provider-isolation.ts`) that only
-the registries, `shared/providers.ts` and the per-provider folders name more
-than one provider.
+Adding a provider touches its folder, its `gateway/opa/<id>.rego` and its route
+in `gateway/apisix/apisix.yaml`, adds its id to `shared/providers.ts` and adds
+one registry entry; removing one deletes those.
+
+## Architecture
+
+```
+Browser (static app, tokens in memory only)
+  | code + PKCE (Entra, Okta)        | Google Identity Services ID token
+  v                                  v
+Entra / Okta / Google  <-- sign-in happens here directly
+  |
+  | Authorization: Bearer <access token | Google ID token>
+  v
+APISIX gateway: one route per provider, own issuer, audience, key source and claim rules
+  |
+  v
+/v1 responses built by the gateway
+```
+
+The gateway runs in declarative (standalone) mode from `gateway/`. The
+`openid-connect` plugin verifies each bearer token (signature, `iss`, `exp`,
+`nbf`, algorithm) and the `opa` plugin enforces the per-provider audience,
+scope, claim and method rules, then sets `X-User-Issuer`, `X-User-Subject` and
+`X-User-Provider` from the validated token. The gateway itself serves the
+`/v1/me` and `/v1/projects` demo bodies; the golden bodies captured from the
+backend before deletion are kept in `gateway/fixtures/` as the A17 reference.
 
 ## Local setup
 
-Install dependencies in each package with the committed lockfile:
+Install the frontend dependencies with the committed lockfile:
 
 ```sh
 cd frontend && bun install --frozen-lockfile
-cd ../backend && bun install --frozen-lockfile
 ```
 
-The backend reads its configuration from the environment. At minimum it needs
-`ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, a client credential (`ENTRA_CLIENT_SECRET`
-or `ENTRA_CLIENT_PRIVATE_KEY`), `SESSION_SECRET` and `TOKEN_ENCRYPTION_KEY`.
-`DATABASE_URL` defaults to an in-memory SQLite store; production requires a
-durable path.
-
-### Identity providers
-
-Sign-in is provider-agnostic: accounts are keyed on `(provider, issuer, subject)`
-and are never linked by email. Entra is always enabled. Okta and Google are
-opt-in kill switches, and enabling one without its required variables makes the
-BFF refuse to start.
-
-| Provider | Enable | Required variables | Redirect URI |
-|---|---|---|---|
-| Microsoft Entra ID | always on | `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, one of `ENTRA_CLIENT_SECRET` / `ENTRA_CLIENT_PRIVATE_KEY` | `https://<host>/auth/callback` |
-| Okta | `OKTA_ENABLED=true` | `OKTA_ISSUER` (default authorization server, `https://<org>/oauth2/default`), `OKTA_CLIENT_ID`, one of `OKTA_CLIENT_SECRET` / `OKTA_CLIENT_PRIVATE_KEY` / `OKTA_CLIENT_PRIVATE_KEY_FILE`, `OKTA_REQUIRED_GROUP`, `OKTA_API_AUDIENCE` | `https://<host>/auth/callback/okta` |
-| Google Workspace / Cloud Identity | `GOOGLE_ENABLED=true` | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_HOSTED_DOMAIN` | `https://<host>/auth/callback/google` |
-
-`OKTA_CLIENT_PRIVATE_KEY_FILE` is a path to a PEM private key and takes
-precedence over `OKTA_CLIENT_SECRET`. Okta access tokens are accepted as
-bearers on `/v1`, resolved by the `uid` claim. Google sessions reach `/v1`
-through the in-process relay below; a Google token is never accepted as a
-bearer.
-
-Optional account destinations are per provider and are never invented: a link
-is hidden when its variable is unset. `ENTRA_*`, `OKTA_*` and `GOOGLE_*` each
-accept `_FORGOT_PASSWORD_URL`, `_CHANGE_PASSWORD_URL` and `_MANAGE_ACCOUNT_URL`;
-they are returned by `GET /auth/providers` and drive the recovery and
-Account & identity screens.
-
-Run the two dev servers:
+Run the app and the gateway together:
 
 ```sh
-cd backend && bun run dev      # PORT, default 3000
-cd frontend && bun run dev     # Vite, default 5173, proxies /auth, /api and /v1
+docker compose -f gateway/docker-compose.yml up
+cd frontend && bun run dev
 ```
 
-The frontend selects the real BFF client when `VITE_AUTH_MODE=entra`
-(`frontend/.env.local`).
+Copy `frontend/public/config.example.json` to `frontend/public/config.json`
+and fill in the provider client IDs, issuers, the gateway URL and the O-20
+account destinations. The example file is committed with placeholders only.
 
-### Public base URL
+### Gateway configuration
 
-`PUBLIC_BASE_URL` is the app's own public origin and must be the origin the
-browser is using — for local development, the frontend origin, not the backend
-port. It drives the default request URLs (`<origin>/v1/me` and
-`<origin>/v1/projects`), the CSRF/Origin check, and the host the session token
-is allowed to reach.
+`gateway/apisix/config.yaml` runs APISIX standalone, reads
+`gateway/apisix/apisix.yaml` on startup, writes structured JSON access logs and
+hides the server banner. `gateway/docker-compose.yml` pins an exact APISIX
+image tag and a pinned OPA image, and mounts the configuration read-only.
 
-## Request runner
+The APISIX `openid-connect` plugin schema requires `client_secret`, `client_id`
+and `discovery` even in bearer-only mode. Because bearer-only local
+verification never calls the token endpoint, the client secret is unused. Per
+SD-11 the route file references the placeholder environment variables by name
+(`${{...}}`); **no secret value is stored anywhere in this repository**, and the
+local Compose stack supplies only the local test-issuer values.
 
-The API screens send one real `GET` through an authenticated backend relay,
-`POST /api/request-runner`. The browser never calls the target URL directly and
-never receives the session access token: the backend resolves the token from the
-server-side store and attaches it only to the app's own origin.
+## Browser configuration
 
-For a Google session using the session option, the relay does not make an
-outbound request at all. It dispatches the `GET` through the app's own router
-in-process, carrying the caller's signed session cookie rather than any provider
-token, so the real guard and `/v1` routes authorise the request exactly as a
-browser call would.
+One static public file, loaded at runtime, carries the provider list, client
+IDs, issuers, `entra.apiResource`, requested scopes, the gateway URL and the
+account destination links (FE-1). `shared/app-config.ts` validates it and fails
+the build when a value looks like a secret (long base64, a PEM private key, or
+a `client_secret`-shaped value). The production file is deployment
+configuration and is not committed; only
+`frontend/public/config.example.json` is.
 
-The route accepts a closed `auth` enum and returns the response status, filtered
-headers, body, byte size, backend-measured duration and backend receipt time.
+## Browser request runner
 
-### Allowed hosts
+The API screens call the gateway directly with `fetch`, an `AbortController`
+timeout and a response-size cap. The runner may call only the configured
+gateway origin, and the strict `connect-src` policy enforces the same rule. The
+four Authorization options (session access token, `Bearer valid-token-123`,
+`Bearer expired-token`, `no-token`) remain; the provider is chosen by route
+prefix (`/entra/v1`, `/okta/v1`, `/google/v1`). Reveal and Copy read tokens
+from memory and make no network request.
 
-By default only the host of `PUBLIC_BASE_URL` may be requested. Administrators
-may extend the allowlist with the comma-separated environment variable
-`REQUEST_RUNNER_ALLOWED_HOSTS`. Entries are exact `host[:port]` values; wildcards
-are not supported. The variable's values are deployment configuration and are
-never committed to this repository.
-
-### Safety rules
-
-1. Only `http:` and `https:` URLs, at most 2048 characters, no username or
-   password, and GET only.
-2. Host allowlist: the `PUBLIC_BASE_URL` host plus `REQUEST_RUNNER_ALLOWED_HOSTS`.
-   Any other host returns `blocked_host` and nothing is sent.
-3. Redirects are not followed; a 3xx response is returned as is.
-4. The session access token is attached only when the target origin equals the
-   app's own public origin. For any other allowed host the session option returns
-   `session_token_not_allowed_for_host`.
-5. Only the Authorization header (per the selected option) and
-   `Accept: application/json, text/plain;q=0.9, */*;q=0.1` are sent. Browser
-   cookies, the session cookie, the CSRF token and other client headers are never
-   forwarded. The one deliberate exception is the in-process Google relay, which
-   carries the caller's own signed session cookie into the app's own router and
-   sends no provider token and no outbound request.
-6. A 10-second timeout applies and the response body is capped at 1 MiB
-   (`truncated: true` when cut). Returned headers are limited to `content-type`,
-   `content-length`, `date`, `cache-control`, `etag`, `www-authenticate`,
-   `retry-after` and `x-request-id`; `set-cookie` is never returned.
-7. Authorization values, the session token and URL query strings are never
-   logged. Audit events record the actor, target host and path, the `auth` option
-   name, status, duration and outcome.
-8. The relay does not refresh tokens. An expired session token is sent as is, so
-   a real 401 comes back and the existing recovery flow applies.
-9. The documented local setup above must hold: `PUBLIC_BASE_URL` is the frontend
-   origin and the dev server proxies the API routes, including `/v1/*` and
-   `/api/request-runner`.
+Tokens are held in memory only. The app never writes a token to `localStorage`,
+cookies or IndexedDB. The 30-minute idle and 8-hour absolute session limits are
+enforced in the browser as a courtesy; the security bound is the token lifetime
+checked at the gateway.
 
 ## Checks
 
-Each package defines its own gates:
+The frontend package defines its gates. Build before the tests so the A18
+bundle scan inspects `dist/`:
 
 ```sh
-cd frontend && bun run lint && bun run typecheck && bun run test && bun run build
-cd backend && bun run lint && bun run typecheck && bun test && bun run build
+cd frontend && bun run lint && bun run typecheck && bun run build && bun run test
 ```
+
+The gateway has its own Docker-free gates; install its dependencies once on a
+fresh clone:
+
+```sh
+cd gateway && bun install --frozen-lockfile
+cd ..
+bun test gateway                 # parses and asserts the APISIX route config
+opa test gateway/opa             # Rego policy unit tests
+```
+
+The Docker Compose integration script
+(`bun run gateway/test-issuers/acceptance.ts`) is the second gateway gate and
+requires Docker; it exercises A9–A17 end-to-end against the local test issuers.
 
 The provider boundaries have two extra checks, run from the repository root:
 
 ```sh
-scripts/check-reuse-bundle.sh     # core + shared + one provider + registry typechecks
-scripts/check-provider-deletion.sh # deleting a provider leaves the full surviving suites green
+scripts/check-reuse-bundle.sh      # core + shared + one provider + registry typechecks
+scripts/check-provider-deletion.sh # deleting a provider leaves the surviving suites green
 ```
 
-The isolation check runs inside `bun test` (backend) and `bun run test`
-(frontend), so the package gates above cover it.
+The isolation check runs inside the frontend and gateway test suites.

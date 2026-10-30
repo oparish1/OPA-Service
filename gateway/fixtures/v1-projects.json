@@ -1,0 +1,7 @@
+{
+  "projects": [
+    { "id": "prj_01", "name": "Atlas", "status": "active" },
+    { "id": "prj_02", "name": "Beacon", "status": "active" },
+    { "id": "prj_03", "name": "Cedar", "status": "archived" }
+  ]
+}

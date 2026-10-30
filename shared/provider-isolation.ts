@@ -8,14 +8,17 @@ import { PROVIDER_IDS } from './providers';
  * Both package test suites call this so either package catches a regression.
  */
 
-const SCAN_DIRS = ['backend', 'frontend', 'shared'];
+const SCAN_DIRS = ['frontend', 'shared', 'gateway'];
 const EXCLUDE_DIRS = new Set(['node_modules', 'dist', '.git', 'coverage']);
 const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'];
 
 const EXEMPT_FILES = new Set<string>([
   'shared/providers.ts',
-  'backend/src/providers/index.ts',
   'frontend/src/providers/index.ts',
+  // The gateway is a central multi-provider composition point, like a registry.
+  'gateway/config.test.ts',
+  'gateway/test-issuers/index.ts',
+  'gateway/test-issuers/acceptance.ts',
 ]);
 
 /** Identifier-boundary matching, so a name like `entrance` is not counted as `entra`. */

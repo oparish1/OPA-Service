@@ -14,7 +14,7 @@ import { PROVIDER_IDS } from '../shared/providers';
 /**
  * Verifies the two provider-bundle properties the isolation refactor promises:
  * copying core + shared + one provider typechecks, and deleting one provider
- * plus its registry entry leaves the full surviving suites green.
+ * plus its registry entry leaves the surviving suite green.
  *
  * Usage: bun run scripts/provider-bundles.ts [reuse|deletion|all]
  */
@@ -40,12 +40,8 @@ function copy(relativePaths: string[], destination: string, keep: (path: string)
   }
 }
 
-function linkModules(destination: string, packageName: 'backend' | 'frontend'): void {
-  symlinkSync(
-    join(REPO_ROOT, packageName, 'node_modules'),
-    join(destination, packageName, 'node_modules'),
-    'dir'
-  );
+function linkModules(destination: string): void {
+  symlinkSync(join(REPO_ROOT, 'frontend', 'node_modules'), join(destination, 'frontend', 'node_modules'), 'dir');
 }
 
 /** Removes the import and array entry for every provider except the kept one. */
@@ -68,34 +64,26 @@ function typecheck(packageDir: string): void {
   run(['bunx', 'tsc', '--noEmit', '-p', 'tsconfig.json'], packageDir, 'typecheck');
 }
 
+const FRONTEND_FILES = (path: string): boolean =>
+  path.startsWith('shared/') ||
+  path.startsWith('frontend/src/core/') ||
+  path === 'frontend/src/providers/index.ts' ||
+  path === 'frontend/src/vite-env.d.ts' ||
+  path === 'frontend/tsconfig.json' ||
+  path === 'frontend/vitest.setup.ts' ||
+  path === 'frontend/vite.config.ts';
+
 /** One provider folder plus core, shared and the registry listing only that provider. */
 function checkReuseBundle(provider: string, files: string[]): string {
   const bundle = mkdtempSync(join(tmpdir(), 'archon-reuse-'));
-  const providerFile = (prefix: string) => (path: string) =>
-    path.startsWith(prefix) && !path.includes('/__tests__/');
-  copy(
-    files,
-    bundle,
-    path =>
-      path.startsWith('shared/') ||
-      path.startsWith('backend/src/core/') ||
-      path === 'backend/src/providers/index.ts' ||
-      providerFile(`backend/src/providers/${provider}/`)(path) ||
-      path === 'backend/tsconfig.json' ||
-      path.startsWith('frontend/src/core/') ||
-      path === 'frontend/src/providers/index.ts' ||
-      providerFile(`frontend/src/providers/${provider}/`)(path) ||
-      path === 'frontend/src/vite-env.d.ts' ||
-      path === 'frontend/tsconfig.json' ||
-      path === 'frontend/vitest.setup.ts' ||
-      path === 'frontend/vite.config.ts'
+  const providerFile = (path: string) =>
+    path.startsWith(`frontend/src/providers/${provider}/`) && !path.includes('/__tests__/');
+  copy(files, bundle, path => FRONTEND_FILES(path) || providerFile(path));
+  filterRegistry(
+    join(bundle, 'frontend/src/providers/index.ts'),
+    PROVIDER_IDS.filter(id => id !== provider)
   );
-  const removeIds = PROVIDER_IDS.filter(id => id !== provider);
-  filterRegistry(join(bundle, 'backend/src/providers/index.ts'), removeIds);
-  filterRegistry(join(bundle, 'frontend/src/providers/index.ts'), removeIds);
-  linkModules(bundle, 'backend');
-  linkModules(bundle, 'frontend');
-  typecheck(join(bundle, 'backend'));
+  linkModules(bundle);
   typecheck(join(bundle, 'frontend'));
   return bundle;
 }
@@ -104,21 +92,11 @@ function checkReuseBundle(provider: string, files: string[]): string {
 function checkDeletionBundle(provider: string, files: string[]): string {
   const bundle = mkdtempSync(join(tmpdir(), 'archon-delete-'));
   const removedProvider = new RegExp(`(^|/)providers/${provider}/`);
-  copy(
-    files,
-    bundle,
-    path =>
-      (path.startsWith('backend/') || path.startsWith('frontend/') || path.startsWith('shared/')) &&
-      !removedProvider.test(path)
-  );
-  filterRegistry(join(bundle, 'backend/src/providers/index.ts'), [provider]);
+  copy(files, bundle, path => !removedProvider.test(path));
   filterRegistry(join(bundle, 'frontend/src/providers/index.ts'), [provider]);
-  linkModules(bundle, 'backend');
-  linkModules(bundle, 'frontend');
-  typecheck(join(bundle, 'backend'));
+  linkModules(bundle);
   typecheck(join(bundle, 'frontend'));
-  // Acceptance: the full surviving suites must pass, not just registry wiring.
-  run(['bun', 'test'], join(bundle, 'backend'), 'backend test');
+  // Acceptance: the surviving suite must pass, not just typecheck.
   run(['bunx', 'vitest', 'run'], join(bundle, 'frontend'), 'frontend test');
   return bundle;
 }
@@ -135,7 +113,7 @@ try {
   if (MODE === 'deletion' || MODE === 'all') {
     for (const provider of PROVIDER_IDS) {
       bundles.push(checkDeletionBundle(provider, files));
-      console.log(`Deletion bundle typechecks and passes full tests without ${provider}.`);
+      console.log(`Deletion bundle typechecks and passes tests without ${provider}.`);
     }
   }
 } finally {

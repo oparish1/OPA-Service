@@ -140,7 +140,7 @@ export function Overview() {
   const data = session ?? state.data;
   if (!data) return null;
 
-  const canRefresh = data.refreshToken.masked !== '';
+  const canRefresh = data.renewable ?? data.refreshToken.masked !== '';
   const refreshControl = canRefresh ? (
     <Button state={refreshState === 'loading' ? 'in-progress' : 'default'} onClick={handleRefresh}>
       Refresh session
@@ -185,9 +185,7 @@ export function Overview() {
 
       {revealError ? <Notice tone="error" heading={GENERIC_ERROR} /> : null}
 
-      <Notice tone="neutral" heading={`Signed in with ${data.provider}`}>
-        Account automatically created on first sign-in.
-      </Notice>
+      <Notice tone="neutral" heading={`Signed in with ${data.provider}`} />
 
       <div style={{ display: 'flex', gap: space[24], alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: size.tokenCardMinWidth }}>
@@ -203,7 +201,7 @@ export function Overview() {
             onCopy={() => accessCopy.copy(revealedAccess)}
             details={[
               { label: 'EXPIRES AT', value: data.accessToken.expiresAt },
-              { label: 'SCOPES', value: data.accessToken.scopes },
+              { label: 'SCOPES', value: data.accessToken.scopes || '—' },
             ]}
           />
         </div>

@@ -32,6 +32,8 @@ export interface Session
   extends Omit<SessionMetadata, 'accessToken' | 'refreshToken' | 'csrfToken'> {
   accessToken: AccessToken;
   refreshToken: RefreshToken;
+  /** True when the provider renews silently without exposing a refresh token. */
+  renewable?: boolean;
 }
 
 export type ProviderStatus = 'primary' | 'connected' | 'not-connected';
