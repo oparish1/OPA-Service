@@ -8,6 +8,20 @@ export const RUNNER_AUTH_VALUES = ['session', 'valid-token-123', 'expired-token'
 export type RunnerAuth = (typeof RUNNER_AUTH_VALUES)[number];
 
 export const RUNNER_MAX_URL_LENGTH = 2048;
+export const RUNNER_TIMEOUT_MS = 10_000;
+export const RUNNER_MAX_RESPONSE_BYTES = 1024 * 1024;
+
+/** Response headers the browser runner may show; `set-cookie` is never included. */
+export const RESPONSE_HEADER_ALLOWLIST = [
+  'content-type',
+  'content-length',
+  'date',
+  'cache-control',
+  'etag',
+  'www-authenticate',
+  'retry-after',
+  'x-request-id',
+] as const;
 
 export type RunnerErrorCode =
   | 'invalid_url'

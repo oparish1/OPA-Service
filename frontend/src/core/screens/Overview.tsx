@@ -185,9 +185,7 @@ export function Overview() {
 
       {revealError ? <Notice tone="error" heading={GENERIC_ERROR} /> : null}
 
-      <Notice tone="neutral" heading={`Signed in with ${data.provider}`}>
-        Account automatically created on first sign-in.
-      </Notice>
+      <Notice tone="neutral" heading={`Signed in with ${data.provider}`} />
 
       <div style={{ display: 'flex', gap: space[24], alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: size.tokenCardMinWidth }}>

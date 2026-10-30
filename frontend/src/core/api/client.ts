@@ -1,6 +1,6 @@
 import type { RelayFailure, RelaySuccess } from '../../../../shared/request-runner';
 import type { SessionMetadata } from '../../../../shared/session';
-import { decodeBody, formatDuration, formatSize } from '../lib/response-format';
+import { decodeBody, formatDuration, formatSize, formatTimestamp } from '../lib/response-format';
 import type {
   AccessToken,
   ApiErrorKind,
@@ -44,32 +44,6 @@ async function readSession(): Promise<SessionMetadata | null> {
 async function ensureCsrf(): Promise<string> {
   if (!csrfToken) await readSession();
   return csrfToken ?? '';
-}
-
-const MONTHS = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-] as const;
-
-/** Approved display format: `10 Oct 2026 · 13:30:00 UTC`. */
-export function formatTimestamp(date = new Date()): string {
-  const day = String(date.getUTCDate()).padStart(2, '0');
-  const month = MONTHS[date.getUTCMonth()];
-  const year = date.getUTCFullYear();
-  const hh = String(date.getUTCHours()).padStart(2, '0');
-  const mm = String(date.getUTCMinutes()).padStart(2, '0');
-  const ss = String(date.getUTCSeconds()).padStart(2, '0');
-  return `${day} ${month} ${year} · ${hh}:${mm}:${ss} UTC`;
 }
 
 const FAILURE_LABEL: Record<RunnerErrorCode, string> = {

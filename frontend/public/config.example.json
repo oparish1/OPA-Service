@@ -1,0 +1,36 @@
+{
+  "gatewayUrl": "http://localhost:9080",
+  "providers": [
+    {
+      "id": "entra",
+      "name": "Microsoft Entra ID",
+      "clientId": "REPLACE-WITH-ENTRA-SPA-CLIENT-ID",
+      "issuer": "https://login.microsoftonline.com/REPLACE-WITH-TENANT-ID/v2.0",
+      "apiResource": "api://REPLACE-WITH-ENTRA-API-CLIENT-ID",
+      "scopes": ["workspace:read"],
+      "forgotPasswordUrl": "https://example.com/reset",
+      "changePasswordUrl": "https://example.com/change",
+      "manageAccountUrl": "https://example.com/manage/entra"
+    },
+    {
+      "id": "okta",
+      "name": "Okta",
+      "clientId": "REPLACE-WITH-OKTA-SPA-CLIENT-ID",
+      "issuer": "https://REPLACE-WITH-OKTA-ORG/oauth2/default",
+      "scopes": ["workspace:read"],
+      "forgotPasswordUrl": "https://example.com/reset",
+      "changePasswordUrl": "https://example.com/change",
+      "manageAccountUrl": "https://example.com/manage/okta"
+    },
+    {
+      "id": "google",
+      "name": "Google Workspace / Cloud Identity",
+      "clientId": "REPLACE-WITH-GOOGLE-CLIENT-ID.apps.googleusercontent.com",
+      "issuer": "https://accounts.google.com",
+      "scopes": ["openid", "email", "profile"],
+      "forgotPasswordUrl": "https://example.com/reset",
+      "changePasswordUrl": "https://example.com/change",
+      "manageAccountUrl": "https://example.com/manage/google"
+    }
+  ]
+}

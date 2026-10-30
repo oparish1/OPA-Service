@@ -1,13 +1,5 @@
 /// <reference types="vite/client" />
 
-interface ImportMetaEnv {
-  readonly VITE_AUTH_MODE?: 'mock' | 'entra';
-}
-
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
-}
-
 // `shared/provider-isolation.ts` is shared with the backend and reads the repo
 // with Node built-ins; the frontend program has no `@types/node`, so the small
 // surface it uses is declared here rather than pulling a new dependency in.

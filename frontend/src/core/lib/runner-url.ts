@@ -1,13 +1,22 @@
 import { parseRunnerUrl } from '../../../../shared/request-runner';
+import { getAppConfig } from '../config';
+import { getSession } from '../session/store';
 import type { RunnerAuth } from '../types';
 
 export const PROFILE_PATH = '/v1/me';
 export const PROJECTS_PATH = '/v1/projects';
 export const INVALID_URL_MESSAGE = 'Enter a valid http or https URL.';
 
-/** The app's own origin plus a path; the backend owns the matching public origin. */
+/**
+ * The active provider's gateway URL plus the `/v1` path (FE-6). Before the
+ * public config is loaded the window origin is used, so the mock layer and its
+ * component tests keep working unchanged.
+ */
 export function appUrl(path: string): string {
-  return `${window.location.origin}${path}`;
+  const config = getAppConfig();
+  if (!config) return `${window.location.origin}${path}`;
+  const providerId = getSession()?.providerId ?? config.providers[0]?.id;
+  return `${config.gatewayUrl.replace(/\/$/, '')}/${providerId}${path}`;
 }
 
 /** The four Authorization options in their fixed order; the session entry is default. */

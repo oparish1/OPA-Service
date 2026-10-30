@@ -1,5 +1,31 @@
 import type { BodyKind } from '../types';
 
+const MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const;
+
+/** Approved display format: `10 Oct 2026 · 13:30:00 UTC`. */
+export function formatTimestamp(date = new Date()): string {
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const month = MONTHS[date.getUTCMonth()];
+  const year = date.getUTCFullYear();
+  const hh = String(date.getUTCHours()).padStart(2, '0');
+  const mm = String(date.getUTCMinutes()).padStart(2, '0');
+  const ss = String(date.getUTCSeconds()).padStart(2, '0');
+  return `${day} ${month} ${year} · ${hh}:${mm}:${ss} UTC`;
+}
+
 /** Whole milliseconds below one second, otherwise seconds with one decimal. */
 export function formatDuration(ms: number): string {
   if (ms < 1000) return `${Math.round(ms)} ms`;
