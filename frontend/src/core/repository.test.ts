@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { PROVIDER_IDS } from '../../../shared/providers';
 
 /**
  * Repository-level acceptance (A18–A22). These read the whole tree, not just
@@ -72,10 +73,11 @@ describe('repository acceptance', () => {
       }
     };
     collect(dist);
+    const placeholderSecrets = PROVIDER_IDS.map(id => `test-${id}-secret`);
     for (const file of files) {
       const content = readFileSync(file, 'utf8');
       expect(content, file).not.toMatch(/-----BEGIN [A-Z ]*PRIVATE KEY-----/);
-      expect(content, file).not.toMatch(/test-entra-secret|test-okta-secret|test-google-secret/);
+      for (const secret of placeholderSecrets) expect(content, file).not.toContain(secret);
     }
   });
 
