@@ -28,6 +28,12 @@ function validatePublicConfig(): Plugin {
 
 export default defineConfig({
   plugins: [react(), validatePublicConfig()],
+  server: {
+    host: '0.0.0.0',
+    allowedHosts: true
+  },
+
+
   test: {
     globals: true,
     environment: 'jsdom',
@@ -35,3 +41,13 @@ export default defineConfig({
     css: false,
   },
 });
+
+//export default defineConfig({
+//  plugins: [react(), validatePublicConfig()],
+//  test: {
+ //   globals: true,
+ //   environment: 'jsdom',
+//    setupFiles: './vitest.setup.ts',
+//    css: false,
+//  },
+//});
