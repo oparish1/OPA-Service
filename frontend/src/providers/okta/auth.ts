@@ -34,7 +34,7 @@ function getClient(): OktaAuth {
     client = new OktaAuth({
       issuer: provider.issuer,
       clientId: provider.clientId,
-      redirectUri: window.location.origin,
+      redirectUri: provider.redirectUri || window.location.origin,
       scopes: requestScopes(),
       pkce: true,
       tokenManager: { storage: 'memory' },

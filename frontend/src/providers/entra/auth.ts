@@ -46,9 +46,9 @@ async function getClient(): Promise<PublicClientApplication> {
       auth: {
         clientId: provider.clientId,
         authority: provider.issuer,
-        redirectUri: window.location.origin,
+        redirectUri: provider.redirectUri || window.location.origin,
       },
-      cache: { cacheLocation: 'memory' },
+      cache: { cacheLocation: 'sessionStorage' },
     });
     await client.initialize();
   }
@@ -95,15 +95,15 @@ function activeAccount(msal: PublicClientApplication): AccountInfo | null {
   return msal.getActiveAccount() ?? msal.getAllAccounts()[0] ?? null;
 }
 
-async function acquireSilent(): Promise<AuthenticationResult | null> {
+async function acquireSilent(forceRefresh = false): Promise<AuthenticationResult | null> {
   const msal = await getClient();
   const account = activeAccount(msal);
   if (!account) return null;
-  const request: SilentRequest = { scopes: requestScopes(), account };
+  const request: SilentRequest = { scopes: requestScopes(), account, forceRefresh };
   try {
     return await msal.acquireTokenSilent(request);
   } catch (error) {
-    if (error instanceof InteractionRequiredAuthError) return null;
+    console.error('Entra renewal failed', error instanceof Error ? error.name : error);
     return null;
   }
 }
@@ -137,7 +137,7 @@ export function createEntraAuth(): ProviderAuth {
     },
 
     async renew() {
-      const result = await acquireSilent();
+      const result = await acquireSilent(true);
       if (!result) return false;
       current = toSession(result);
       return true;

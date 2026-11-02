@@ -12,6 +12,8 @@ export interface ProviderConfig extends ProviderLinks {
   name: string;
   clientId: string;
   issuer: string;
+  /** Where the identity provider sends the browser back after sign-in (redirect-based providers). */
+  redirectUri?: string;
   /** Entra only: the API application id URI scopes are composed against. */
   apiResource?: string;
   /** Google only: the Workspace hosted domain the ID token must carry. */
