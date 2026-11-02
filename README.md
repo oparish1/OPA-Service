@@ -116,10 +116,12 @@ four Authorization options (session access token, `Bearer valid-token-123`,
 prefix (`/entra/v1`, `/okta/v1`, `/google/v1`). Reveal and Copy read tokens
 from memory and make no network request.
 
-Tokens are held in memory only. The app never writes a token to `localStorage`,
-cookies or IndexedDB. MSAL keeps its own token cache in `sessionStorage` because
-its redirect flow needs a cache that survives the provider round trip (SD-3);
-that is the one library-scoped exception, and it is cleared on sign-out. The
+App tokens are held in memory only; the app itself never writes a token to
+`localStorage`, cookies or IndexedDB. MSAL keeps its own token cache in
+`sessionStorage` because its redirect flow needs a cache that survives the
+provider round trip (SD-3). That library-scoped cache persists in the browser
+until sign-out and is readable by any same-origin script, so an XSS on this
+origin can read it; it is cleared on sign-out. The
 30-minute idle and 8-hour absolute session limits are enforced in the browser as
 a courtesy; the security bound is the token lifetime checked at the gateway.
 
