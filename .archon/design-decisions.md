@@ -119,3 +119,5 @@ Round 3/4 UI decisions remain binding.
   secret-shaped `config.json` shows the configuration error screen with its
   reason class and reference. It never starts the mock demo. The mock demo is
   opt-in with `?mock=1` in a development build.
+- **Startup failures.** A throw after config loads shows a generic startup
+  notice with a reference; it does not point the operator at `config.json`.
