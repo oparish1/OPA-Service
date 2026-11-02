@@ -1,5 +1,6 @@
 import type { ProviderConfig } from '../../../../shared/app-config';
 import { getProviderConfig } from '../../core/config';
+import { describeError, log } from '../../core/lib/log';
 import { formatTimestamp } from '../../core/lib/response-format';
 import type { ProviderAuth, ProviderSession } from '../../core/providers/types';
 
@@ -71,7 +72,10 @@ function loadGis(): Promise<GoogleAccountsId> {
         if (id) resolve(id);
         else reject(new Error(GENERIC_ERROR));
       };
-      script.onerror = () => reject(new Error(GENERIC_ERROR));
+      script.onerror = () => {
+        log.error(PROVIDER_ID, 'Google Identity Services script failed to load');
+        reject(new Error(GENERIC_ERROR));
+      };
       document.head.appendChild(script);
     });
   }
@@ -155,12 +159,18 @@ export function createGoogleAuth(): ProviderAuth {
               try {
                 current = assertCredential(response.credential);
                 resolve();
-              } catch {
+              } catch (error) {
+                log.warn(PROVIDER_ID, 'Credential claim check failed', {
+                  error: describeError(error),
+                });
                 reject(new Error(GENERIC_ERROR));
               }
             },
           });
-        } catch {
+        } catch (error) {
+          log.error(PROVIDER_ID, 'Google Identity Services initialization failed', {
+            error: describeError(error),
+          });
           reject(new Error(GENERIC_ERROR));
           return;
         }
@@ -172,6 +182,11 @@ export function createGoogleAuth(): ProviderAuth {
             moment.isSkippedMoment?.() ||
             moment.isDismissedMoment?.()
           ) {
+            log.warn(PROVIDER_ID, 'Google prompt was dismissed or suppressed', {
+              notDisplayed: moment.isNotDisplayed?.() ?? false,
+              skipped: moment.isSkippedMoment?.() ?? false,
+              dismissed: moment.isDismissedMoment?.() ?? false,
+            });
             reject(new Error(GENERIC_ERROR));
           }
         });

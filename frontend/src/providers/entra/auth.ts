@@ -1,10 +1,8 @@
-import {
-  InteractionRequiredAuthError,
-  PublicClientApplication,
-} from '@azure/msal-browser';
+import { LogLevel, PublicClientApplication } from '@azure/msal-browser';
 import type { AccountInfo, AuthenticationResult, SilentRequest } from '@azure/msal-browser';
 import type { ProviderConfig } from '../../../../shared/app-config';
 import { getProviderConfig } from '../../core/config';
+import { describeError, log } from '../../core/lib/log';
 import { formatTimestamp } from '../../core/lib/response-format';
 import type { ProviderAuth, ProviderSession } from '../../core/providers/types';
 
@@ -16,6 +14,7 @@ import type { ProviderAuth, ProviderSession } from '../../core/providers/types';
 
 const PROVIDER_ID = 'entra';
 const PROVIDER_NAME = 'Microsoft Entra ID';
+const GENERIC_ERROR = 'We couldn’t sign you in. Try again.';
 const OIDC_SCOPES = new Set(['openid', 'profile', 'email', 'offline_access']);
 
 let client: PublicClientApplication | null = null;
@@ -49,6 +48,17 @@ async function getClient(): Promise<PublicClientApplication> {
         redirectUri: provider.redirectUri || window.location.origin,
       },
       cache: { cacheLocation: 'sessionStorage' },
+      system: {
+        loggerOptions: {
+          piiLoggingEnabled: false,
+          loggerCallback: (level, message, containsPii) => {
+            if (containsPii) return;
+            if (level === LogLevel.Error) log.error(PROVIDER_ID, message);
+            else if (level === LogLevel.Warning) log.warn(PROVIDER_ID, message);
+            else log.debug(PROVIDER_ID, message);
+          },
+        },
+      },
     });
     await client.initialize();
   }
@@ -103,7 +113,7 @@ async function acquireSilent(forceRefresh = false): Promise<AuthenticationResult
   try {
     return await msal.acquireTokenSilent(request);
   } catch (error) {
-    console.error('Entra renewal failed', error instanceof Error ? error.name : error);
+    log.warn(PROVIDER_ID, 'Silent token acquisition failed', { error: describeError(error) });
     return null;
   }
 }
@@ -111,8 +121,13 @@ async function acquireSilent(forceRefresh = false): Promise<AuthenticationResult
 export function createEntraAuth(): ProviderAuth {
   return {
     async signIn() {
-      const msal = await getClient();
-      await msal.loginRedirect({ scopes: requestScopes() });
+      try {
+        const msal = await getClient();
+        await msal.loginRedirect({ scopes: requestScopes() });
+      } catch (error) {
+        log.error(PROVIDER_ID, 'Sign-in failed', { error: describeError(error) });
+        throw new Error(GENERIC_ERROR);
+      }
     },
 
     async handleRedirect(url) {
@@ -124,8 +139,9 @@ export function createEntraAuth(): ProviderAuth {
         msal.setActiveAccount(result.account);
         current = toSession(result);
         return 'handled';
-      } catch {
+      } catch (error) {
         // A missing, wrong or reused state must not surface the library text.
+        log.error(PROVIDER_ID, 'Redirect handling failed', { error: describeError(error) });
         return 'rejected';
       }
     },

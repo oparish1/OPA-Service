@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { bootstrapSession, signOut as endSession } from '../api';
 import { Notice } from '../components/Notice';
 import { TextLink } from '../components/TextLink';
+import { describeError, log } from '../lib/log';
 import type { Screen } from '../mocks/types';
 import { setOnExpire } from '../session/store';
 import { AppContext } from './app-context';
@@ -21,26 +22,37 @@ export function AppProvider({
 }) {
   const [screen, setScreen] = useState<Screen>(initialScreen);
   const [signOutError, setSignOutError] = useState(false);
+  const [signOutReference, setSignOutReference] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    void bootstrap().then(signedIn => {
-      if (active && signedIn) setScreen('overview');
-    });
+    void bootstrap()
+      .then(signedIn => {
+        if (active && signedIn) setScreen('overview');
+      })
+      .catch(error => {
+        log.error('app', 'Session bootstrap failed', { error: describeError(error) });
+      });
     return () => {
       active = false;
     };
   }, [bootstrap]);
 
   const navigate = useCallback((next: Screen) => setScreen(next), []);
-  const dismissSignOutError = useCallback(() => setSignOutError(false), []);
+  const dismissSignOutError = useCallback(() => {
+    setSignOutError(false);
+    setSignOutReference(null);
+  }, []);
 
   const signOut = useCallback(async () => {
     setSignOutError(false);
+    setSignOutReference(null);
     try {
       await performSignOut();
       setScreen('sign-in');
-    } catch {
+    } catch (error) {
+      const reference = log.error('app', 'Sign-out failed', { error: describeError(error) });
+      setSignOutReference(reference);
       setSignOutError(true);
     }
   }, [performSignOut]);
@@ -67,6 +79,7 @@ export function AppProvider({
             tone="error"
             heading="We couldn’t sign you out. Try again."
             action={<TextLink onClick={dismissSignOutError}>Dismiss</TextLink>}
+            reference={signOutReference ?? undefined}
           />
         </div>
       ) : null}

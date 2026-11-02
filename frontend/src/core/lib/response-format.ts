@@ -63,6 +63,7 @@ export function decodeBody(
   try {
     return { body: JSON.parse(text), bodyKind: 'json' };
   } catch {
+    // log-exempt: a non-JSON body is a display fallback, not a failure.
     return { body: text, bodyKind: 'text' };
   }
 }

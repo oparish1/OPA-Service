@@ -17,10 +17,11 @@ interface NoticeProps {
   children?: ReactNode;
   icon?: ReactNode;
   action?: ReactNode;
+  reference?: string;
 }
 
 /** Reusable info/alert box: surface.subtle fill and a tone-coloured left stripe. */
-export function Notice({ tone = 'neutral', heading, children, icon, action }: NoticeProps) {
+export function Notice({ tone = 'neutral', heading, children, icon, action, reference }: NoticeProps) {
   const Icon = TONE_ICON[tone];
   return (
     <div
@@ -50,6 +51,11 @@ export function Notice({ tone = 'neutral', heading, children, icon, action }: No
           <div style={{ ...body[14], fontFamily: font.body, color: color.text.secondary }}>{children}</div>
         ) : null}
         {action ? <div style={{ display: 'flex', gap: space[12] }}>{action}</div> : null}
+        {reference ? (
+          <span style={{ ...body[13], fontFamily: font.body, color: color.text.secondary }}>
+            Reference: {reference}
+          </span>
+        ) : null}
       </div>
     </div>
   );

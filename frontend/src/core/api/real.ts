@@ -1,4 +1,5 @@
 import { getAppConfig, getProviderConfig } from '../config';
+import { describeError, log } from '../lib/log';
 import { formatTimestamp } from '../lib/response-format';
 import { getProviderRegistry } from '../providers/active';
 import type { ProviderSession, RedirectOutcome } from '../providers/types';
@@ -91,7 +92,11 @@ export async function handleRedirect(url: URL): Promise<RedirectOutcome> {
     let outcome: RedirectOutcome;
     try {
       outcome = await module.auth.handleRedirect(url);
-    } catch {
+    } catch (error) {
+      log.warn('api', 'Provider redirect handling failed', {
+        provider: module.id,
+        error: describeError(error),
+      });
       continue;
     }
     if (outcome === 'handled') {

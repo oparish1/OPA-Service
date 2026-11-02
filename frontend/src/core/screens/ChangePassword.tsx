@@ -9,6 +9,7 @@ import { TextLink } from '../components/TextLink';
 import { PublicLayout } from '../layouts/PublicLayout';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { GENERIC_ERROR, PROVIDER_ERROR } from '../lib/copy';
+import { describeError, log } from '../lib/log';
 import { changePassword, getProviders, getSession } from '../api';
 import { body, color, font, label, space } from '../styles/tokens';
 
@@ -20,7 +21,7 @@ export function ChangePassword() {
   const [provider, setProvider] = useState('');
   const [error, setError] = useState<string | undefined>(undefined);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
-  const [failure, setFailure] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
   const [destination, setDestination] = useState('—');
   const account = sessionState.status === 'ready' ? sessionState.data.account : null;
   const providers = providerState.status === 'ready' ? providerState.data : [];
@@ -32,16 +33,20 @@ export function ChangePassword() {
   async function submit(providerId: string) {
     if (!providerId) return;
     setStatus('loading');
-    setFailure(false);
+    setFailure(null);
     try {
       const result = await changePassword(providerId);
       setDestination(result.destination);
       if (new URL(result.destination).protocol !== 'https:') throw new Error('Unsafe destination');
       window.open(result.destination, '_blank', 'noopener,noreferrer');
       setStatus('success');
-    } catch {
+    } catch (error) {
+      const reference = log.error('change-password', 'Change-password destination failed', {
+        provider: providerId,
+        error: describeError(error),
+      });
       setStatus('idle');
-      setFailure(true);
+      setFailure(reference);
     }
   }
 
@@ -76,6 +81,7 @@ export function ChangePassword() {
           <Notice
             tone="error"
             heading={GENERIC_ERROR}
+            reference={providerState.reference}
             action={
               <Button variant="secondary" onClick={reloadProviders}>
                 Retry
@@ -88,6 +94,7 @@ export function ChangePassword() {
           <Notice
             tone="error"
             heading={GENERIC_ERROR}
+            reference={failure}
             action={
               <Button variant="secondary" onClick={() => void submit(provider)}>
                 Retry

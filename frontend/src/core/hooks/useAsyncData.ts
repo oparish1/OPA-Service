@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { describeError, log } from '../lib/log';
 
 const MIN_LOADING_MS = 400;
 
 export type AsyncState<T> =
   | { status: 'loading'; data: null }
   | { status: 'ready'; data: T }
-  | { status: 'error'; data: null };
+  | { status: 'error'; data: null; reference: string };
 
 /**
  * Loads data on mount and keeps the loading state up for at least
@@ -32,7 +33,10 @@ export function useAsyncData<T>(loader: () => Promise<T>): {
     }
     loaderRef.current().then(
       data => settle({ status: 'ready', data }),
-      () => settle({ status: 'error', data: null })
+      error => {
+        const reference = log.error('data', 'Data load failed', { error: describeError(error) });
+        settle({ status: 'error', data: null, reference });
+      }
     );
     return () => {
       active = false;

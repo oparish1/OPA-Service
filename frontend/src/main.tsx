@@ -3,13 +3,19 @@ import { createRoot } from 'react-dom/client';
 import { App } from './core/App';
 import { setApiMode } from './core/api';
 import { handleRedirect } from './core/api/real';
-import { setAppConfig } from './core/config';
+import { ConfigurationError } from './core/components/ConfigurationError';
+import { ErrorBoundary } from './core/components/ErrorBoundary';
+import { loadAppConfig } from './core/config';
+import { installGlobalHandlers } from './core/lib/global-handlers';
+import { defaultLogLevel, describeError, installLogBuffer, log, setLogLevel } from './core/lib/log';
 import { setProviderRegistry } from './core/providers/active';
 import './core/styles/global.css';
 import { color, focus, font } from './core/styles/tokens';
 import { PROVIDER_MODULES } from './providers';
 
 setProviderRegistry(PROVIDER_MODULES);
+installLogBuffer(import.meta.env.DEV);
+installGlobalHandlers();
 
 const root = document.documentElement;
 root.style.setProperty('--aa-focus', focus.color);
@@ -19,56 +25,75 @@ root.style.setProperty('--aa-font-body', font.body);
 root.style.setProperty('--aa-text-primary', color.text.primary);
 root.style.setProperty('--aa-bg-canvas', color.background.canvas);
 
-/**
- * Loads and validates the public config. Returns false only when no config file
- * is served (the mock demo); a served-but-invalid config throws so `start`
- * surfaces it instead of silently mocking.
- */
-async function loadConfig(): Promise<boolean> {
-  const response = await fetch(`${import.meta.env.BASE_URL}config.json`, { cache: 'no-store' });
-  if (response.status === 404) return false;
-  if (!response.ok) throw new Error(`config.json returned ${response.status}`);
-
-  let raw: unknown;
-  try {
-    raw = JSON.parse(await response.text());
-  } catch {
-    // A static host that has no config file may answer with the SPA index.html.
-    return false;
-  }
-  setAppConfig(raw);
-  return true;
+/** The mock demo is opt-in and only exists in a development build. */
+function mockRequested(): boolean {
+  return import.meta.env.DEV && new URLSearchParams(window.location.search).get('mock') === '1';
 }
 
 async function start(): Promise<void> {
   const container = document.getElementById('root');
-  if (!container) throw new Error('Root container missing');
+  if (!container) {
+    log.error('startup', 'Root container missing');
+    return;
+  }
+  const appRoot = createRoot(container);
 
-  let configured: boolean;
-  try {
-    configured = await loadConfig();
-  } catch (error) {
-    container.textContent =
-      error instanceof Error ? `Configuration error: ${error.message}` : 'Configuration error';
+  if (mockRequested()) {
+    setApiMode('mock');
+    appRoot.render(
+      <StrictMode>
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>
+      </StrictMode>
+    );
     return;
   }
 
-  if (configured) {
-    setApiMode('real');
-    const url = new URL(window.location.href);
-    const outcome = await handleRedirect(url);
-    if (outcome === 'handled') {
-      window.history.replaceState({}, '', url.pathname);
-    } else if (outcome === 'rejected') {
-      window.history.replaceState({}, '', `${url.pathname}?error=signin`);
-    }
+  const loaded = await loadAppConfig();
+  if (loaded.status === 'error') {
+    appRoot.render(
+      <ConfigurationError
+        reason={loaded.reason}
+        message={loaded.message}
+        reference={loaded.reference}
+      />
+    );
+    return;
   }
 
-  createRoot(container).render(
+  setLogLevel(loaded.config.logLevel ?? defaultLogLevel());
+  setApiMode('real');
+
+  const url = new URL(window.location.href);
+  const outcome = await handleRedirect(url);
+  if (outcome === 'handled') {
+    window.history.replaceState({}, '', url.pathname);
+  } else if (outcome === 'rejected') {
+    window.history.replaceState({}, '', `${url.pathname}?error=signin`);
+  }
+
+  appRoot.render(
     <StrictMode>
-      <App />
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
     </StrictMode>
   );
 }
 
-void start();
+void start().catch(error => {
+  const reference = log.error('startup', 'Application failed to start', {
+    error: describeError(error),
+  });
+  const container = document.getElementById('root');
+  if (container) {
+    createRoot(container).render(
+      <ConfigurationError
+        reason="startup"
+        message="The application could not start."
+        reference={reference}
+      />
+    );
+  }
+});

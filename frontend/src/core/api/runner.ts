@@ -5,6 +5,7 @@ import {
   RUNNER_TIMEOUT_MS,
 } from '../../../../shared/request-runner';
 import { gatewayUrl } from '../config';
+import { describeError, log } from '../lib/log';
 import { decodeBody, formatDuration, formatSize, formatTimestamp } from '../lib/response-format';
 import { revealToken, touch } from '../session/store';
 import type { ApiResponse, RunnerAuth, RunnerErrorCode } from '../types';
@@ -23,7 +24,7 @@ const FAILURE_LABEL: Record<RunnerErrorCode, string> = {
   request_failed: 'Network error',
 };
 
-function failure(code: RunnerErrorCode): ApiResponse {
+function failure(code: RunnerErrorCode, reference?: string): ApiResponse {
   return {
     status: 0,
     statusLabel: FAILURE_LABEL[code],
@@ -33,6 +34,7 @@ function failure(code: RunnerErrorCode): ApiResponse {
     body: { error: code },
     headers: [],
     errorCode: code,
+    reference,
   };
 }
 
@@ -54,21 +56,37 @@ export function gatewayOrigin(): string | null {
   if (!configured) return null;
   try {
     return new URL(configured).origin;
-  } catch {
+  } catch (error) {
+    log.warn('runner', 'Gateway URL is not a valid URL', { error: describeError(error) });
     return null;
   }
 }
 
 export async function runRequest(auth: RunnerAuth, url: string): Promise<ApiResponse> {
   const target = parseRunnerUrl(url);
-  if (!target) return failure('invalid_url');
+  if (!target) {
+    const reference = log.error('runner', 'Request URL is invalid', { url });
+    return failure('invalid_url', reference);
+  }
 
   const origin = gatewayOrigin();
-  if (!origin || target.origin !== origin) return failure('blocked_host');
+  if (!origin || target.origin !== origin) {
+    const reference = log.error('runner', 'Request host is not allowed', {
+      host: target.host,
+      path: target.pathname,
+    });
+    return failure('blocked_host', reference);
+  }
 
   if (auth === 'session') touch();
   const token = await authorizationValue(auth);
-  if (auth === 'session' && !token) return failure('request_failed');
+  if (auth === 'session' && !token) {
+    const reference = log.error('runner', 'Session token is unavailable', {
+      host: target.host,
+      path: target.pathname,
+    });
+    return failure('request_failed', reference);
+  }
 
   const headers: Record<string, string> = {
     accept: 'application/json, text/plain;q=0.9, */*;q=0.1',
@@ -97,22 +115,49 @@ export async function runRequest(auth: RunnerAuth, url: string): Promise<ApiResp
     });
     const contentType = response.headers.get('content-type');
     const { body, bodyKind } = decodeBody(contentType, text, bytes.byteLength);
+    const durationMs = Date.now() - started;
+
+    let reference: string | undefined;
+    if (response.status >= 400) {
+      const logStatus = response.status >= 500 ? log.error : log.warn;
+      reference = logStatus('runner', 'Request returned an error status', {
+        host: target.host,
+        path: target.pathname,
+        status: response.status,
+        durationMs,
+        requestId: response.headers.get('x-request-id') ?? undefined,
+      });
+    }
 
     return {
       status: response.status,
       statusLabel: `${response.status} ${response.statusText}`.trim(),
-      duration: formatDuration(Date.now() - started),
+      duration: formatDuration(durationMs),
       size: formatSize(bytes.byteLength, truncated),
       timestamp: formatTimestamp(new Date()),
       body,
       headers: responseHeaders,
       bodyKind,
       sizeBytes: bytes.byteLength,
+      reference,
     };
   } catch (error) {
-    if (controller.signal.aborted) return failure('request_timeout');
-    if (error instanceof Error) return failure('request_failed');
-    return failure('request_failed');
+    const durationMs = Date.now() - started;
+    if (controller.signal.aborted) {
+      const reference = log.error('runner', 'Request timed out', {
+        host: target.host,
+        path: target.pathname,
+        durationMs,
+      });
+      return failure('request_timeout', reference);
+    }
+    const reference = log.error('runner', 'Request failed', {
+      host: target.host,
+      path: target.pathname,
+      durationMs,
+      error: describeError(error),
+    });
+    return failure('request_failed', reference);
   } finally {
     clearTimeout(timeout);
   }

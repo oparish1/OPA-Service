@@ -8,6 +8,7 @@ interface RecoveryResponseProps {
   refreshValidUntil: string;
   refreshing: boolean;
   error: string | null;
+  reference?: string;
   onRefresh: () => void;
   onSignIn: () => void;
 }
@@ -18,11 +19,16 @@ export function RecoveryResponse({
   refreshValidUntil,
   refreshing,
   error,
+  reference,
   onRefresh,
   onSignIn,
 }: RecoveryResponseProps) {
   return (
-    <Notice tone="error" heading="Access token expired. Your account is still connected.">
+    <Notice
+      tone="error"
+      heading="Access token expired. Your account is still connected."
+      reference={reference}
+    >
       <div style={{ display: 'flex', flexDirection: 'column', gap: space[12] }}>
         <span>
           Expired {expiredAt}. Your refresh token is valid until {refreshValidUntil}.

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setAppConfig } from '../../../core/config';
+import { log } from '../../../core/lib/log';
 import { createEntraAuth } from '../auth';
 
 interface MockGlobal {
@@ -8,6 +9,7 @@ interface MockGlobal {
   __silentResult?: unknown;
   __cleared?: boolean;
   __pendingReject?: Error;
+  __silentReject?: Error;
   __msalOptions?: { cache?: { cacheLocation?: string } };
 }
 
@@ -43,6 +45,8 @@ vi.mock('@azure/msal-browser', () => {
     }
     setActiveAccount(): void {}
     async acquireTokenSilent(): Promise<unknown> {
+      const pending = (globalThis as unknown as MockGlobal).__silentReject;
+      if (pending) throw pending;
       return (globalThis as unknown as MockGlobal).__silentResult ?? null;
     }
     async clearCache(): Promise<void> {
@@ -50,7 +54,8 @@ vi.mock('@azure/msal-browser', () => {
     }
   }
   class InteractionRequiredAuthError extends Error {}
-  return { PublicClientApplication, InteractionRequiredAuthError };
+  const LogLevel = { Error: 0, Warning: 1, Info: 2, Verbose: 3 };
+  return { PublicClientApplication, InteractionRequiredAuthError, LogLevel };
 });
 
 const AUTH = createEntraAuth();
@@ -86,6 +91,12 @@ beforeEach(async () => {
   globalMock.__silentResult = undefined;
   globalMock.__cleared = false;
   globalMock.__pendingReject = undefined;
+  globalMock.__silentReject = undefined;
+  log.clear();
+  vi.spyOn(console, 'debug').mockImplementation(() => undefined);
+  vi.spyOn(console, 'info').mockImplementation(() => undefined);
+  vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
   await AUTH.signOut();
 });
 
@@ -119,8 +130,8 @@ describe('Entra auth', () => {
     expect(AUTH.session()).toBeNull();
   });
 
-  it('configures MSAL with an in-memory cache (A4, SD-3)', () => {
-    expect(globalMock.__msalOptions?.cache?.cacheLocation).toBe('memory');
+  it('configures MSAL with the allowed sessionStorage cache (A4, SD-3)', () => {
+    expect(globalMock.__msalOptions?.cache?.cacheLocation).toBe('sessionStorage');
   });
 
   it('clears memory and the library cache on sign-out (SD-5)', async () => {
@@ -129,6 +140,14 @@ describe('Entra auth', () => {
     await AUTH.signOut();
     expect(globalMock.__cleared).toBe(true);
     expect(AUTH.session()).toBeNull();
+  });
+
+  it('logs a failed silent acquisition at warn level', async () => {
+    globalMock.__silentReject = new Error('silent failed');
+    await expect(AUTH.getAccessToken()).resolves.toBeNull();
+    const entry = log.recent().find(item => item.message === 'Silent token acquisition failed');
+    expect(entry?.level).toBe('warn');
+    expect(entry?.scope).toBe('entra');
   });
 
   it('renews silently and updates the session (A3)', async () => {

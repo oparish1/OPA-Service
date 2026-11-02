@@ -22,10 +22,16 @@ export interface ProviderConfig extends ProviderLinks {
   scopes?: string[];
 }
 
+export type AppLogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+const LOG_LEVELS: readonly AppLogLevel[] = ['debug', 'info', 'warn', 'error'];
+
 export interface AppConfig {
   /** The gateway origin; the request runner may call no other origin. */
   gatewayUrl: string;
   providers: ProviderConfig[];
+  /** Optional browser log level; defaults to debug in development and warn in production. */
+  logLevel?: AppLogLevel;
 }
 
 export class AppConfigError extends Error {
@@ -100,6 +106,11 @@ export function parseAppConfig(raw: unknown): AppConfig {
   const value = raw as Record<string, unknown>;
   const gatewayUrl = requireHttpUrl(value.gatewayUrl, 'gatewayUrl');
 
+  const logLevel = value.logLevel;
+  if (logLevel !== undefined && !LOG_LEVELS.includes(logLevel as AppLogLevel)) {
+    throw new AppConfigError(`logLevel must be one of ${LOG_LEVELS.join(', ')}`);
+  }
+
   if (!Array.isArray(value.providers) || value.providers.length === 0) {
     throw new AppConfigError('providers must be a non-empty array');
   }
@@ -151,5 +162,5 @@ export function parseAppConfig(raw: unknown): AppConfig {
     };
   });
 
-  return { gatewayUrl, providers };
+  return { gatewayUrl, providers, logLevel: logLevel as AppLogLevel | undefined };
 }

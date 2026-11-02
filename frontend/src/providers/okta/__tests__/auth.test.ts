@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setAppConfig } from '../../../core/config';
+import { log } from '../../../core/lib/log';
 import { createOktaAuth } from '../auth';
 
 interface MockGlobal {
   __lastSignIn?: { scopes: string[] };
   __oktaTokens?: Record<string, unknown>;
   __oktaPendingReject?: Error;
+  __oktaRenewReject?: Error;
   __oktaCleared?: boolean;
   __oktaOptions?: { tokenManager?: { storage?: string } };
 }
@@ -18,7 +20,11 @@ vi.mock('@okta/okta-auth-js', () => {
     store: Record<string, unknown> = {};
     tokenManager = {
       get: async (key: string): Promise<unknown> => this.store[key],
-      renew: async (key: string): Promise<unknown> => this.store[key],
+      renew: async (key: string): Promise<unknown> => {
+        const pending = (globalThis as unknown as MockGlobal).__oktaRenewReject;
+        if (pending) throw pending;
+        return this.store[key];
+      },
       clear: (): void => {
         (globalThis as unknown as MockGlobal).__oktaCleared = true;
         this.store = {};
@@ -88,7 +94,13 @@ beforeEach(async () => {
   globalMock.__lastSignIn = undefined;
   globalMock.__oktaTokens = undefined;
   globalMock.__oktaPendingReject = undefined;
+  globalMock.__oktaRenewReject = undefined;
   globalMock.__oktaCleared = false;
+  log.clear();
+  vi.spyOn(console, 'debug').mockImplementation(() => undefined);
+  vi.spyOn(console, 'info').mockImplementation(() => undefined);
+  vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
   await AUTH.signOut();
 });
 
@@ -129,6 +141,14 @@ describe('Okta auth', () => {
     await AUTH.signOut();
     expect(globalMock.__oktaCleared).toBe(true);
     expect(AUTH.session()).toBeNull();
+  });
+
+  it('logs a failed renewal at warn level', async () => {
+    globalMock.__oktaRenewReject = new Error('renew failed');
+    await expect(AUTH.renew()).resolves.toBe(false);
+    const entry = log.recent().find(item => item.message === 'Token renewal failed');
+    expect(entry?.level).toBe('warn');
+    expect(entry?.scope).toBe('okta');
   });
 
   it('never writes a token to browser storage (A4)', async () => {

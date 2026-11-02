@@ -82,6 +82,7 @@ export function AccountIdentity() {
         <Notice
           tone="error"
           heading={GENERIC_ERROR}
+          reference={state.reference}
           action={
             <Button variant="secondary" onClick={reload}>
               Retry
