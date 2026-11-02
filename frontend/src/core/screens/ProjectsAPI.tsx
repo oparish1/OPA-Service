@@ -34,8 +34,9 @@ export function ProjectsAPI() {
   const [response, setResponse] = useState<ApiResponse | null>(null);
   const [running, setRunning] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [refreshError, setRefreshError] = useState<string | null>(null);
-  const [refreshReference, setRefreshReference] = useState<string | null>(null);
+  const [refreshFailure, setRefreshFailure] = useState<{ message: string; reference: string } | null>(
+    null
+  );
   const [accessMeta, setAccessMeta] = useState<{ masked: string; expiresAt: string } | null>(null);
   const [lastRun, setLastRun] = useState<{ url: string; auth: RunnerAuth } | null>(null);
   const runSeq = useRef(0);
@@ -102,8 +103,7 @@ export function ProjectsAPI() {
   async function handleRefresh() {
     const request = lastRun;
     if (!request) return;
-    setRefreshError(null);
-    setRefreshReference(null);
+    setRefreshFailure(null);
     setRefreshing(true);
     const runId = ++runSeq.current;
     try {
@@ -117,8 +117,7 @@ export function ProjectsAPI() {
       const reference = log.error('projects-api', 'Token refresh failed', {
         error: describeError(error),
       });
-      setRefreshReference(reference);
-      setRefreshError('Refresh token expired. Sign in again.');
+      setRefreshFailure({ message: 'Refresh token expired. Sign in again.', reference });
     } finally {
       setRefreshing(false);
     }
@@ -161,8 +160,7 @@ export function ProjectsAPI() {
           expiredAt={expiresAt}
           refreshValidUntil={session.refreshToken.expiresAt}
           refreshing={refreshing}
-          error={refreshError}
-          reference={refreshReference ?? undefined}
+          failure={refreshFailure}
           onRefresh={handleRefresh}
           onSignIn={signOut}
         />

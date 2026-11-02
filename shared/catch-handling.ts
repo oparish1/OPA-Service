@@ -1,5 +1,6 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
+import { collectSourceFiles, toPosix } from './source-files';
 
 /**
  * The no-silent-catch rule: every non-test catch block or `.catch()` in the
@@ -101,32 +102,17 @@ export function findCatchSites(source: string, file = '<source>'): CatchHandling
   return { sites, violations };
 }
 
-const SOURCE_EXTENSIONS = ['.ts', '.tsx'];
-const EXCLUDE_DIRS = new Set(['node_modules', 'dist', 'coverage']);
-
 function isTestFile(path: string): boolean {
   return path.includes(`${sep}__tests__${sep}`) || /\.test\.(ts|tsx)$/.test(path);
 }
 
-function walk(dir: string, files: string[]): void {
-  for (const entry of readdirSync(dir)) {
-    if (EXCLUDE_DIRS.has(entry)) continue;
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) walk(full, files);
-    else if (SOURCE_EXTENSIONS.some(extension => entry.endsWith(extension)) && !isTestFile(full)) {
-      files.push(full);
-    }
-  }
-}
-
 /** Scans `frontend/src` and returns every catch site plus the unhandled ones. */
 export function findCatchHandlingViolations(repoRoot: string): CatchHandlingReport {
-  const files: string[] = [];
-  walk(join(repoRoot, 'frontend', 'src'), files);
+  const files = collectSourceFiles(join(repoRoot, 'frontend', 'src'), { keep: file => !isTestFile(file) });
 
   const report: CatchHandlingReport = { sites: [], violations: [] };
   for (const file of files) {
-    const repoRelative = relative(repoRoot, file).split(sep).join('/');
+    const repoRelative = toPosix(relative(repoRoot, file));
     const found = findCatchSites(readFileSync(file, 'utf8'), repoRelative);
     report.sites.push(...found.sites);
     report.violations.push(...found.violations);

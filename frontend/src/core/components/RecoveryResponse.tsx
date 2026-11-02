@@ -7,8 +7,7 @@ interface RecoveryResponseProps {
   expiredAt: string;
   refreshValidUntil: string;
   refreshing: boolean;
-  error: string | null;
-  reference?: string;
+  failure: { message: string; reference: string } | null;
   onRefresh: () => void;
   onSignIn: () => void;
 }
@@ -18,8 +17,7 @@ export function RecoveryResponse({
   expiredAt,
   refreshValidUntil,
   refreshing,
-  error,
-  reference,
+  failure,
   onRefresh,
   onSignIn,
 }: RecoveryResponseProps) {
@@ -27,15 +25,15 @@ export function RecoveryResponse({
     <Notice
       tone="error"
       heading="Access token expired. Your account is still connected."
-      reference={reference}
+      reference={failure?.reference}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: space[12] }}>
         <span>
           Expired {expiredAt}. Your refresh token is valid until {refreshValidUntil}.
         </span>
-        {error ? (
+        {failure ? (
           <span role="alert" style={{ ...body[14], fontFamily: font.body, color: color.status.error }}>
-            {error}
+            {failure.message}
           </span>
         ) : null}
         <div style={{ display: 'flex', alignItems: 'center', gap: space[20] }}>

@@ -30,6 +30,7 @@ const SENSITIVE_PARAM = /([?&#](?:code|state|id_token|access_token|refresh_token
 const BEARER = /\bBearer\s+[A-Za-z0-9._~+/-]+=*/gi;
 
 const buffer: LogEntry[] = [];
+const describedErrors = new WeakSet<object>();
 let currentLevel: LogLevel = defaultLogLevel();
 
 declare global {
@@ -44,10 +45,6 @@ export function defaultLogLevel(): LogLevel {
 
 export function setLogLevel(level: LogLevel): void {
   currentLevel = level;
-}
-
-export function getLogLevel(): LogLevel {
-  return currentLevel;
 }
 
 /** Exposes the live in-memory buffer only when the caller says this is a development build. */
@@ -87,6 +84,7 @@ function scrub(value: unknown, depth = 0, seen = new WeakSet<object>()): unknown
     return value.slice(0, ARRAY_LIMIT).map(item => scrub(item, depth + 1, seen));
   }
 
+  if (describedErrors.has(value)) return value;
   if (value instanceof Error) return describeError(value);
 
   const result: Record<string, unknown> = {};
@@ -132,13 +130,12 @@ export function describeError(error: unknown): ErrorDescription {
         : undefined;
   if (status !== undefined) description.status = status;
 
+  describedErrors.add(description);
   return description;
 }
 
 function write(level: LogLevel, scope: string, message: string, data?: unknown): string {
   const code = reference();
-  if (LEVEL_ORDER[level] < LEVEL_ORDER[currentLevel]) return code;
-
   const entry: LogEntry = {
     time: new Date().toISOString(),
     level,
@@ -150,11 +147,13 @@ function write(level: LogLevel, scope: string, message: string, data?: unknown):
   buffer.push(entry);
   if (buffer.length > BUFFER_LIMIT) buffer.shift();
 
-  const output = [`[${level}] ${entry.scope}: ${entry.message}`, entry.data ?? '', `Reference: ${code}`];
-  if (level === 'error') console.error(...output);
-  else if (level === 'warn') console.warn(...output);
-  else if (level === 'info') console.info(...output);
-  else console.debug(...output);
+  if (LEVEL_ORDER[level] >= LEVEL_ORDER[currentLevel]) {
+    const output = [`[${level}] ${entry.scope}: ${entry.message}`, entry.data ?? '', `Reference: ${code}`];
+    if (level === 'error') console.error(...output);
+    else if (level === 'warn') console.warn(...output);
+    else if (level === 'info') console.info(...output);
+    else console.debug(...output);
+  }
 
   return code;
 }

@@ -64,6 +64,20 @@ describe('log scrubber', () => {
     expect(log.recent()[0].data).toEqual({ value: '[redacted]' });
   });
 
+  it('keeps a describeError provider code in the buffer and console output', () => {
+    const error = Object.assign(new Error('login failed'), {
+      name: 'AuthApiError',
+      errorCode: 'E0000004',
+      errorSummary: 'Authentication failed',
+    });
+    log.error('okta', 'Sign-in failed', { error: describeError(error) });
+    const entry = log.recent()[0];
+    expect(entry.data).toMatchObject({
+      error: { name: 'AuthApiError', code: 'E0000004', summary: 'Authentication failed' },
+    });
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls[0])).toContain('E0000004');
+  });
+
   it('truncates strings to 300 characters and arrays to 20 items', () => {
     log.error('test', 'limits', {
       text: 'a'.repeat(400),
@@ -122,13 +136,21 @@ describe('describeError', () => {
 });
 
 describe('log levels and buffer', () => {
-  it('suppresses entries below the configured level', () => {
+  it('suppresses console output below the configured level but keeps every entry', () => {
     setLogLevel('warn');
     log.debug('test', 'debug');
     log.info('test', 'info');
-    log.warn('test', 'warn');
+    const reference = log.warn('test', 'warn');
     log.error('test', 'error');
-    expect(log.recent().map(entry => entry.level)).toEqual(['warn', 'error']);
+
+    expect(console.debug).not.toHaveBeenCalled();
+    expect(console.info).not.toHaveBeenCalled();
+    expect(console.warn).toHaveBeenCalledTimes(1);
+    expect(console.error).toHaveBeenCalledTimes(1);
+
+    // A suppressed entry is still buffered, so a returned reference stays resolvable.
+    expect(log.recent().map(entry => entry.level)).toEqual(['debug', 'info', 'warn', 'error']);
+    expect(log.recent().some(entry => entry.reference === reference)).toBe(true);
   });
 
   it('keeps only the last 200 entries', () => {

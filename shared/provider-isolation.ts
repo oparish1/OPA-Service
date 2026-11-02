@@ -1,6 +1,7 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative, sep } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import { PROVIDER_IDS } from './providers';
+import { collectSourceFiles, toPosix } from './source-files';
 
 /**
  * The mechanical isolation rule: outside the wire contract, the two registries
@@ -9,8 +10,6 @@ import { PROVIDER_IDS } from './providers';
  */
 
 const SCAN_DIRS = ['frontend', 'shared', 'gateway'];
-const EXCLUDE_DIRS = new Set(['node_modules', 'dist', '.git', 'coverage']);
-const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'];
 
 const EXEMPT_FILES = new Set<string>([
   'shared/providers.ts',
@@ -25,10 +24,6 @@ const EXEMPT_FILES = new Set<string>([
 const ID_PATTERNS = PROVIDER_IDS.map(id => [id, new RegExp(`\\b${id}\\b`)] as const);
 const PROVIDER_FOLDER = new RegExp(`(^|/)providers/(${PROVIDER_IDS.join('|')})/`);
 
-function toPosix(path: string): string {
-  return path.split(sep).join('/');
-}
-
 function isExempt(repoRelative: string): boolean {
   return EXEMPT_FILES.has(repoRelative) || PROVIDER_FOLDER.test(repoRelative);
 }
@@ -41,19 +36,9 @@ function collectProviderIds(source: string): Set<string> {
   return found;
 }
 
-function walk(dir: string, files: string[]): void {
-  for (const entry of readdirSync(dir)) {
-    if (EXCLUDE_DIRS.has(entry)) continue;
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) walk(full, files);
-    else if (SOURCE_EXTENSIONS.some(extension => entry.endsWith(extension))) files.push(full);
-  }
-}
-
 /** Returns one line per file that names more than one provider id. */
 export function findProviderIsolationViolations(repoRoot: string): string[] {
-  const files: string[] = [];
-  for (const dir of SCAN_DIRS) walk(join(repoRoot, dir), files);
+  const files = SCAN_DIRS.flatMap(dir => collectSourceFiles(join(repoRoot, dir)));
 
   const violations: string[] = [];
   for (const file of files) {
