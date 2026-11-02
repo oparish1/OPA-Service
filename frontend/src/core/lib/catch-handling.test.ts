@@ -37,6 +37,20 @@ describe('catch handling check', () => {
     expect(exempt.violations).toHaveLength(0);
   });
 
+  it('rejects an exemption marker that only appears inside a string literal', () => {
+    const literal = findCatchSites(
+      'function f() { try {} catch { const x = "// log-exempt: nope"; } }',
+      'literal-exempt.ts'
+    );
+    expect(literal.violations).toHaveLength(1);
+
+    const exempt = findCatchSites(
+      'function f() { try {} catch { // log-exempt: display fallback\n } }',
+      'real-exempt.ts'
+    );
+    expect(exempt.violations).toHaveLength(0);
+  });
+
   it('fails on the bare-catch fixture', () => {
     const source = readFileSync(
       join(repoRoot, 'scripts/fixtures/catch-handling/bare-catch.ts'),

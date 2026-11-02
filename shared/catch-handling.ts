@@ -95,8 +95,40 @@ function codeOnly(source: string): string {
   return result;
 }
 
+/** Like `codeOnly`, but keeps comments so a real `// log-exempt:` marker is still visible. */
+function codeOnlyKeepingComments(source: string): string {
+  let result = '';
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index];
+    if (character === '/' && source[index + 1] === '/') {
+      const newline = source.indexOf('\n', index);
+      if (newline === -1) return result + source.slice(index);
+      result += source.slice(index, newline);
+      index = newline - 1;
+      continue;
+    }
+    if (character === '/' && source[index + 1] === '*') {
+      const end = source.indexOf('*/', index + 2);
+      if (end === -1) return result + source.slice(index);
+      result += source.slice(index, end + 2);
+      index = end + 1;
+      continue;
+    }
+    if (character === '"' || character === "'" || character === '`') {
+      const end = skipString(source, index);
+      result += character;
+      result += ' '.repeat(Math.max(0, end - index - 1));
+      result += source[end] ?? '';
+      index = end;
+      continue;
+    }
+    result += character;
+  }
+  return result;
+}
+
 function handled(block: string): boolean {
-  if (EXEMPT.test(block)) return true;
+  if (EXEMPT.test(codeOnlyKeepingComments(block))) return true;
   const code = codeOnly(block);
   return LOGGER.test(code) || RETHROW.test(code);
 }

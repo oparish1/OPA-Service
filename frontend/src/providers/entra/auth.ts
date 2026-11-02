@@ -133,9 +133,11 @@ export function createEntraAuth(): ProviderAuth {
     },
 
     async handleRedirect(url) {
-      if (!url.hash && !url.search) return 'ignored';
-      // Not owning the URL stays 'ignored'; a configured provider that cannot
-      // initialize is a failure, so the screen shows a notice instead.
+      // MSAL's redirect response always arrives in the fragment; a query-only
+      // callback belongs to another provider and must not trigger initialization.
+      if (!url.hash) return 'ignored';
+      // A configured provider that cannot initialize is a failure, so the
+      // screen shows a notice instead of silently ignoring its own callback.
       if (!getProviderConfig(PROVIDER_ID)) return 'ignored';
       try {
         const msal = await getClient();

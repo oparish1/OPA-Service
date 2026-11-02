@@ -214,6 +214,32 @@ describe('Entra auth', () => {
     ).resolves.toBe('ignored');
   });
 
+  it('ignores a query-only callback that belongs to another provider (R14)', async () => {
+    globalMock.__initReject = new Error('initialize failed');
+    vi.resetModules();
+    const config = await import('../../../core/config');
+    config.setAppConfig({
+      gatewayUrl: 'http://localhost:9080',
+      providers: [
+        {
+          id: 'entra',
+          name: 'Microsoft Entra ID',
+          clientId: 'spa-client-id',
+          issuer: 'https://login.microsoftonline.com/tenant/v2.0',
+        },
+      ],
+    });
+    const freshLog = await import('../../../core/lib/log');
+    const { createEntraAuth } = await import('../auth');
+
+    await expect(
+      createEntraAuth().handleRedirect(new URL('http://localhost:5173/?code=abc&state=xyz'))
+    ).resolves.toBe('ignored');
+    expect(freshLog.log.recent().some(entry => entry.message === 'Redirect handling failed')).toBe(
+      false
+    );
+  });
+
   it('reports a configured provider whose client fails to initialize (R5)', async () => {
     globalMock.__initReject = new Error('initialize failed');
     vi.resetModules();
