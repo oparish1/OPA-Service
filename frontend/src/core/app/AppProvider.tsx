@@ -21,7 +21,6 @@ export function AppProvider({
   signOut?: () => Promise<void>;
 }) {
   const [screen, setScreen] = useState<Screen>(initialScreen);
-  const [signOutError, setSignOutError] = useState(false);
   const [signOutReference, setSignOutReference] = useState<string | null>(null);
 
   useEffect(() => {
@@ -39,13 +38,9 @@ export function AppProvider({
   }, [bootstrap]);
 
   const navigate = useCallback((next: Screen) => setScreen(next), []);
-  const dismissSignOutError = useCallback(() => {
-    setSignOutError(false);
-    setSignOutReference(null);
-  }, []);
+  const dismissSignOutError = useCallback(() => setSignOutReference(null), []);
 
   const signOut = useCallback(async () => {
-    setSignOutError(false);
     setSignOutReference(null);
     try {
       await performSignOut();
@@ -53,7 +48,6 @@ export function AppProvider({
     } catch (error) {
       const reference = log.error('app', 'Sign-out failed', { error: describeError(error) });
       setSignOutReference(reference);
-      setSignOutError(true);
     }
   }, [performSignOut]);
 
@@ -67,19 +61,19 @@ export function AppProvider({
   }, [signOut]);
 
   const value = useMemo<AppContextValue>(
-    () => ({ screen, navigate, signOut, signOutError, dismissSignOutError }),
-    [screen, navigate, signOut, signOutError, dismissSignOutError]
+    () => ({ screen, navigate, signOut, dismissSignOutError }),
+    [screen, navigate, signOut, dismissSignOutError]
   );
 
   return (
     <AppContext.Provider value={value}>
-      {signOutError ? (
+      {signOutReference ? (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 10, padding: 16 }}>
           <Notice
             tone="error"
             heading="We couldn’t sign you out. Try again."
             action={<TextLink onClick={dismissSignOutError}>Dismiss</TextLink>}
-            reference={signOutReference ?? undefined}
+            reference={signOutReference}
           />
         </div>
       ) : null}

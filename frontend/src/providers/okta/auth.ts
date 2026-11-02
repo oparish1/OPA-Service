@@ -109,8 +109,11 @@ export function createOktaAuth(): ProviderAuth {
 
     async handleRedirect(url) {
       if (!url.search.includes('code=') || !url.search.includes('state=')) return 'ignored';
-      const oktaAuth = getClient();
+      // Not owning the URL stays 'ignored'; a configured provider that cannot
+      // initialize is a failure, so the screen shows a notice instead.
+      if (!getProviderConfig(PROVIDER_ID)) return 'ignored';
       try {
+        const oktaAuth = getClient();
         await oktaAuth.handleLoginRedirect();
         const session = await toSession(oktaAuth);
         if (!session) return 'rejected';

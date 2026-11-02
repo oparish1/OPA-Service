@@ -65,7 +65,7 @@ export function gatewayOrigin(): string | null {
 export async function runRequest(auth: RunnerAuth, url: string): Promise<ApiResponse> {
   const target = parseRunnerUrl(url);
   if (!target) {
-    const reference = log.error('runner', 'Request URL is invalid', { url });
+    const reference = log.error('runner', 'Request URL is invalid', { reason: 'invalid_url' });
     return failure('invalid_url', reference);
   }
 

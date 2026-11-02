@@ -19,10 +19,10 @@ export function HomeSignIn() {
   const [providerLoading, setProviderLoading] = useState<string | null>(null);
   const [failure, setFailure] = useState<{ message: string; reference: string } | null>(null);
   const [lastProvider, setLastProvider] = useState<string | null>(null);
-  const [callbackError] = useState(() => new URLSearchParams(window.location.search).get('error'));
-  const [callbackReference] = useState(() =>
-    callbackError === 'signin' ? log.error('sign-in', 'Provider redirect was rejected') : null
-  );
+  const [callbackReference] = useState(() => {
+    const error = new URLSearchParams(window.location.search).get('error');
+    return error === 'signin' ? log.error('sign-in', 'Provider redirect was rejected') : null;
+  });
 
   async function handleProvider(providerId: string) {
     setFailure(null);
@@ -56,11 +56,11 @@ export function HomeSignIn() {
       minHeight={1080}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: space[20] }}>
-        {callbackError === 'signin' ? (
+        {callbackReference ? (
           <Notice
             tone="error"
             heading="We couldn’t sign you in. Try again."
-            reference={callbackReference ?? undefined}
+            reference={callbackReference}
           />
         ) : null}
 

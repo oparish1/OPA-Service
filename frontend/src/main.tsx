@@ -5,6 +5,7 @@ import { setApiMode } from './core/api';
 import { handleRedirect } from './core/api/real';
 import { ConfigurationError } from './core/components/ConfigurationError';
 import { ErrorBoundary } from './core/components/ErrorBoundary';
+import { StartupError } from './core/components/StartupError';
 import { loadAppConfig } from './core/config';
 import { installGlobalHandlers } from './core/lib/global-handlers';
 import { defaultLogLevel, describeError, installLogBuffer, log, setLogLevel } from './core/lib/log';
@@ -89,11 +90,7 @@ void start().catch(error => {
   const container = document.getElementById('root');
   if (container) {
     createRoot(container).render(
-      <ConfigurationError
-        reason="startup"
-        message="The application could not start."
-        reference={reference}
-      />
+      <StartupError message="The application could not start." reference={reference} />
     );
   }
 });

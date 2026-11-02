@@ -41,7 +41,7 @@ function requestScopes(): string[] {
 async function getClient(): Promise<PublicClientApplication> {
   if (!client) {
     const provider = config();
-    client = new PublicClientApplication({
+    const created = new PublicClientApplication({
       auth: {
         clientId: provider.clientId,
         authority: provider.issuer,
@@ -50,6 +50,7 @@ async function getClient(): Promise<PublicClientApplication> {
       cache: { cacheLocation: 'sessionStorage' },
       system: {
         loggerOptions: {
+          logLevel: LogLevel.Warning,
           piiLoggingEnabled: false,
           loggerCallback: (level, message, containsPii) => {
             if (containsPii) return;
@@ -60,7 +61,8 @@ async function getClient(): Promise<PublicClientApplication> {
         },
       },
     });
-    await client.initialize();
+    await created.initialize();
+    client = created;
   }
   return client;
 }
@@ -132,8 +134,11 @@ export function createEntraAuth(): ProviderAuth {
 
     async handleRedirect(url) {
       if (!url.hash && !url.search) return 'ignored';
-      const msal = await getClient();
+      // Not owning the URL stays 'ignored'; a configured provider that cannot
+      // initialize is a failure, so the screen shows a notice instead.
+      if (!getProviderConfig(PROVIDER_ID)) return 'ignored';
       try {
+        const msal = await getClient();
         const result = await msal.handleRedirectPromise(url.hash);
         if (!result) return 'ignored';
         msal.setActiveAccount(result.account);

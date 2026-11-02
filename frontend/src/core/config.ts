@@ -1,4 +1,4 @@
-import { parseAppConfig } from '../../../shared/app-config';
+import { AppConfigError, parseAppConfig } from '../../../shared/app-config';
 import type { AppConfig, ProviderConfig } from '../../../shared/app-config';
 import { describeError, log } from './lib/log';
 
@@ -71,9 +71,21 @@ export async function loadAppConfig(
     return { status: 'error', reason: 'http', message, reference };
   }
 
+  let text: string;
+  try {
+    text = await response.text();
+  } catch (error) {
+    const message = `config.json could not be read: ${describeError(error).message ?? 'network error'}`;
+    const reference = log.error('config', 'Configuration could not be loaded', {
+      reason: 'network',
+      message,
+    });
+    return { status: 'error', reason: 'network', message, reference };
+  }
+
   let raw: unknown;
   try {
-    raw = JSON.parse(await response.text());
+    raw = JSON.parse(text);
   } catch {
     const message = 'config.json is not valid JSON';
     const reference = log.error('config', 'Configuration could not be loaded', {
@@ -88,7 +100,7 @@ export async function loadAppConfig(
     return { status: 'loaded', config: loaded };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'config.json is invalid';
-    const reason: ConfigFailureReason = message.includes('looks like a secret') ? 'secret' : 'invalid';
+    const reason: ConfigFailureReason = error instanceof AppConfigError ? error.reason : 'invalid';
     const reference = log.error('config', 'Configuration could not be loaded', { reason, message });
     return { status: 'error', reason, message, reference };
   }

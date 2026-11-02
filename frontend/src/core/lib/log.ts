@@ -1,4 +1,7 @@
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+import type { AppLogLevel } from '../../../../shared/app-config';
+
+/** The config schema owns the level vocabulary; the logger reuses it. */
+export type LogLevel = AppLogLevel;
 
 export interface LogEntry {
   time: string;
@@ -54,9 +57,16 @@ export function installLogBuffer(development: boolean): void {
 }
 
 function reference(): string {
-  const bytes = new Uint8Array(3);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+  try {
+    const bytes = new Uint8Array(3);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+  } catch {
+    // log-exempt: the logger cannot report its own reference failure.
+    return Math.floor(Math.random() * 0x1000000)
+      .toString(16)
+      .padStart(6, '0');
+  }
 }
 
 function isSensitiveKey(key: string): boolean {
@@ -136,23 +146,27 @@ export function describeError(error: unknown): ErrorDescription {
 
 function write(level: LogLevel, scope: string, message: string, data?: unknown): string {
   const code = reference();
-  const entry: LogEntry = {
-    time: new Date().toISOString(),
-    level,
-    scope,
-    message: scrubString(message),
-    data: data === undefined ? undefined : scrub(data),
-    reference: code,
-  };
-  buffer.push(entry);
-  if (buffer.length > BUFFER_LIMIT) buffer.shift();
+  try {
+    const entry: LogEntry = {
+      time: new Date().toISOString(),
+      level,
+      scope,
+      message: scrubString(message),
+      data: data === undefined ? undefined : scrub(data),
+      reference: code,
+    };
+    buffer.push(entry);
+    if (buffer.length > BUFFER_LIMIT) buffer.shift();
 
-  if (LEVEL_ORDER[level] >= LEVEL_ORDER[currentLevel]) {
-    const output = [`[${level}] ${entry.scope}: ${entry.message}`, entry.data ?? '', `Reference: ${code}`];
-    if (level === 'error') console.error(...output);
-    else if (level === 'warn') console.warn(...output);
-    else if (level === 'info') console.info(...output);
-    else console.debug(...output);
+    if (LEVEL_ORDER[level] >= LEVEL_ORDER[currentLevel]) {
+      const output = [`[${level}] ${entry.scope}: ${entry.message}`, entry.data ?? '', `Reference: ${code}`];
+      if (level === 'error') console.error(...output);
+      else if (level === 'warn') console.warn(...output);
+      else if (level === 'info') console.info(...output);
+      else console.debug(...output);
+    }
+  } catch {
+    // log-exempt: the logger cannot report its own write failure.
   }
 
   return code;

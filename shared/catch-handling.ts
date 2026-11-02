@@ -22,7 +22,7 @@ export interface CatchHandlingReport {
 const CATCH_BLOCK = /\bcatch\b\s*(?:\([^)]*\))?\s*\{/g;
 const CATCH_CALL = /\.catch\s*\(/g;
 const EXEMPT = /\/\/\s*log-exempt:\s*\S+/;
-const LOGGER = /\blog\s*[.[]/;
+const LOGGER = /\blog\.(?:debug|info|warn|error)\s*\(/;
 const RETHROW = /\bthrow\b/;
 
 function skipString(source: string, start: number): number {
@@ -70,8 +70,35 @@ function lineAt(source: string, index: number): number {
   return source.slice(0, index).split('\n').length;
 }
 
+/** Drops comments and string contents so a mention of `log.` in prose cannot satisfy the rule. */
+function codeOnly(source: string): string {
+  let result = '';
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index];
+    if (character === '"' || character === "'" || character === '`') {
+      index = skipString(source, index);
+      continue;
+    }
+    if (character === '/' && source[index + 1] === '/') {
+      const newline = source.indexOf('\n', index);
+      if (newline === -1) break;
+      index = newline - 1;
+      continue;
+    }
+    if (character === '/' && source[index + 1] === '*') {
+      const end = source.indexOf('*/', index + 2);
+      index = end === -1 ? source.length - 1 : end + 1;
+      continue;
+    }
+    result += character;
+  }
+  return result;
+}
+
 function handled(block: string): boolean {
-  return LOGGER.test(block) || RETHROW.test(block) || EXEMPT.test(block);
+  if (EXEMPT.test(block)) return true;
+  const code = codeOnly(block);
+  return LOGGER.test(code) || RETHROW.test(code);
 }
 
 /** Finds every catch site in one source string and reports the unhandled ones. */

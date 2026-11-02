@@ -34,10 +34,15 @@ export interface AppConfig {
   logLevel?: AppLogLevel;
 }
 
+export type AppConfigErrorReason = 'invalid' | 'secret';
+
 export class AppConfigError extends Error {
-  constructor(message: string) {
+  readonly reason: AppConfigErrorReason;
+
+  constructor(message: string, reason: AppConfigErrorReason = 'invalid') {
     super(message);
     this.name = 'AppConfigError';
+    this.reason = reason;
   }
 }
 
@@ -101,7 +106,7 @@ export function parseAppConfig(raw: unknown): AppConfig {
   if (!raw || typeof raw !== 'object') throw new AppConfigError('config must be an object');
 
   const secret = findSecretLikeValue(raw);
-  if (secret) throw new AppConfigError(secret);
+  if (secret) throw new AppConfigError(secret, 'secret');
 
   const value = raw as Record<string, unknown>;
   const gatewayUrl = requireHttpUrl(value.gatewayUrl, 'gatewayUrl');
@@ -138,6 +143,10 @@ export function parseAppConfig(raw: unknown): AppConfig {
       name: requireString(provider.name, `providers[${index}].name`),
       clientId: requireString(provider.clientId, `providers[${index}].clientId`),
       issuer: requireHttpUrl(provider.issuer, `providers[${index}].issuer`),
+      redirectUri:
+        provider.redirectUri === undefined
+          ? undefined
+          : requireHttpUrl(provider.redirectUri, `providers[${index}].redirectUri`),
       apiResource:
         provider.apiResource === undefined
           ? undefined
