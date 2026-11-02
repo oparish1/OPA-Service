@@ -1,5 +1,6 @@
 {
   "gatewayUrl": "http://localhost:9080",
+  "loglevel": "info",
   "providers": [
     {
       "id": "entra",
