@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setAppConfig } from '../../../core/config';
+import { log } from '../../../core/lib/log';
 import { createGoogleAuth } from '../auth';
 
 interface IdConfiguration {
@@ -80,6 +81,11 @@ beforeEach(async () => {
       },
     ],
   });
+  log.clear();
+  vi.spyOn(console, 'debug').mockImplementation(() => undefined);
+  vi.spyOn(console, 'info').mockImplementation(() => undefined);
+  vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
   await AUTH.signOut();
 });
 
@@ -106,6 +112,25 @@ describe('Google auth', () => {
   it('settles with the generic error when the prompt is dismissed (FE-7)', async () => {
     installGis(() => idToken(claims()), 'dismissed');
     await expect(AUTH.signIn()).rejects.toThrow('We couldn’t sign you in');
+  });
+
+  it('logs a dismissed prompt without the credential', async () => {
+    installGis(() => idToken(claims()), 'dismissed');
+    await expect(AUTH.signIn()).rejects.toThrow('We couldn’t sign you in');
+    const entry = log.recent().find(item => item.message === 'Google prompt was dismissed or suppressed');
+    expect(entry?.level).toBe('warn');
+    expect(entry?.scope).toBe('google');
+    expect(JSON.stringify(entry)).not.toContain('eyJ');
+  });
+
+  it('logs a failed claim check without the credential', async () => {
+    const credential = idToken(claims({ nonce: 'wrong-nonce' }));
+    installGis(() => credential);
+    await expect(AUTH.signIn()).rejects.toThrow('We couldn’t sign you in');
+    const entry = log.recent().find(item => item.message === 'Credential claim check failed');
+    expect(entry?.level).toBe('warn');
+    expect(entry?.scope).toBe('google');
+    expect(JSON.stringify(entry)).not.toContain(credential);
   });
 
   it('rejects a wrong audience (A2)', async () => {

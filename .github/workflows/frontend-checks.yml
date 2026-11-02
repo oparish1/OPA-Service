@@ -37,3 +37,4 @@ jobs:
       # Build before the tests so the A18 bundle scan sees `dist/`.
       - run: bun run build
       - run: bun run test
+      - run: bun run check:catch

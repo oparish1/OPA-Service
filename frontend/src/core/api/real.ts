@@ -1,4 +1,5 @@
 import { getAppConfig, getProviderConfig } from '../config';
+import { describeError, log } from '../lib/log';
 import { formatTimestamp } from '../lib/response-format';
 import { getProviderRegistry } from '../providers/active';
 import type { ProviderSession, RedirectOutcome } from '../providers/types';
@@ -80,18 +81,24 @@ export async function signIn(providerId: string): Promise<void> {
 }
 
 /**
- * Adopts a provider redirect callback into the in-memory session (A3). A
- * provider that cannot initialize is skipped so it cannot abort a callback
- * meant for a configured provider; a provider that owns the URL but rejects it
- * is reported so the screen can show the generic sign-in error (A1, FE-7).
+ * Adopts a provider redirect callback into the in-memory session (A3). Every
+ * configured provider is offered the URL: one that cannot initialize or does
+ * not own the URL is skipped, and a rejection is reported only if no provider
+ * handled the callback, so a failing provider cannot abort a callback meant
+ * for a healthy one (A1, FE-7).
  */
 export async function handleRedirect(url: URL): Promise<RedirectOutcome> {
+  let rejected = false;
   for (const module of getProviderRegistry().all) {
     if (!module.auth) continue;
     let outcome: RedirectOutcome;
     try {
       outcome = await module.auth.handleRedirect(url);
-    } catch {
+    } catch (error) {
+      log.warn('api', 'Provider redirect handling failed', {
+        provider: module.id,
+        error: describeError(error),
+      });
       continue;
     }
     if (outcome === 'handled') {
@@ -99,9 +106,9 @@ export async function handleRedirect(url: URL): Promise<RedirectOutcome> {
       if (providerSession) setSession(toSession(providerSession));
       return 'handled';
     }
-    if (outcome === 'rejected') return 'rejected';
+    if (outcome === 'rejected') rejected = true;
   }
-  return 'ignored';
+  return rejected ? 'rejected' : 'ignored';
 }
 
 export async function signOut(): Promise<void> {

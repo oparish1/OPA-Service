@@ -9,6 +9,7 @@ import { TextLink } from '../components/TextLink';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { PublicLayout } from '../layouts/PublicLayout';
 import { GENERIC_ERROR } from '../lib/copy';
+import { describeError, log } from '../lib/log';
 import { space } from '../styles/tokens';
 
 /** Home — Sign in: one button per provider the BFF reports as enabled. */
@@ -16,9 +17,12 @@ export function HomeSignIn() {
   const { navigate } = useApp();
   const { state, reload } = useAsyncData(getProviders);
   const [providerLoading, setProviderLoading] = useState<string | null>(null);
-  const [failure, setFailure] = useState<string | null>(null);
+  const [failure, setFailure] = useState<{ message: string; reference: string } | null>(null);
   const [lastProvider, setLastProvider] = useState<string | null>(null);
-  const [callbackError] = useState(() => new URLSearchParams(window.location.search).get('error'));
+  const [callbackReference] = useState(() => {
+    const error = new URLSearchParams(window.location.search).get('error');
+    return error === 'signin' ? log.error('sign-in', 'Provider redirect was rejected') : null;
+  });
 
   async function handleProvider(providerId: string) {
     setFailure(null);
@@ -28,8 +32,12 @@ export function HomeSignIn() {
       await signIn(providerId);
       navigate('overview');
     } catch (error) {
+      const reference = log.error('sign-in', 'Sign-in failed', {
+        provider: providerId,
+        error: describeError(error),
+      });
       setProviderLoading(null);
-      setFailure(error instanceof Error ? error.message : GENERIC_ERROR);
+      setFailure({ message: error instanceof Error ? error.message : GENERIC_ERROR, reference });
     }
   }
 
@@ -48,14 +56,19 @@ export function HomeSignIn() {
       minHeight={1080}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: space[20] }}>
-        {callbackError === 'signin' ? (
-          <Notice tone="error" heading="We couldn’t sign you in. Try again." />
+        {callbackReference ? (
+          <Notice
+            tone="error"
+            heading="We couldn’t sign you in. Try again."
+            reference={callbackReference}
+          />
         ) : null}
 
         {state.status === 'error' ? (
           <Notice
             tone="error"
             heading={GENERIC_ERROR}
+            reference={state.reference}
             action={
               <Button variant="secondary" onClick={reload}>
                 Retry
@@ -67,7 +80,8 @@ export function HomeSignIn() {
         {failure ? (
           <Notice
             tone="error"
-            heading={failure}
+            heading={failure.message}
+            reference={failure.reference}
             action={
               lastProvider ? (
                 <Button variant="secondary" onClick={() => void handleProvider(lastProvider)}>

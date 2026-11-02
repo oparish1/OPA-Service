@@ -1,8 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../../App';
 import { AppProvider } from '../../app/AppProvider';
+import { log } from '../../lib/log';
 import { configureMocks, resetMocks } from '../../mocks/api';
 import { setProviderRegistry } from '../../providers/active';
 import { ALPHA_MODULE, BETA_MODULE } from '../../testing/fixtures';
@@ -21,6 +22,11 @@ beforeEach(() => {
   setProviderRegistry([TEST_PROVIDER_MODULE]);
   resetMocks();
   configureMocks({ latencyMs: 0 });
+  log.clear();
+  vi.spyOn(console, 'debug').mockImplementation(() => undefined);
+  vi.spyOn(console, 'info').mockImplementation(() => undefined);
+  vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
 });
 
 afterEach(() => {
@@ -59,5 +65,8 @@ describe('HomeSignIn', () => {
     expect(provider).toHaveAttribute('aria-busy', 'true');
     expect(await screen.findByText('Sign-in failed. Try again.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    const entry = log.recent().find(item => item.message === 'Sign-in failed');
+    expect(entry?.level).toBe('error');
+    expect(screen.getByText(`Reference: ${entry?.reference}`)).toBeInTheDocument();
   });
 });

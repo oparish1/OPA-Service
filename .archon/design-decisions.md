@@ -96,3 +96,28 @@ The Round 5 "Provider-driven sign-in" decision's `GET /auth/providers` source is
 superseded by the static public configuration file; the provider-row ordering
 Entra, Okta, Google and the provider-neutral notice copy remain binding. The
 Round 3/4 UI decisions remain binding.
+
+## Logging and configuration failures (issue #16)
+
+- **One logger.** `frontend/src/core/lib/log.ts` is the only logger. Callers pass
+  their own scope; provider modules pass their provider id. It names no provider.
+- **Safe by construction.** Entries are scrubbed before they reach the console or
+  the in-memory buffer: sensitive keys, JWT-shaped strings, PEM blocks and
+  `code`/`state`/token query parameters become `[redacted]`; strings are capped
+  at 300 characters and arrays at 20 items.
+- **Levels and buffer.** `logLevel` is an optional public config field
+  (`debug`, `info`, `warn`, `error`), defaulting to `debug` in development and
+  `warn` in production. The last 200 entries stay in memory only; `window.__logs`
+  exists in development builds only.
+- **No silent failures.** Every non-test `catch` or `.catch()` in `frontend/src`
+  logs, rethrows, or carries `// log-exempt: <reason>`. `scripts/check-catch-handling.ts`
+  enforces the rule in CI and in `bun run check`.
+- **Visible reference.** Every user-visible failure notice shows
+  `Reference: <6 hex>` inside the existing `Notice`; the same value is in the log
+  entry. No new component or colour is introduced.
+- **Configuration failures.** A missing, non-200, non-JSON, invalid or
+  secret-shaped `config.json` shows the configuration error screen with its
+  reason class and reference. It never starts the mock demo. The mock demo is
+  opt-in with `?mock=1` in a development build.
+- **Startup failures.** A throw after config loads shows a generic startup
+  notice with a reference; it does not point the operator at `config.json`.

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { bootstrapSession, signOut as endSession } from '../api';
 import { Notice } from '../components/Notice';
 import { TextLink } from '../components/TextLink';
+import { describeError, log } from '../lib/log';
 import type { Screen } from '../mocks/types';
 import { setOnExpire } from '../session/store';
 import { AppContext } from './app-context';
@@ -20,28 +21,33 @@ export function AppProvider({
   signOut?: () => Promise<void>;
 }) {
   const [screen, setScreen] = useState<Screen>(initialScreen);
-  const [signOutError, setSignOutError] = useState(false);
+  const [signOutReference, setSignOutReference] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    void bootstrap().then(signedIn => {
-      if (active && signedIn) setScreen('overview');
-    });
+    void bootstrap()
+      .then(signedIn => {
+        if (active && signedIn) setScreen('overview');
+      })
+      .catch(error => {
+        log.error('app', 'Session bootstrap failed', { error: describeError(error) });
+      });
     return () => {
       active = false;
     };
   }, [bootstrap]);
 
   const navigate = useCallback((next: Screen) => setScreen(next), []);
-  const dismissSignOutError = useCallback(() => setSignOutError(false), []);
+  const dismissSignOutError = useCallback(() => setSignOutReference(null), []);
 
   const signOut = useCallback(async () => {
-    setSignOutError(false);
+    setSignOutReference(null);
     try {
       await performSignOut();
       setScreen('sign-in');
-    } catch {
-      setSignOutError(true);
+    } catch (error) {
+      const reference = log.error('app', 'Sign-out failed', { error: describeError(error) });
+      setSignOutReference(reference);
     }
   }, [performSignOut]);
 
@@ -55,18 +61,19 @@ export function AppProvider({
   }, [signOut]);
 
   const value = useMemo<AppContextValue>(
-    () => ({ screen, navigate, signOut, signOutError, dismissSignOutError }),
-    [screen, navigate, signOut, signOutError, dismissSignOutError]
+    () => ({ screen, navigate, signOut, dismissSignOutError }),
+    [screen, navigate, signOut, dismissSignOutError]
   );
 
   return (
     <AppContext.Provider value={value}>
-      {signOutError ? (
+      {signOutReference ? (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 10, padding: 16 }}>
           <Notice
             tone="error"
             heading="We couldn’t sign you out. Try again."
             action={<TextLink onClick={dismissSignOutError}>Dismiss</TextLink>}
+            reference={signOutReference}
           />
         </div>
       ) : null}

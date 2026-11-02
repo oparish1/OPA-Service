@@ -1,6 +1,7 @@
 import { OktaAuth, isAccessToken, isIDToken, isRefreshToken } from '@okta/okta-auth-js';
 import type { ProviderConfig } from '../../../../shared/app-config';
 import { getProviderConfig } from '../../core/config';
+import { describeError, log } from '../../core/lib/log';
 import { formatTimestamp } from '../../core/lib/response-format';
 import type { ProviderAuth, ProviderSession } from '../../core/providers/types';
 
@@ -12,6 +13,7 @@ import type { ProviderAuth, ProviderSession } from '../../core/providers/types';
 
 const PROVIDER_ID = 'okta';
 const PROVIDER_NAME = 'Okta';
+const GENERIC_ERROR = 'We couldn’t sign you in. Try again.';
 const OIDC_SCOPES = new Set(['openid', 'profile', 'email', 'offline_access']);
 
 let client: OktaAuth | null = null;
@@ -38,6 +40,8 @@ function getClient(): OktaAuth {
       scopes: requestScopes(),
       pkce: true,
       tokenManager: { storage: 'memory' },
+      // The only documented Okta diagnostic; it stays off in production builds.
+      devMode: import.meta.env.DEV,
     });
   }
   return client;
@@ -95,19 +99,28 @@ async function toSession(oktaAuth: OktaAuth): Promise<ProviderSession | null> {
 export function createOktaAuth(): ProviderAuth {
   return {
     async signIn() {
-      await getClient().signInWithRedirect({ scopes: requestScopes() });
+      try {
+        await getClient().signInWithRedirect({ scopes: requestScopes() });
+      } catch (error) {
+        log.error(PROVIDER_ID, 'Sign-in failed', { error: describeError(error) });
+        throw new Error(GENERIC_ERROR);
+      }
     },
 
     async handleRedirect(url) {
       if (!url.search.includes('code=') || !url.search.includes('state=')) return 'ignored';
-      const oktaAuth = getClient();
+      // Not owning the URL stays 'ignored'; a configured provider that cannot
+      // initialize is a failure, so the screen shows a notice instead.
+      if (!getProviderConfig(PROVIDER_ID)) return 'ignored';
       try {
+        const oktaAuth = getClient();
         await oktaAuth.handleLoginRedirect();
         const session = await toSession(oktaAuth);
         if (!session) return 'rejected';
         current = session;
         return 'handled';
-      } catch {
+      } catch (error) {
+        log.error(PROVIDER_ID, 'Redirect handling failed', { error: describeError(error) });
         return 'rejected';
       }
     },
@@ -120,7 +133,8 @@ export function createOktaAuth(): ProviderAuth {
         const session = await toSession(oktaAuth);
         if (session) current = session;
         return token;
-      } catch {
+      } catch (error) {
+        log.warn(PROVIDER_ID, 'Silent token acquisition failed', { error: describeError(error) });
         return null;
       }
     },
@@ -134,7 +148,8 @@ export function createOktaAuth(): ProviderAuth {
         if (!session) return false;
         current = session;
         return true;
-      } catch {
+      } catch (error) {
+        log.warn(PROVIDER_ID, 'Token renewal failed', { error: describeError(error) });
         return false;
       }
     },

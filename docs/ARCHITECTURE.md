@@ -102,6 +102,6 @@ except where issue #12 explicitly reverses them.
 - Tests sit next to each provider (`frontend/src/providers/*/__tests__`) and
   cover gateway behaviour in `gateway/config.test.ts` and `gateway/opa/*_test.rego`.
 - Commit messages are short and imperative, describing the result.
-- **Checks:** `bun run lint && bun run typecheck && bun run build && bun run test`
+- **Checks:** `bun run lint && bun run typecheck && bun run build && bun run test && bun run check:catch`
   in `frontend/`; `bun test gateway` and `opa test gateway/opa` from the root.
   The two provider-boundary scripts run from the repository root.

@@ -92,6 +92,20 @@ a `client_secret`-shaped value). The production file is deployment
 configuration and is not committed; only
 `frontend/public/config.example.json` is.
 
+## Logging and mock mode
+
+The browser writes through one provider-neutral logger in
+`frontend/src/core/lib/log.ts`. It redacts token-shaped values and sensitive
+keys, keeps the last 200 entries in memory, and exposes them as `window.__logs`
+in development builds only. The optional public `logLevel` field
+(`debug`, `info`, `warn` or `error`) sets the level; it defaults to `debug` in
+development and `warn` in production. Every user-visible failure notice carries
+a six-character reference that also appears in the matching log entry.
+
+A missing or invalid `config.json` shows the configuration error screen; it
+never starts the mock demo. The mock demo is opt-in with `?mock=1` in a
+development build, for example `http://localhost:5173/?mock=1`.
+
 ## Browser request runner
 
 The API screens call the gateway directly with `fetch`, an `AbortController`
@@ -102,10 +116,14 @@ four Authorization options (session access token, `Bearer valid-token-123`,
 prefix (`/entra/v1`, `/okta/v1`, `/google/v1`). Reveal and Copy read tokens
 from memory and make no network request.
 
-Tokens are held in memory only. The app never writes a token to `localStorage`,
-cookies or IndexedDB. The 30-minute idle and 8-hour absolute session limits are
-enforced in the browser as a courtesy; the security bound is the token lifetime
-checked at the gateway.
+App tokens are held in memory only; the app itself never writes a token to
+`localStorage`, cookies or IndexedDB. MSAL keeps its own token cache in
+`sessionStorage` because its redirect flow needs a cache that survives the
+provider round trip (SD-3). That library-scoped cache persists in the browser
+until sign-out and is readable by any same-origin script, so an XSS on this
+origin can read it; it is cleared on sign-out. The
+30-minute idle and 8-hour absolute session limits are enforced in the browser as
+a courtesy; the security bound is the token lifetime checked at the gateway.
 
 ## Checks
 
@@ -113,8 +131,11 @@ The frontend package defines its gates. Build before the tests so the A18
 bundle scan inspects `dist/`:
 
 ```sh
-cd frontend && bun run lint && bun run typecheck && bun run build && bun run test
+cd frontend && bun run lint && bun run typecheck && bun run build && bun run test && bun run check:catch
 ```
+
+`bun run check` runs the same sequence. `check:catch` enforces the no-silent-catch
+rule over `frontend/src`.
 
 The gateway has its own Docker-free gates; install its dependencies once on a
 fresh clone:

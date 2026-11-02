@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setAppConfig } from '../../../core/config';
+import { log } from '../../../core/lib/log';
 import { createEntraAuth } from '../auth';
 
 interface MockGlobal {
@@ -8,7 +9,18 @@ interface MockGlobal {
   __silentResult?: unknown;
   __cleared?: boolean;
   __pendingReject?: Error;
-  __msalOptions?: { cache?: { cacheLocation?: string } };
+  __silentReject?: Error;
+  __initReject?: Error;
+  __msalOptions?: {
+    cache?: { cacheLocation?: string };
+    system?: {
+      loggerOptions?: {
+        logLevel?: number;
+        piiLoggingEnabled?: boolean;
+        loggerCallback?: (level: number, message: string, containsPii: boolean) => void;
+      };
+    };
+  };
 }
 
 const globalMock = globalThis as unknown as MockGlobal;
@@ -25,7 +37,10 @@ vi.mock('@azure/msal-browser', () => {
     constructor(options: unknown) {
       (globalThis as unknown as MockGlobal).__msalOptions = options as MockGlobal['__msalOptions'];
     }
-    async initialize(): Promise<void> {}
+    async initialize(): Promise<void> {
+      const pending = (globalThis as unknown as MockGlobal).__initReject;
+      if (pending) throw pending;
+    }
     async loginRedirect(request: { scopes: string[] }): Promise<void> {
       (globalThis as unknown as MockGlobal).__lastLogin = request;
     }
@@ -43,6 +58,8 @@ vi.mock('@azure/msal-browser', () => {
     }
     setActiveAccount(): void {}
     async acquireTokenSilent(): Promise<unknown> {
+      const pending = (globalThis as unknown as MockGlobal).__silentReject;
+      if (pending) throw pending;
       return (globalThis as unknown as MockGlobal).__silentResult ?? null;
     }
     async clearCache(): Promise<void> {
@@ -50,7 +67,8 @@ vi.mock('@azure/msal-browser', () => {
     }
   }
   class InteractionRequiredAuthError extends Error {}
-  return { PublicClientApplication, InteractionRequiredAuthError };
+  const LogLevel = { Error: 0, Warning: 1, Info: 2, Verbose: 3 };
+  return { PublicClientApplication, InteractionRequiredAuthError, LogLevel };
 });
 
 const AUTH = createEntraAuth();
@@ -86,6 +104,13 @@ beforeEach(async () => {
   globalMock.__silentResult = undefined;
   globalMock.__cleared = false;
   globalMock.__pendingReject = undefined;
+  globalMock.__silentReject = undefined;
+  globalMock.__initReject = undefined;
+  log.clear();
+  vi.spyOn(console, 'debug').mockImplementation(() => undefined);
+  vi.spyOn(console, 'info').mockImplementation(() => undefined);
+  vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
   await AUTH.signOut();
 });
 
@@ -119,8 +144,23 @@ describe('Entra auth', () => {
     expect(AUTH.session()).toBeNull();
   });
 
-  it('configures MSAL with an in-memory cache (A4, SD-3)', () => {
-    expect(globalMock.__msalOptions?.cache?.cacheLocation).toBe('memory');
+  it('configures MSAL with the allowed sessionStorage cache (A4, SD-3)', () => {
+    expect(globalMock.__msalOptions?.cache?.cacheLocation).toBe('sessionStorage');
+  });
+
+  it('routes MSAL diagnostics at warning level and drops PII entries (R3)', () => {
+    const loggerOptions = globalMock.__msalOptions?.system?.loggerOptions;
+    expect(loggerOptions?.logLevel).toBe(1);
+    expect(loggerOptions?.piiLoggingEnabled).toBe(false);
+
+    loggerOptions?.loggerCallback?.(1, 'msal warning', false);
+    loggerOptions?.loggerCallback?.(0, 'msal error', false);
+    loggerOptions?.loggerCallback?.(1, 'msal pii', true);
+
+    const messages = log.recent().map(entry => entry.message);
+    expect(messages).toContain('msal warning');
+    expect(messages).toContain('msal error');
+    expect(messages).not.toContain('msal pii');
   });
 
   it('clears memory and the library cache on sign-out (SD-5)', async () => {
@@ -129,6 +169,14 @@ describe('Entra auth', () => {
     await AUTH.signOut();
     expect(globalMock.__cleared).toBe(true);
     expect(AUTH.session()).toBeNull();
+  });
+
+  it('logs a failed silent acquisition at warn level', async () => {
+    globalMock.__silentReject = new Error('silent failed');
+    await expect(AUTH.getAccessToken()).resolves.toBeNull();
+    const entry = log.recent().find(item => item.message === 'Silent token acquisition failed');
+    expect(entry?.level).toBe('warn');
+    expect(entry?.scope).toBe('entra');
   });
 
   it('renews silently and updates the session (A3)', async () => {
@@ -147,5 +195,72 @@ describe('Entra auth', () => {
     expect(localSet).not.toHaveBeenCalled();
     expect(sessionSet).not.toHaveBeenCalled();
     expect(indexedDBMock?.mock.calls ?? []).toHaveLength(0);
+  });
+
+  it('ignores a callback when Entra is not configured (R5)', async () => {
+    setAppConfig({
+      gatewayUrl: 'http://localhost:9080',
+      providers: [
+        {
+          id: 'okta',
+          name: 'Okta',
+          clientId: 'okta-client-id',
+          issuer: 'https://dev-1.okta.example/oauth2/default',
+        },
+      ],
+    });
+    await expect(
+      AUTH.handleRedirect(new URL('http://localhost:5173/#code=abc&state=xyz'))
+    ).resolves.toBe('ignored');
+  });
+
+  it('ignores a query-only callback that belongs to another provider (R14)', async () => {
+    globalMock.__initReject = new Error('initialize failed');
+    vi.resetModules();
+    const config = await import('../../../core/config');
+    config.setAppConfig({
+      gatewayUrl: 'http://localhost:9080',
+      providers: [
+        {
+          id: 'entra',
+          name: 'Microsoft Entra ID',
+          clientId: 'spa-client-id',
+          issuer: 'https://login.microsoftonline.com/tenant/v2.0',
+        },
+      ],
+    });
+    const freshLog = await import('../../../core/lib/log');
+    const { createEntraAuth } = await import('../auth');
+
+    await expect(
+      createEntraAuth().handleRedirect(new URL('http://localhost:5173/?code=abc&state=xyz'))
+    ).resolves.toBe('ignored');
+    expect(freshLog.log.recent().some(entry => entry.message === 'Redirect handling failed')).toBe(
+      false
+    );
+  });
+
+  it('reports a configured provider whose client fails to initialize (R5)', async () => {
+    globalMock.__initReject = new Error('initialize failed');
+    vi.resetModules();
+    const config = await import('../../../core/config');
+    config.setAppConfig({
+      gatewayUrl: 'http://localhost:9080',
+      providers: [
+        {
+          id: 'entra',
+          name: 'Microsoft Entra ID',
+          clientId: 'spa-client-id',
+          issuer: 'https://login.microsoftonline.com/tenant/v2.0',
+        },
+      ],
+    });
+    const freshLog = await import('../../../core/lib/log');
+    const { createEntraAuth } = await import('../auth');
+
+    await expect(
+      createEntraAuth().handleRedirect(new URL('http://localhost:5173/#code=abc&state=xyz'))
+    ).resolves.toBe('rejected');
+    expect(freshLog.log.recent().some(entry => entry.message === 'Redirect handling failed')).toBe(true);
   });
 });

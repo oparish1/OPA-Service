@@ -7,6 +7,7 @@ import { TokenCard } from '../components/TokenCard';
 import { TokenState } from '../components/TokenState';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { GENERIC_ERROR } from '../lib/copy';
+import { describeError, log } from '../lib/log';
 import { useCopyFeedback } from '../hooks/useCopyFeedback';
 import { WorkspaceLayout } from '../layouts/WorkspaceLayout';
 import { getSession, refreshToken, revealToken } from '../api';
@@ -23,8 +24,9 @@ export function Overview() {
   const [revealedAccess, setRevealedAccess] = useState('');
   const [revealedRefresh, setRevealedRefresh] = useState('');
   const [accessExpired, setAccessExpired] = useState(false);
-  const [revealError, setRevealError] = useState(false);
+  const [revealError, setRevealError] = useState<string | null>(null);
   const [refreshState, setRefreshState] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [refreshReference, setRefreshReference] = useState<string | null>(null);
   const accessCopy = useCopyFeedback();
   const refreshCopy = useCopyFeedback();
 
@@ -36,16 +38,19 @@ export function Overview() {
     if (revealAccess) {
       setRevealAccess(false);
       setRevealedAccess('');
-      setRevealError(false);
+      setRevealError(null);
       return;
     }
     try {
       setRevealedAccess(await revealToken('access'));
       setRevealAccess(true);
-      setRevealError(false);
-    } catch {
+      setRevealError(null);
+    } catch (error) {
+      const reference = log.error('overview', 'Access token reveal failed', {
+        error: describeError(error),
+      });
       setRevealedAccess('');
-      setRevealError(true);
+      setRevealError(reference);
     }
   }
 
@@ -53,16 +58,19 @@ export function Overview() {
     if (revealRefresh) {
       setRevealRefresh(false);
       setRevealedRefresh('');
-      setRevealError(false);
+      setRevealError(null);
       return;
     }
     try {
       setRevealedRefresh(await revealToken('refresh'));
       setRevealRefresh(true);
-      setRevealError(false);
-    } catch {
+      setRevealError(null);
+    } catch (error) {
+      const reference = log.error('overview', 'Refresh token reveal failed', {
+        error: describeError(error),
+      });
       setRevealedRefresh('');
-      setRevealError(true);
+      setRevealError(reference);
     }
   }
 
@@ -72,14 +80,19 @@ export function Overview() {
     setRevealRefresh(false);
     setRevealedAccess('');
     setRevealedRefresh('');
-    setRevealError(false);
+    setRevealError(null);
+    setRefreshReference(null);
     try {
       const token = await refreshToken();
       setSession(current => (current ? { ...current, accessToken: token } : current));
       setAccessExpired(false);
       setRefreshState('idle');
-    } catch {
+    } catch (error) {
+      const reference = log.error('overview', 'Token refresh failed', {
+        error: describeError(error),
+      });
       setAccessExpired(true);
+      setRefreshReference(reference);
       setRefreshState('error');
     }
   }
@@ -127,6 +140,7 @@ export function Overview() {
         <Notice
           tone="error"
           heading={GENERIC_ERROR}
+          reference={state.reference}
           action={
             <Button variant="secondary" onClick={reload}>
               Retry
@@ -164,6 +178,7 @@ export function Overview() {
         <Notice
           tone="error"
           heading={GENERIC_ERROR}
+          reference={refreshReference ?? undefined}
           action={
             <>
               <Button variant="secondary" onClick={handleRefresh}>
@@ -183,7 +198,9 @@ export function Overview() {
         />
       ) : null}
 
-      {revealError ? <Notice tone="error" heading={GENERIC_ERROR} /> : null}
+      {revealError ? (
+        <Notice tone="error" heading={GENERIC_ERROR} reference={revealError} />
+      ) : null}
 
       <Notice tone="neutral" heading={`Signed in with ${data.provider}`} />
 

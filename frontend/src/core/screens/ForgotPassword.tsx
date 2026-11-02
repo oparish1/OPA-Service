@@ -11,6 +11,7 @@ import { TextLink } from '../components/TextLink';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { PublicLayout } from '../layouts/PublicLayout';
 import { GENERIC_ERROR, PROVIDER_ERROR } from '../lib/copy';
+import { describeError, log } from '../lib/log';
 import { getProviders, resetPassword } from '../api';
 import { body, color, font, label, space } from '../styles/tokens';
 
@@ -22,7 +23,7 @@ export function ForgotPassword() {
   const [workEmail, setWorkEmail] = useState('');
   const [error, setError] = useState<string | undefined>(undefined);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
-  const [failure, setFailure] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
   const [destination, setDestination] = useState('—');
 
   const providers = state.status === 'ready' ? state.data : [];
@@ -34,16 +35,20 @@ export function ForgotPassword() {
   async function submit() {
     if (!selectedId) return;
     setStatus('loading');
-    setFailure(false);
+    setFailure(null);
     try {
       const result = await resetPassword(selectedId);
       setDestination(result.destination);
       if (new URL(result.destination).protocol !== 'https:') throw new Error('Unsafe destination');
       window.open(result.destination, '_blank', 'noopener,noreferrer');
       setStatus('success');
-    } catch {
+    } catch (error) {
+      const reference = log.error('forgot-password', 'Password recovery destination failed', {
+        provider: selectedId,
+        error: describeError(error),
+      });
       setStatus('idle');
-      setFailure(true);
+      setFailure(reference);
     }
   }
 
@@ -78,6 +83,7 @@ export function ForgotPassword() {
           <Notice
             tone="error"
             heading={GENERIC_ERROR}
+            reference={state.reference}
             action={
               <Button variant="secondary" onClick={reload}>
                 Retry
@@ -90,6 +96,7 @@ export function ForgotPassword() {
           <Notice
             tone="error"
             heading={GENERIC_ERROR}
+            reference={failure}
             action={
               <Button variant="secondary" onClick={() => void submit()}>
                 Retry

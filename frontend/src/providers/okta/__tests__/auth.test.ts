@@ -1,12 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setAppConfig } from '../../../core/config';
+import { log } from '../../../core/lib/log';
 import { createOktaAuth } from '../auth';
 
 interface MockGlobal {
   __lastSignIn?: { scopes: string[] };
   __oktaTokens?: Record<string, unknown>;
   __oktaPendingReject?: Error;
+  __oktaRenewReject?: Error;
   __oktaCleared?: boolean;
+  __oktaInitReject?: Error;
   __oktaOptions?: { tokenManager?: { storage?: string } };
 }
 
@@ -18,7 +21,11 @@ vi.mock('@okta/okta-auth-js', () => {
     store: Record<string, unknown> = {};
     tokenManager = {
       get: async (key: string): Promise<unknown> => this.store[key],
-      renew: async (key: string): Promise<unknown> => this.store[key],
+      renew: async (key: string): Promise<unknown> => {
+        const pending = (globalThis as unknown as MockGlobal).__oktaRenewReject;
+        if (pending) throw pending;
+        return this.store[key];
+      },
       clear: (): void => {
         (globalThis as unknown as MockGlobal).__oktaCleared = true;
         this.store = {};
@@ -26,6 +33,8 @@ vi.mock('@okta/okta-auth-js', () => {
     };
 
     constructor(options: unknown) {
+      const pending = (globalThis as unknown as MockGlobal).__oktaInitReject;
+      if (pending) throw pending;
       this.options = options;
       (globalThis as unknown as MockGlobal).__oktaOptions = options as MockGlobal['__oktaOptions'];
     }
@@ -88,7 +97,14 @@ beforeEach(async () => {
   globalMock.__lastSignIn = undefined;
   globalMock.__oktaTokens = undefined;
   globalMock.__oktaPendingReject = undefined;
+  globalMock.__oktaRenewReject = undefined;
   globalMock.__oktaCleared = false;
+  globalMock.__oktaInitReject = undefined;
+  log.clear();
+  vi.spyOn(console, 'debug').mockImplementation(() => undefined);
+  vi.spyOn(console, 'info').mockImplementation(() => undefined);
+  vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
   await AUTH.signOut();
 });
 
@@ -131,6 +147,14 @@ describe('Okta auth', () => {
     expect(AUTH.session()).toBeNull();
   });
 
+  it('logs a failed renewal at warn level', async () => {
+    globalMock.__oktaRenewReject = new Error('renew failed');
+    await expect(AUTH.renew()).resolves.toBe(false);
+    const entry = log.recent().find(item => item.message === 'Token renewal failed');
+    expect(entry?.level).toBe('warn');
+    expect(entry?.scope).toBe('okta');
+  });
+
   it('never writes a token to browser storage (A4)', async () => {
     const localSet = vi.spyOn(Storage.prototype, 'setItem');
     const sessionSet = vi.spyOn(window.sessionStorage, 'setItem');
@@ -139,5 +163,46 @@ describe('Okta auth', () => {
     await AUTH.getAccessToken();
     expect(localSet).not.toHaveBeenCalled();
     expect(sessionSet).not.toHaveBeenCalled();
+  });
+
+  it('ignores a callback when Okta is not configured (R5)', async () => {
+    setAppConfig({
+      gatewayUrl: 'http://localhost:9080',
+      providers: [
+        {
+          id: 'entra',
+          name: 'Microsoft Entra ID',
+          clientId: 'spa-client-id',
+          issuer: 'https://login.microsoftonline.com/tenant/v2.0',
+        },
+      ],
+    });
+    await expect(
+      AUTH.handleRedirect(new URL('http://localhost:5173/?code=abc&state=xyz'))
+    ).resolves.toBe('ignored');
+  });
+
+  it('reports a configured provider whose client fails to initialize (R5)', async () => {
+    globalMock.__oktaInitReject = new Error('initialize failed');
+    vi.resetModules();
+    const config = await import('../../../core/config');
+    config.setAppConfig({
+      gatewayUrl: 'http://localhost:9080',
+      providers: [
+        {
+          id: 'okta',
+          name: 'Okta',
+          clientId: 'okta-client-id',
+          issuer: 'https://dev-1.okta.example/oauth2/default',
+        },
+      ],
+    });
+    const freshLog = await import('../../../core/lib/log');
+    const { createOktaAuth } = await import('../auth');
+
+    await expect(
+      createOktaAuth().handleRedirect(new URL('http://localhost:5173/?code=abc&state=xyz'))
+    ).resolves.toBe('rejected');
+    expect(freshLog.log.recent().some(entry => entry.message === 'Redirect handling failed')).toBe(true);
   });
 });

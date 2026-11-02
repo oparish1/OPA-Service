@@ -1,10 +1,8 @@
-import {
-  InteractionRequiredAuthError,
-  PublicClientApplication,
-} from '@azure/msal-browser';
+import { LogLevel, PublicClientApplication } from '@azure/msal-browser';
 import type { AccountInfo, AuthenticationResult, SilentRequest } from '@azure/msal-browser';
 import type { ProviderConfig } from '../../../../shared/app-config';
 import { getProviderConfig } from '../../core/config';
+import { describeError, log } from '../../core/lib/log';
 import { formatTimestamp } from '../../core/lib/response-format';
 import type { ProviderAuth, ProviderSession } from '../../core/providers/types';
 
@@ -16,6 +14,7 @@ import type { ProviderAuth, ProviderSession } from '../../core/providers/types';
 
 const PROVIDER_ID = 'entra';
 const PROVIDER_NAME = 'Microsoft Entra ID';
+const GENERIC_ERROR = 'We couldn’t sign you in. Try again.';
 const OIDC_SCOPES = new Set(['openid', 'profile', 'email', 'offline_access']);
 
 let client: PublicClientApplication | null = null;
@@ -42,15 +41,28 @@ function requestScopes(): string[] {
 async function getClient(): Promise<PublicClientApplication> {
   if (!client) {
     const provider = config();
-    client = new PublicClientApplication({
+    const created = new PublicClientApplication({
       auth: {
         clientId: provider.clientId,
         authority: provider.issuer,
         redirectUri: provider.redirectUri || window.location.origin,
       },
       cache: { cacheLocation: 'sessionStorage' },
+      system: {
+        loggerOptions: {
+          logLevel: LogLevel.Warning,
+          piiLoggingEnabled: false,
+          loggerCallback: (level, message, containsPii) => {
+            if (containsPii) return;
+            if (level === LogLevel.Error) log.error(PROVIDER_ID, message);
+            else if (level === LogLevel.Warning) log.warn(PROVIDER_ID, message);
+            else log.debug(PROVIDER_ID, message);
+          },
+        },
+      },
     });
-    await client.initialize();
+    await created.initialize();
+    client = created;
   }
   return client;
 }
@@ -103,7 +115,7 @@ async function acquireSilent(forceRefresh = false): Promise<AuthenticationResult
   try {
     return await msal.acquireTokenSilent(request);
   } catch (error) {
-    console.error('Entra renewal failed', error instanceof Error ? error.name : error);
+    log.warn(PROVIDER_ID, 'Silent token acquisition failed', { error: describeError(error) });
     return null;
   }
 }
@@ -111,21 +123,32 @@ async function acquireSilent(forceRefresh = false): Promise<AuthenticationResult
 export function createEntraAuth(): ProviderAuth {
   return {
     async signIn() {
-      const msal = await getClient();
-      await msal.loginRedirect({ scopes: requestScopes() });
+      try {
+        const msal = await getClient();
+        await msal.loginRedirect({ scopes: requestScopes() });
+      } catch (error) {
+        log.error(PROVIDER_ID, 'Sign-in failed', { error: describeError(error) });
+        throw new Error(GENERIC_ERROR);
+      }
     },
 
     async handleRedirect(url) {
-      if (!url.hash && !url.search) return 'ignored';
-      const msal = await getClient();
+      // MSAL's redirect response always arrives in the fragment; a query-only
+      // callback belongs to another provider and must not trigger initialization.
+      if (!url.hash) return 'ignored';
+      // A configured provider that cannot initialize is a failure, so the
+      // screen shows a notice instead of silently ignoring its own callback.
+      if (!getProviderConfig(PROVIDER_ID)) return 'ignored';
       try {
+        const msal = await getClient();
         const result = await msal.handleRedirectPromise(url.hash);
         if (!result) return 'ignored';
         msal.setActiveAccount(result.account);
         current = toSession(result);
         return 'handled';
-      } catch {
+      } catch (error) {
         // A missing, wrong or reused state must not surface the library text.
+        log.error(PROVIDER_ID, 'Redirect handling failed', { error: describeError(error) });
         return 'rejected';
       }
     },

@@ -46,6 +46,36 @@ describe('parseAppConfig', () => {
     ).toThrow(/looks like a secret/);
   });
 
+  it('carries the secret reason on the error, not just in the message (R7)', () => {
+    try {
+      parseAppConfig({
+        ...VALID,
+        providers: [{ ...VALID.providers[0], clientId: 'A'.repeat(48) }],
+      });
+      throw new Error('expected parseAppConfig to throw');
+    } catch (error) {
+      expect(error).toBeInstanceOf(AppConfigError);
+      expect((error as AppConfigError).reason).toBe('secret');
+    }
+  });
+
+  it('preserves a configured redirectUri (R13)', () => {
+    const parsed = parseAppConfig({
+      ...VALID,
+      providers: [{ ...VALID.providers[0], redirectUri: 'http://localhost:5173/callback' }],
+    });
+    expect(parsed.providers[0].redirectUri).toBe('http://localhost:5173/callback');
+  });
+
+  it('rejects a non-http redirectUri (R13)', () => {
+    expect(() =>
+      parseAppConfig({
+        ...VALID,
+        providers: [{ ...VALID.providers[0], redirectUri: 'ftp://example.com' }],
+      })
+    ).toThrow(AppConfigError);
+  });
+
   it('fails on a client_secret key', () => {
     expect(() => parseAppConfig({ ...VALID, client_secret: 'anything' })).toThrow(/looks like a secret/);
   });

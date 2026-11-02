@@ -62,6 +62,8 @@ export interface ApiResponse {
   bodyKind?: BodyKind;
   sizeBytes?: number;
   errorCode?: RunnerErrorCode;
+  /** The log reference for a failed request, shown inside the failure notice. */
+  reference?: string;
 }
 
 export type ApiErrorKind = 'unauthorized' | 'forbidden' | 'notFound' | 'server' | 'timeout';

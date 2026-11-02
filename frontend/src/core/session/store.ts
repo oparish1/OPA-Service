@@ -1,3 +1,4 @@
+import { log } from '../lib/log';
 import type { Session, TokenKind } from '../types';
 
 /**
@@ -29,7 +30,8 @@ function clearTimers(): void {
   absoluteTimer = null;
 }
 
-function expire(): void {
+function expire(reason: 'idle' | 'absolute'): void {
+  log.warn('session', 'Session expired', { reason });
   // The hook reads the provider id from the store to clear the provider
   // library's cache, so it must run before the store is emptied.
   onExpire?.();
@@ -47,8 +49,8 @@ export function setOnExpire(callback: (() => void) | null): void {
 export function setSession(next: Session): void {
   session = next;
   clearTimers();
-  idleTimer = setTimeout(expire, limits.idleMs);
-  absoluteTimer = setTimeout(expire, limits.absoluteMs);
+  idleTimer = setTimeout(() => expire('idle'), limits.idleMs);
+  absoluteTimer = setTimeout(() => expire('absolute'), limits.absoluteMs);
 }
 
 /**
@@ -58,16 +60,16 @@ export function setSession(next: Session): void {
  */
 export function updateSession(next: Session): void {
   session = next;
-  if (absoluteTimer === null) absoluteTimer = setTimeout(expire, limits.absoluteMs);
+  if (absoluteTimer === null) absoluteTimer = setTimeout(() => expire('absolute'), limits.absoluteMs);
   if (idleTimer !== null) clearTimeout(idleTimer);
-  idleTimer = setTimeout(expire, limits.idleMs);
+  idleTimer = setTimeout(() => expire('idle'), limits.idleMs);
 }
 
 /** Resets the idle timer; called on a request so activity keeps the session alive. */
 export function touch(): void {
   if (!session) return;
   if (idleTimer !== null) clearTimeout(idleTimer);
-  idleTimer = setTimeout(expire, limits.idleMs);
+  idleTimer = setTimeout(() => expire('idle'), limits.idleMs);
 }
 
 export function getSession(): Session | null {

@@ -161,6 +161,36 @@ describe('real API seam', () => {
     expect(getSession()?.providerId).toBe('target');
   });
 
+  it('does not let a provider that rejects a callback abort one that handles it (R14)', async () => {
+    const rejecting = providerModule(
+      undefined,
+      {
+        async handleRedirect() {
+          return 'rejected';
+        },
+      },
+      'broken'
+    );
+    const target = providerModule(
+      undefined,
+      {
+        async handleRedirect() {
+          return 'handled';
+        },
+        session() {
+          return { ...PROVIDER_SESSION, providerId: 'target' };
+        },
+      },
+      'target'
+    );
+    setProviderRegistry([rejecting, target]);
+
+    const outcome = await handleRedirect(new URL('http://localhost:5173/?code=abc&state=xyz'));
+
+    expect(outcome).toBe('handled');
+    expect(getSession()?.providerId).toBe('target');
+  });
+
   it('reports a rejected callback distinctly from an unrelated one (R9)', async () => {
     const rejecting = providerModule(undefined, {
       async handleRedirect() {

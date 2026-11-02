@@ -9,6 +9,7 @@ import { SkeletonBlock } from '../components/Skeleton';
 import { TextLink } from '../components/TextLink';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { BLOCKED_HOST, GENERIC_ERROR } from '../lib/copy';
+import { describeError, log } from '../lib/log';
 import { appUrl, PROFILE_PATH, runnerAuthOptions, validateRunnerUrl } from '../lib/runner-url';
 import { WorkspaceLayout } from '../layouts/WorkspaceLayout';
 import { getSession, refreshToken, runRequest } from '../api';
@@ -25,7 +26,9 @@ export function ProfileAPI() {
   const [response, setResponse] = useState<ApiResponse | null>(null);
   const [running, setRunning] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [refreshFailure, setRefreshFailure] = useState<{ message: string; reference: string } | null>(
+    null
+  );
   const [accessMeta, setAccessMeta] = useState<{ masked: string; expiresAt: string } | null>(null);
   const [lastRun, setLastRun] = useState<{ url: string; auth: RunnerAuth } | null>(null);
   const runSeq = useRef(0);
@@ -52,6 +55,7 @@ export function ProfileAPI() {
         <Notice
           tone="error"
           heading={GENERIC_ERROR}
+          reference={state.reference}
           action={
             <Button variant="secondary" onClick={reload}>
               Retry
@@ -90,7 +94,7 @@ export function ProfileAPI() {
   async function handleRefresh() {
     const request = lastRun;
     if (!request) return;
-    setRefreshError(null);
+    setRefreshFailure(null);
     setRefreshing(true);
     const runId = ++runSeq.current;
     try {
@@ -99,9 +103,12 @@ export function ProfileAPI() {
       const result = await runRequest(request.auth, request.url);
       if (runSeq.current !== runId) return;
       setResponse(result);
-    } catch {
+    } catch (error) {
       if (runSeq.current !== runId) return;
-      setRefreshError('Refresh token expired. Sign in again.');
+      const reference = log.error('profile-api', 'Token refresh failed', {
+        error: describeError(error),
+      });
+      setRefreshFailure({ message: 'Refresh token expired. Sign in again.', reference });
     } finally {
       setRefreshing(false);
     }
@@ -138,7 +145,7 @@ export function ProfileAPI() {
           expiredAt={expiresAt}
           refreshValidUntil={session.refreshToken.expiresAt}
           refreshing={refreshing}
-          error={refreshError}
+          failure={refreshFailure}
           onRefresh={handleRefresh}
           onSignIn={signOut}
         />
@@ -148,6 +155,7 @@ export function ProfileAPI() {
         <Notice
           tone="error"
           heading={response?.errorCode === 'blocked_host' ? BLOCKED_HOST : GENERIC_ERROR}
+          reference={response?.reference}
           action={
             <Button variant="secondary" onClick={handleRun}>
               Retry
