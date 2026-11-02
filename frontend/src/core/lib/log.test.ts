@@ -173,4 +173,15 @@ describe('log levels and buffer', () => {
     installLogBuffer(false);
     expect(window.__logs).toBeUndefined();
   });
+
+  it('never throws when an entry cannot be scrubbed', () => {
+    const payload = Object.defineProperty({}, 'boom', {
+      enumerable: true,
+      get() {
+        throw new Error('getter failed');
+      },
+    });
+    expect(() => log.error('test', 'payload', payload)).not.toThrow();
+    expect(log.error('test', 'after')).toMatch(/^[0-9a-f]{6}$/);
+  });
 });

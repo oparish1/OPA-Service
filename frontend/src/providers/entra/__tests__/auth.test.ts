@@ -10,7 +10,17 @@ interface MockGlobal {
   __cleared?: boolean;
   __pendingReject?: Error;
   __silentReject?: Error;
-  __msalOptions?: { cache?: { cacheLocation?: string } };
+  __initReject?: Error;
+  __msalOptions?: {
+    cache?: { cacheLocation?: string };
+    system?: {
+      loggerOptions?: {
+        logLevel?: number;
+        piiLoggingEnabled?: boolean;
+        loggerCallback?: (level: number, message: string, containsPii: boolean) => void;
+      };
+    };
+  };
 }
 
 const globalMock = globalThis as unknown as MockGlobal;
@@ -27,7 +37,10 @@ vi.mock('@azure/msal-browser', () => {
     constructor(options: unknown) {
       (globalThis as unknown as MockGlobal).__msalOptions = options as MockGlobal['__msalOptions'];
     }
-    async initialize(): Promise<void> {}
+    async initialize(): Promise<void> {
+      const pending = (globalThis as unknown as MockGlobal).__initReject;
+      if (pending) throw pending;
+    }
     async loginRedirect(request: { scopes: string[] }): Promise<void> {
       (globalThis as unknown as MockGlobal).__lastLogin = request;
     }
@@ -92,6 +105,7 @@ beforeEach(async () => {
   globalMock.__cleared = false;
   globalMock.__pendingReject = undefined;
   globalMock.__silentReject = undefined;
+  globalMock.__initReject = undefined;
   log.clear();
   vi.spyOn(console, 'debug').mockImplementation(() => undefined);
   vi.spyOn(console, 'info').mockImplementation(() => undefined);
@@ -134,6 +148,21 @@ describe('Entra auth', () => {
     expect(globalMock.__msalOptions?.cache?.cacheLocation).toBe('sessionStorage');
   });
 
+  it('routes MSAL diagnostics at warning level and drops PII entries (R3)', () => {
+    const loggerOptions = globalMock.__msalOptions?.system?.loggerOptions;
+    expect(loggerOptions?.logLevel).toBe(1);
+    expect(loggerOptions?.piiLoggingEnabled).toBe(false);
+
+    loggerOptions?.loggerCallback?.(1, 'msal warning', false);
+    loggerOptions?.loggerCallback?.(0, 'msal error', false);
+    loggerOptions?.loggerCallback?.(1, 'msal pii', true);
+
+    const messages = log.recent().map(entry => entry.message);
+    expect(messages).toContain('msal warning');
+    expect(messages).toContain('msal error');
+    expect(messages).not.toContain('msal pii');
+  });
+
   it('clears memory and the library cache on sign-out (SD-5)', async () => {
     globalMock.__handleRedirect = () => RESULT;
     await AUTH.handleRedirect(new URL('http://localhost:5173/#code=abc'));
@@ -166,5 +195,46 @@ describe('Entra auth', () => {
     expect(localSet).not.toHaveBeenCalled();
     expect(sessionSet).not.toHaveBeenCalled();
     expect(indexedDBMock?.mock.calls ?? []).toHaveLength(0);
+  });
+
+  it('ignores a callback when Entra is not configured (R5)', async () => {
+    setAppConfig({
+      gatewayUrl: 'http://localhost:9080',
+      providers: [
+        {
+          id: 'okta',
+          name: 'Okta',
+          clientId: 'okta-client-id',
+          issuer: 'https://dev-1.okta.example/oauth2/default',
+        },
+      ],
+    });
+    await expect(
+      AUTH.handleRedirect(new URL('http://localhost:5173/#code=abc&state=xyz'))
+    ).resolves.toBe('ignored');
+  });
+
+  it('reports a configured provider whose client fails to initialize (R5)', async () => {
+    globalMock.__initReject = new Error('initialize failed');
+    vi.resetModules();
+    const config = await import('../../../core/config');
+    config.setAppConfig({
+      gatewayUrl: 'http://localhost:9080',
+      providers: [
+        {
+          id: 'entra',
+          name: 'Microsoft Entra ID',
+          clientId: 'spa-client-id',
+          issuer: 'https://login.microsoftonline.com/tenant/v2.0',
+        },
+      ],
+    });
+    const freshLog = await import('../../../core/lib/log');
+    const { createEntraAuth } = await import('../auth');
+
+    await expect(
+      createEntraAuth().handleRedirect(new URL('http://localhost:5173/#code=abc&state=xyz'))
+    ).resolves.toBe('rejected');
+    expect(freshLog.log.recent().some(entry => entry.message === 'Redirect handling failed')).toBe(true);
   });
 });

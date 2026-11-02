@@ -9,6 +9,7 @@ interface MockGlobal {
   __oktaPendingReject?: Error;
   __oktaRenewReject?: Error;
   __oktaCleared?: boolean;
+  __oktaInitReject?: Error;
   __oktaOptions?: { tokenManager?: { storage?: string } };
 }
 
@@ -32,6 +33,8 @@ vi.mock('@okta/okta-auth-js', () => {
     };
 
     constructor(options: unknown) {
+      const pending = (globalThis as unknown as MockGlobal).__oktaInitReject;
+      if (pending) throw pending;
       this.options = options;
       (globalThis as unknown as MockGlobal).__oktaOptions = options as MockGlobal['__oktaOptions'];
     }
@@ -96,6 +99,7 @@ beforeEach(async () => {
   globalMock.__oktaPendingReject = undefined;
   globalMock.__oktaRenewReject = undefined;
   globalMock.__oktaCleared = false;
+  globalMock.__oktaInitReject = undefined;
   log.clear();
   vi.spyOn(console, 'debug').mockImplementation(() => undefined);
   vi.spyOn(console, 'info').mockImplementation(() => undefined);
@@ -159,5 +163,46 @@ describe('Okta auth', () => {
     await AUTH.getAccessToken();
     expect(localSet).not.toHaveBeenCalled();
     expect(sessionSet).not.toHaveBeenCalled();
+  });
+
+  it('ignores a callback when Okta is not configured (R5)', async () => {
+    setAppConfig({
+      gatewayUrl: 'http://localhost:9080',
+      providers: [
+        {
+          id: 'entra',
+          name: 'Microsoft Entra ID',
+          clientId: 'spa-client-id',
+          issuer: 'https://login.microsoftonline.com/tenant/v2.0',
+        },
+      ],
+    });
+    await expect(
+      AUTH.handleRedirect(new URL('http://localhost:5173/?code=abc&state=xyz'))
+    ).resolves.toBe('ignored');
+  });
+
+  it('reports a configured provider whose client fails to initialize (R5)', async () => {
+    globalMock.__oktaInitReject = new Error('initialize failed');
+    vi.resetModules();
+    const config = await import('../../../core/config');
+    config.setAppConfig({
+      gatewayUrl: 'http://localhost:9080',
+      providers: [
+        {
+          id: 'okta',
+          name: 'Okta',
+          clientId: 'okta-client-id',
+          issuer: 'https://dev-1.okta.example/oauth2/default',
+        },
+      ],
+    });
+    const freshLog = await import('../../../core/lib/log');
+    const { createOktaAuth } = await import('../auth');
+
+    await expect(
+      createOktaAuth().handleRedirect(new URL('http://localhost:5173/?code=abc&state=xyz'))
+    ).resolves.toBe('rejected');
+    expect(freshLog.log.recent().some(entry => entry.message === 'Redirect handling failed')).toBe(true);
   });
 });

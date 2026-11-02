@@ -125,6 +125,19 @@ describe('direct runner logging', () => {
     expect(JSON.stringify(entry)).not.toContain('secret-code');
   });
 
+  it('logs an invalid URL as a constant reason, never the raw URL', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const response = await runRequest('none', 'https://user:password@evil.example/path?session=unknown-secret');
+    expect(response.errorCode).toBe('invalid_url');
+    const entry = log.recent().at(-1);
+    expect(entry?.level).toBe('error');
+    expect(entry?.data).toMatchObject({ reason: 'invalid_url' });
+    expect(JSON.stringify(entry)).not.toContain('user:password');
+    expect(JSON.stringify(entry)).not.toContain('unknown-secret');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('logs a blocked origin with host and path only', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);

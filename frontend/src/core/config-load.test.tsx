@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConfigurationError } from './components/ConfigurationError';
+import { StartupError } from './components/StartupError';
 import { loadAppConfig } from './config';
 import { log } from './lib/log';
 
@@ -89,6 +90,27 @@ describe('loadAppConfig', () => {
     });
     expect(result).toMatchObject({ status: 'error', reason: 'network' });
   });
+
+  it('reports a non-404, non-OK response as an HTTP reason', async () => {
+    const result = await loadAppConfig({
+      fetchImpl: fetchReturning('nope', 500),
+      baseUrl: 'http://app/',
+    });
+    expect(result).toMatchObject({ status: 'error', reason: 'http' });
+  });
+
+  it('reports a body-read failure as network, not invalid JSON', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      status: 200,
+      ok: true,
+      text: () => Promise.reject(new Error('connection reset')),
+    });
+    const result = await loadAppConfig({
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      baseUrl: 'http://app/',
+    });
+    expect(result).toMatchObject({ status: 'error', reason: 'network' });
+  });
 });
 
 describe('ConfigurationError', () => {
@@ -97,5 +119,12 @@ describe('ConfigurationError', () => {
     expect(screen.getByText('Configuration error')).toBeInTheDocument();
     expect(screen.getByText('Reason: not-json')).toBeInTheDocument();
     expect(screen.getByText('Reference: ab12cd')).toBeInTheDocument();
+  });
+
+  it('shows a startup failure without blaming config.json (R8)', () => {
+    render(<StartupError message="The application could not start." reference="ab12cd" />);
+    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
+    expect(screen.getByText('Reference: ab12cd')).toBeInTheDocument();
+    expect(screen.queryByText(/config\.json/)).not.toBeInTheDocument();
   });
 });
