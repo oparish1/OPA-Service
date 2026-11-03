@@ -8,7 +8,7 @@ import {
 
 describe('validateRunnerUrl', () => {
   it('accepts http and https URLs', () => {
-    expect(validateRunnerUrl('http://localhost:3000/v1/me')).toBeNull();
+    expect(validateRunnerUrl('https://localhost:3000/v1/me')).toBeNull();
     expect(validateRunnerUrl('https://api.example/v1/projects?page=1')).toBeNull();
   });
 
@@ -17,7 +17,7 @@ describe('validateRunnerUrl', () => {
   });
 
   it('rejects a URL carrying credentials', () => {
-    expect(validateRunnerUrl('http://user:pass@localhost:3000/v1/me')).toBe(INVALID_URL_MESSAGE);
+    expect(validateRunnerUrl('https://user:pass@localhost:3000/v1/me')).toBe(INVALID_URL_MESSAGE);
   });
 
   it('rejects text that is not a URL', () => {
@@ -25,7 +25,7 @@ describe('validateRunnerUrl', () => {
   });
 
   it('rejects a URL longer than the relay limit', () => {
-    expect(validateRunnerUrl(`http://localhost:3000/v1/me?x=${'a'.repeat(2100)}`)).toBe(
+    expect(validateRunnerUrl(`https://localhost:3000/v1/me?x=${'a'.repeat(2100)}`)).toBe(
       INVALID_URL_MESSAGE
     );
   });

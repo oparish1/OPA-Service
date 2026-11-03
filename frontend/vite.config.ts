@@ -4,7 +4,8 @@ import react from '@vitejs/plugin-react';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 import { parseAppConfig } from '../shared/app-config';
-
+import fs from 'node:fs';
+import path from 'node:path'
 const PUBLIC_DIR = new URL('./public/', import.meta.url).pathname;
 
 /**
@@ -27,20 +28,17 @@ function validatePublicConfig(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), validatePublicConfig()],
   server: {
-    host: '0.0.0.0',
-    allowedHosts: true
-  },
-
-
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: './vitest.setup.ts',
-    css: false,
+    host: true, // Listens on 0.0.0.0
+    port: 5173,
+    allowedHosts: ['.internal', 'localhost'], // Permits any subdomain under .internal
+    https: {
+      key: fs.readFileSync('./certs/key.pem', "utf8"),
+      cert: fs.readFileSync('./certs/cert.pem', "utf8"),
+    },
   },
 });
+
 
 //export default defineConfig({
 //  plugins: [react(), validatePublicConfig()],

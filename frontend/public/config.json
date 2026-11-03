@@ -1,6 +1,6 @@
 {
-  "gatewayUrl": "http://localhost:9080",
-  "loglevel": "info",
+  "gatewayUrl": "https://localhost:9080",
+  "loglevel": "error",
   "providers": [
     {
       "id": "entra",
@@ -14,7 +14,7 @@
       "forgotPasswordUrl": "https://passwordreset.microsoftonline.com/",
       "changePasswordUrl": "https://mysignins.microsoft.com/security-info/password/change",
       "manageAccountUrl": "https://myaccount.microsoft.com/",
-      "redirectUri": "http://localhost:5173"
+      "redirectUri": "https://localhost:5173"
     },
     {
       "id": "okta",
@@ -27,7 +27,7 @@
       "forgotPasswordUrl": "https://integrator-3993617.okta.com/signin/forgot-password",
       "changePasswordUrl": "https://integrator-3993617.okta.com/enduser/settings",
       "manageAccountUrl": "https://integrator-3993617.okta.com/enduser/settings",
-      "redirectUri": "http://localhost:5173/auth/callback/okta"
+      "redirectUri": "https://localhost:5173/auth/callback/okta"
     },
     {
       "id": "google",

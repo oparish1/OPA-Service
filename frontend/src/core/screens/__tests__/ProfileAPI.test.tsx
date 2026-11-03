@@ -113,8 +113,8 @@ describe('ProfileAPI', () => {
     expect(field).toHaveValue(`${window.location.origin}/v1/me`);
     expect(screen.getByText('GET')).toBeInTheDocument();
     await user.clear(field);
-    await user.type(field, 'http://localhost:3000/v1/me');
-    expect(field).toHaveValue('http://localhost:3000/v1/me');
+    await user.type(field, 'https://localhost:3000/v1/me');
+    expect(field).toHaveValue('https://localhost:3000/v1/me');
   });
 
   it('lists the four Authorization options in order with the session entry default', async () => {

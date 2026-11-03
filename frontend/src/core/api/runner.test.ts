@@ -6,7 +6,7 @@ import { clearSession, setSession } from '../session/store';
 import type { Session } from '../types';
 import { runRequest } from './runner';
 
-const GATEWAY = 'http://gateway.example';
+const GATEWAY = 'https://gateway.example';
 
 const SESSION: Session = {
   provider: 'Microsoft Entra ID',
@@ -61,7 +61,7 @@ describe('direct runner', () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
-    const response = await runRequest('session', 'http://elsewhere.example/v1/me');
+    const response = await runRequest('session', 'https://elsewhere.example/v1/me');
 
     expect(response.errorCode).toBe('blocked_host');
     expect(response.status).toBe(0);
@@ -141,7 +141,7 @@ describe('direct runner logging', () => {
   it('logs a blocked origin with host and path only', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    const response = await runRequest('none', 'http://elsewhere.example/v1/me?code=secret-code');
+    const response = await runRequest('none', 'https://elsewhere.example/v1/me?code=secret-code');
     expect(response.errorCode).toBe('blocked_host');
     const entry = log.recent().at(-1);
     expect(entry?.level).toBe('error');

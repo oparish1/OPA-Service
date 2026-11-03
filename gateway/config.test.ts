@@ -101,7 +101,7 @@ describe('token validation (GW-3, A9, A10)', () => {
 
     test(`${provider}: opa decodes the verified token with route config`, () => {
       const opa = route.plugins?.opa as Record<string, unknown> | undefined;
-      expect(opa?.host).toBe('http://opa:8181');
+      expect(opa?.host).toBe('https://opa:8181');
       // Package-only: a `pkg/allow` path returns a bare boolean, discarding the
       // `headers`/`reason` custom response the audit log depends on.
       expect(opa?.policy).toBe(provider);

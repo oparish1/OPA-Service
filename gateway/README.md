@@ -50,7 +50,7 @@ values, and **no secret value is stored in this repository**.
 docker compose -f gateway/docker-compose.yml up
 ```
 
-The gateway listens on `http://localhost:9080`; OPA on `:8181`.
+The gateway listens on `https://localhost:9080`; OPA on `:8181`.
 
 ## Checks
 

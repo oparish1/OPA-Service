@@ -1,5 +1,5 @@
 {
-  "gatewayUrl": "http://localhost:9080",
+  "gatewayUrl": "https://localhost:9080",
   "logLevel": "warn",
   "providers": [
     {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { AppConfigError, parseAppConfig } from '../../../shared/app-config';
 
 const VALID = {
-  gatewayUrl: 'http://localhost:9080',
+  gatewayUrl: 'https://localhost:9080',
   providers: [
     {
       id: 'entra',
@@ -18,7 +18,7 @@ const VALID = {
 
 describe('parseAppConfig', () => {
   it('accepts a valid config', () => {
-    expect(parseAppConfig(VALID)).toMatchObject({ gatewayUrl: 'http://localhost:9080' });
+    expect(parseAppConfig(VALID)).toMatchObject({ gatewayUrl: 'https://localhost:9080' });
   });
 
   it('rejects an unknown provider id', () => {
@@ -62,9 +62,9 @@ describe('parseAppConfig', () => {
   it('preserves a configured redirectUri (R13)', () => {
     const parsed = parseAppConfig({
       ...VALID,
-      providers: [{ ...VALID.providers[0], redirectUri: 'http://localhost:5173/callback' }],
+      providers: [{ ...VALID.providers[0], redirectUri: 'https://localhost:5173/callback' }],
     });
-    expect(parsed.providers[0].redirectUri).toBe('http://localhost:5173/callback');
+    expect(parsed.providers[0].redirectUri).toBe('https://localhost:5173/callback');
   });
 
   it('rejects a non-http redirectUri (R13)', () => {

@@ -16,21 +16,21 @@ services:
       - ./apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
       - ./apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
     environment:
-      APP_ORIGIN: "http://localhost:5173"
+      APP_ORIGIN: "https://localhost:5173"
       ENTRA_CLIENT_ID: "test-entra-client"
       ENTRA_CLIENT_SECRET: "test-entra-secret"
-      ENTRA_DISCOVERY: "http://entra-issuer:8090/.well-known/openid-configuration"
+      ENTRA_DISCOVERY: "https://entra-issuer:8090/.well-known/openid-configuration"
       ENTRA_API_RESOURCE: "api://test-entra-client"
       ENTRA_TENANT_ID: "tenant-1"
-      ENTRA_ISSUER: "http://entra-issuer:8090"
+      ENTRA_ISSUER: "https://entra-issuer:8090"
       OKTA_CLIENT_ID: "test-okta-client"
       OKTA_CLIENT_SECRET: "test-okta-secret"
-      OKTA_DISCOVERY: "http://okta-issuer:8091/.well-known/openid-configuration"
+      OKTA_DISCOVERY: "https://okta-issuer:8091/.well-known/openid-configuration"
       OKTA_API_AUDIENCE: "api://default"
-      OKTA_ISSUER: "http://okta-issuer:8091"
+      OKTA_ISSUER: "https://okta-issuer:8091"
       GOOGLE_CLIENT_ID: "test-google-client"
       GOOGLE_CLIENT_SECRET: "test-google-secret"
-      GOOGLE_DISCOVERY: "http://google-issuer:8092/.well-known/openid-configuration"
+      GOOGLE_DISCOVERY: "https://google-issuer:8092/.well-known/openid-configuration"
       GOOGLE_HOSTED_DOMAIN: "agentic-advantage.com"
       GOOGLE_ISSUER: "https://accounts.google.com"
 
@@ -50,7 +50,7 @@ services:
       - ./test-issuers:/issuer:ro
     environment:
       PORT: "8090"
-      ISSUER_ORIGIN: "http://entra-issuer:8090"
+      ISSUER_ORIGIN: "https://entra-issuer:8090"
       PROVIDER: "entra"
     ports:
       - "8090:8090"
@@ -63,7 +63,7 @@ services:
       - ./test-issuers:/issuer:ro
     environment:
       PORT: "8091"
-      ISSUER_ORIGIN: "http://okta-issuer:8091"
+      ISSUER_ORIGIN: "https://okta-issuer:8091"
       PROVIDER: "okta"
     ports:
       - "8091:8091"
@@ -76,7 +76,7 @@ services:
       - ./test-issuers:/issuer:ro
     environment:
       PORT: "8092"
-      ISSUER_ORIGIN: "http://google-issuer:8092"
+      ISSUER_ORIGIN: "https://google-issuer:8092"
       PROVIDER: "google"
     ports:
       - "8092:8092"

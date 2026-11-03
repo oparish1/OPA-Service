@@ -69,7 +69,7 @@ function claims(overrides: Record<string, unknown> = {}): Record<string, unknown
 
 beforeEach(async () => {
   setAppConfig({
-    gatewayUrl: 'http://localhost:9080',
+    gatewayUrl: 'https://localhost:9080',
     providers: [
       {
         id: 'google',

@@ -104,7 +104,7 @@ a six-character reference that also appears in the matching log entry.
 
 A missing or invalid `config.json` shows the configuration error screen; it
 never starts the mock demo. The mock demo is opt-in with `?mock=1` in a
-development build, for example `http://localhost:5173/?mock=1`.
+development build, for example `https://localhost:5173/?mock=1`.
 
 ## Browser request runner
 

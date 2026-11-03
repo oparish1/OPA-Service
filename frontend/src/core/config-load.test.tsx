@@ -6,7 +6,7 @@ import { loadAppConfig } from './config';
 import { log } from './lib/log';
 
 const VALID = {
-  gatewayUrl: 'http://localhost:9080',
+  gatewayUrl: 'https://localhost:9080',
   logLevel: 'info',
   providers: [
     {
@@ -30,7 +30,7 @@ describe('loadAppConfig', () => {
   it('loads a valid config and its log level', async () => {
     const result = await loadAppConfig({
       fetchImpl: fetchReturning(JSON.stringify(VALID)),
-      baseUrl: 'http://app/',
+      baseUrl: 'https://app/',
     });
     expect(result.status).toBe('loaded');
     if (result.status === 'loaded') expect(result.config.logLevel).toBe('info');
@@ -39,7 +39,7 @@ describe('loadAppConfig', () => {
   it('reports a missing config instead of starting the mock demo', async () => {
     const result = await loadAppConfig({
       fetchImpl: fetchReturning('', 404),
-      baseUrl: 'http://app/',
+      baseUrl: 'https://app/',
     });
     expect(result).toMatchObject({ status: 'error', reason: 'missing' });
     expect(log.recent()[0].level).toBe('error');
@@ -48,7 +48,7 @@ describe('loadAppConfig', () => {
   it('reports an HTML response as not JSON', async () => {
     const result = await loadAppConfig({
       fetchImpl: fetchReturning('<!doctype html><html></html>'),
-      baseUrl: 'http://app/',
+      baseUrl: 'https://app/',
     });
     expect(result).toMatchObject({ status: 'error', reason: 'not-json' });
   });
@@ -56,7 +56,7 @@ describe('loadAppConfig', () => {
   it('reports malformed JSON', async () => {
     const result = await loadAppConfig({
       fetchImpl: fetchReturning('{"gatewayUrl":'),
-      baseUrl: 'http://app/',
+      baseUrl: 'https://app/',
     });
     expect(result).toMatchObject({ status: 'error', reason: 'not-json' });
   });
@@ -69,7 +69,7 @@ describe('loadAppConfig', () => {
           providers: [{ ...VALID.providers[0], clientId: 'A'.repeat(48) }],
         })
       ),
-      baseUrl: 'http://app/',
+      baseUrl: 'https://app/',
     });
     expect(result).toMatchObject({ status: 'error', reason: 'secret' });
   });
@@ -77,7 +77,7 @@ describe('loadAppConfig', () => {
   it('reports an invalid log level', async () => {
     const result = await loadAppConfig({
       fetchImpl: fetchReturning(JSON.stringify({ ...VALID, logLevel: 'verbose' })),
-      baseUrl: 'http://app/',
+      baseUrl: 'https://app/',
     });
     expect(result).toMatchObject({ status: 'error', reason: 'invalid' });
   });
@@ -86,7 +86,7 @@ describe('loadAppConfig', () => {
     const fetchImpl = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
     const result = await loadAppConfig({
       fetchImpl: fetchImpl as unknown as typeof fetch,
-      baseUrl: 'http://app/',
+      baseUrl: 'https://app/',
     });
     expect(result).toMatchObject({ status: 'error', reason: 'network' });
   });
@@ -94,7 +94,7 @@ describe('loadAppConfig', () => {
   it('reports a non-404, non-OK response as an HTTP reason', async () => {
     const result = await loadAppConfig({
       fetchImpl: fetchReturning('nope', 500),
-      baseUrl: 'http://app/',
+      baseUrl: 'https://app/',
     });
     expect(result).toMatchObject({ status: 'error', reason: 'http' });
   });
@@ -107,7 +107,7 @@ describe('loadAppConfig', () => {
     });
     const result = await loadAppConfig({
       fetchImpl: fetchImpl as unknown as typeof fetch,
-      baseUrl: 'http://app/',
+      baseUrl: 'https://app/',
     });
     expect(result).toMatchObject({ status: 'error', reason: 'network' });
   });

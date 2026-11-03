@@ -87,7 +87,7 @@ const RESULT = {
 
 beforeEach(async () => {
   setAppConfig({
-    gatewayUrl: 'http://localhost:9080',
+    gatewayUrl: 'https://localhost:9080',
     providers: [
       {
         id: 'entra',
@@ -127,7 +127,7 @@ describe('Entra auth', () => {
 
   it('maps a redirect result into the in-memory session', async () => {
     globalMock.__handleRedirect = () => RESULT;
-    const handled = await AUTH.handleRedirect(new URL('http://localhost:5173/#code=abc&state=xyz'));
+    const handled = await AUTH.handleRedirect(new URL('https://localhost:5173/#code=abc&state=xyz'));
     expect(handled).toBe('handled');
     const session = AUTH.session();
     expect(session?.accessToken.value).toBe('access-token-value');
@@ -139,7 +139,7 @@ describe('Entra auth', () => {
     globalMock.__pendingReject = new Error(
       'AADSTS50011 error_description=state mismatch; the raw provider text'
     );
-    const handled = await AUTH.handleRedirect(new URL('http://localhost:5173/#code=abc&state=xyz'));
+    const handled = await AUTH.handleRedirect(new URL('https://localhost:5173/#code=abc&state=xyz'));
     expect(handled).toBe('rejected');
     expect(AUTH.session()).toBeNull();
   });
@@ -165,7 +165,7 @@ describe('Entra auth', () => {
 
   it('clears memory and the library cache on sign-out (SD-5)', async () => {
     globalMock.__handleRedirect = () => RESULT;
-    await AUTH.handleRedirect(new URL('http://localhost:5173/#code=abc'));
+    await AUTH.handleRedirect(new URL('https://localhost:5173/#code=abc'));
     await AUTH.signOut();
     expect(globalMock.__cleared).toBe(true);
     expect(AUTH.session()).toBeNull();
@@ -190,7 +190,7 @@ describe('Entra auth', () => {
     const sessionSet = vi.spyOn(window.sessionStorage, 'setItem');
     const indexedDBMock = typeof indexedDB === 'undefined' ? null : vi.spyOn(indexedDB, 'open');
     globalMock.__handleRedirect = () => RESULT;
-    await AUTH.handleRedirect(new URL('http://localhost:5173/#code=abc'));
+    await AUTH.handleRedirect(new URL('https://localhost:5173/#code=abc'));
     await AUTH.getAccessToken();
     expect(localSet).not.toHaveBeenCalled();
     expect(sessionSet).not.toHaveBeenCalled();
@@ -199,7 +199,7 @@ describe('Entra auth', () => {
 
   it('ignores a callback when Entra is not configured (R5)', async () => {
     setAppConfig({
-      gatewayUrl: 'http://localhost:9080',
+      gatewayUrl: 'https://localhost:9080',
       providers: [
         {
           id: 'okta',
@@ -210,7 +210,7 @@ describe('Entra auth', () => {
       ],
     });
     await expect(
-      AUTH.handleRedirect(new URL('http://localhost:5173/#code=abc&state=xyz'))
+      AUTH.handleRedirect(new URL('https://localhost:5173/#code=abc&state=xyz'))
     ).resolves.toBe('ignored');
   });
 
@@ -219,7 +219,7 @@ describe('Entra auth', () => {
     vi.resetModules();
     const config = await import('../../../core/config');
     config.setAppConfig({
-      gatewayUrl: 'http://localhost:9080',
+      gatewayUrl: 'https://localhost:9080',
       providers: [
         {
           id: 'entra',
@@ -233,7 +233,7 @@ describe('Entra auth', () => {
     const { createEntraAuth } = await import('../auth');
 
     await expect(
-      createEntraAuth().handleRedirect(new URL('http://localhost:5173/?code=abc&state=xyz'))
+      createEntraAuth().handleRedirect(new URL('https://localhost:5173/?code=abc&state=xyz'))
     ).resolves.toBe('ignored');
     expect(freshLog.log.recent().some(entry => entry.message === 'Redirect handling failed')).toBe(
       false
@@ -245,7 +245,7 @@ describe('Entra auth', () => {
     vi.resetModules();
     const config = await import('../../../core/config');
     config.setAppConfig({
-      gatewayUrl: 'http://localhost:9080',
+      gatewayUrl: 'https://localhost:9080',
       providers: [
         {
           id: 'entra',
@@ -259,7 +259,7 @@ describe('Entra auth', () => {
     const { createEntraAuth } = await import('../auth');
 
     await expect(
-      createEntraAuth().handleRedirect(new URL('http://localhost:5173/#code=abc&state=xyz'))
+      createEntraAuth().handleRedirect(new URL('https://localhost:5173/#code=abc&state=xyz'))
     ).resolves.toBe('rejected');
     expect(freshLog.log.recent().some(entry => entry.message === 'Redirect handling failed')).toBe(true);
   });

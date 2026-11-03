@@ -83,7 +83,7 @@ const ID = { idToken: 'okta-id', expiresAt: 2000000000, scopes: ['openid'], clai
 
 beforeEach(async () => {
   setAppConfig({
-    gatewayUrl: 'http://localhost:9080',
+    gatewayUrl: 'https://localhost:9080',
     providers: [
       {
         id: 'okta',
@@ -121,7 +121,7 @@ describe('Okta auth', () => {
 
   it('maps a redirect result into the in-memory session', async () => {
     globalMock.__oktaTokens = { accessToken: ACCESS, idToken: ID };
-    const handled = await AUTH.handleRedirect(new URL('http://localhost:5173/?code=abc&state=xyz'));
+    const handled = await AUTH.handleRedirect(new URL('https://localhost:5173/?code=abc&state=xyz'));
     expect(handled).toBe('handled');
     const session = AUTH.session();
     expect(session?.accessToken.value).toBe('okta-access-value');
@@ -130,7 +130,7 @@ describe('Okta auth', () => {
 
   it('rejects a state error without surfacing the library text (A1, A8)', async () => {
     globalMock.__oktaPendingReject = new Error('error_description=state mismatch');
-    const handled = await AUTH.handleRedirect(new URL('http://localhost:5173/?code=abc&state=xyz'));
+    const handled = await AUTH.handleRedirect(new URL('https://localhost:5173/?code=abc&state=xyz'));
     expect(handled).toBe('rejected');
     expect(AUTH.session()).toBeNull();
   });
@@ -141,7 +141,7 @@ describe('Okta auth', () => {
 
   it('clears the in-memory token manager on sign-out (SD-5)', async () => {
     globalMock.__oktaTokens = { accessToken: ACCESS, idToken: ID };
-    await AUTH.handleRedirect(new URL('http://localhost:5173/?code=abc&state=xyz'));
+    await AUTH.handleRedirect(new URL('https://localhost:5173/?code=abc&state=xyz'));
     await AUTH.signOut();
     expect(globalMock.__oktaCleared).toBe(true);
     expect(AUTH.session()).toBeNull();
@@ -159,7 +159,7 @@ describe('Okta auth', () => {
     const localSet = vi.spyOn(Storage.prototype, 'setItem');
     const sessionSet = vi.spyOn(window.sessionStorage, 'setItem');
     globalMock.__oktaTokens = { accessToken: ACCESS, idToken: ID };
-    await AUTH.handleRedirect(new URL('http://localhost:5173/?code=abc&state=xyz'));
+    await AUTH.handleRedirect(new URL('https://localhost:5173/?code=abc&state=xyz'));
     await AUTH.getAccessToken();
     expect(localSet).not.toHaveBeenCalled();
     expect(sessionSet).not.toHaveBeenCalled();
@@ -167,7 +167,7 @@ describe('Okta auth', () => {
 
   it('ignores a callback when Okta is not configured (R5)', async () => {
     setAppConfig({
-      gatewayUrl: 'http://localhost:9080',
+      gatewayUrl: 'https://localhost:9080',
       providers: [
         {
           id: 'entra',
@@ -178,7 +178,7 @@ describe('Okta auth', () => {
       ],
     });
     await expect(
-      AUTH.handleRedirect(new URL('http://localhost:5173/?code=abc&state=xyz'))
+      AUTH.handleRedirect(new URL('https://localhost:5173/?code=abc&state=xyz'))
     ).resolves.toBe('ignored');
   });
 
@@ -187,7 +187,7 @@ describe('Okta auth', () => {
     vi.resetModules();
     const config = await import('../../../core/config');
     config.setAppConfig({
-      gatewayUrl: 'http://localhost:9080',
+      gatewayUrl: 'https://localhost:9080',
       providers: [
         {
           id: 'okta',
@@ -201,7 +201,7 @@ describe('Okta auth', () => {
     const { createOktaAuth } = await import('../auth');
 
     await expect(
-      createOktaAuth().handleRedirect(new URL('http://localhost:5173/?code=abc&state=xyz'))
+      createOktaAuth().handleRedirect(new URL('https://localhost:5173/?code=abc&state=xyz'))
     ).resolves.toBe('rejected');
     expect(freshLog.log.recent().some(entry => entry.message === 'Redirect handling failed')).toBe(true);
   });

@@ -155,7 +155,7 @@ describe('real API seam', () => {
     );
     setProviderRegistry([broken, target]);
 
-    const outcome = await handleRedirect(new URL('http://localhost:5173/?code=abc&state=xyz'));
+    const outcome = await handleRedirect(new URL('https://localhost:5173/?code=abc&state=xyz'));
 
     expect(outcome).toBe('handled');
     expect(getSession()?.providerId).toBe('target');
@@ -185,7 +185,7 @@ describe('real API seam', () => {
     );
     setProviderRegistry([rejecting, target]);
 
-    const outcome = await handleRedirect(new URL('http://localhost:5173/?code=abc&state=xyz'));
+    const outcome = await handleRedirect(new URL('https://localhost:5173/?code=abc&state=xyz'));
 
     expect(outcome).toBe('handled');
     expect(getSession()?.providerId).toBe('target');
@@ -199,12 +199,12 @@ describe('real API seam', () => {
     });
     setProviderRegistry([rejecting]);
 
-    await expect(handleRedirect(new URL('http://localhost:5173/?code=abc&state=xyz'))).resolves.toBe(
+    await expect(handleRedirect(new URL('https://localhost:5173/?code=abc&state=xyz'))).resolves.toBe(
       'rejected'
     );
     expect(getSession()).toBeNull();
 
     setProviderRegistry([providerModule()]);
-    await expect(handleRedirect(new URL('http://localhost:5173/'))).resolves.toBe('ignored');
+    await expect(handleRedirect(new URL('https://localhost:5173/'))).resolves.toBe('ignored');
   });
 });

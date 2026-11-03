@@ -8,7 +8,7 @@
 type Claims = Record<string, unknown>;
 
 const provider = process.env.PROVIDER ?? 'entra';
-const origin = process.env.ISSUER_ORIGIN ?? `http://localhost:${process.env.PORT ?? '8090'}`;
+const origin = process.env.ISSUER_ORIGIN ?? `https://localhost:${process.env.PORT ?? '8090'}`;
 
 const issuerId = (() => {
   if (provider === 'google') return process.env.GOOGLE_ISSUER_ID ?? 'https://accounts.google.com';
