@@ -5,18 +5,37 @@ import { Badge } from '../components/Badge';
 import { Logo } from '../components/Logo';
 import { NavigationItem } from '../components/NavigationItem';
 import { TextLink } from '../components/TextLink';
+import { appConfig } from '../config/app-config';
 import type { Screen } from '../mocks/types';
+import { getSession } from '../session/store';
 import { body, color, font, heading, label, size, space, tracking, weight } from '../styles/tokens';
 
 interface WorkspaceLayoutProps {
   active: Screen;
   breadcrumb: string;
   title: string;
+  /** Overrides the default badge derived from the session store. */
   statusBadge?: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
 }
 
+/**
+ * Badge shown for the session store's state. Tone names must match what
+ * <Badge> supports. There is no "expiring" state until the store exposes
+ * how much time is left.
+ */
+const SESSION_STATUS = {
+  active: { tone: 'success', text: 'Session active' },
+  expired: { tone: 'error', text: 'Session expired' },
+} as const;
+
+const ICON_SIZE = size.iconSmall;
+
+/**
+ * Navigation structure. Screen ids are typed code identifiers;
+ * move labels to your i18n catalogue if you localise the app.
+ */
 const NAV_SECTIONS: ReadonlyArray<{
   label: string;
   items: ReadonlyArray<{ screen: Screen; label: string; icon: ReactNode }>;
@@ -24,20 +43,20 @@ const NAV_SECTIONS: ReadonlyArray<{
   {
     label: 'WORKSPACE',
     items: [
-      { screen: 'overview', label: 'Overview', icon: <LayoutDashboard size={16} aria-hidden /> },
-      { screen: 'account', label: 'Account & identity', icon: <UserRound size={16} aria-hidden /> },
+      { screen: 'overview', label: 'Overview', icon: <LayoutDashboard size={ICON_SIZE} aria-hidden /> },
+      { screen: 'account', label: 'Account & identity', icon: <UserRound size={ICON_SIZE} aria-hidden /> },
     ],
   },
   {
     label: 'DOWNSTREAM APIs',
     items: [
-      { screen: 'profile-api', label: 'Profile API', icon: <Braces size={16} aria-hidden /> },
-      { screen: 'projects-api', label: 'Projects API', icon: <FolderKanban size={16} aria-hidden /> },
+      { screen: 'profile-api', label: 'Profile API', icon: <Braces size={ICON_SIZE} aria-hidden /> },
+      { screen: 'projects-api', label: 'Projects API', icon: <FolderKanban size={ICON_SIZE} aria-hidden /> },
     ],
   },
 ];
 
-/** Workspace shell: header + 240 px sidebar + main content. */
+/** Workspace shell: header + sidebar + main content. */
 export function WorkspaceLayout({
   active,
   breadcrumb,
@@ -47,6 +66,12 @@ export function WorkspaceLayout({
   children,
 }: WorkspaceLayoutProps) {
   const { navigate, signOut } = useApp();
+
+  // The signed-in identity comes from the session store, the same source the
+  // Account screen reads. The layout only renders while signed in.
+  const session = getSession();
+  const status = SESSION_STATUS[session ? 'active' : 'expired'];
+  const userName = session?.account?.displayName || session?.account?.email || '';
 
   return (
     <div style={{ minWidth: size.desktopMinWidth, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -64,17 +89,17 @@ export function WorkspaceLayout({
         <div style={{ display: 'flex', alignItems: 'center', gap: space[20] }}>
           <Logo />
           <span style={{ ...body[14], fontFamily: font.body, color: color.text.primary }}>
-            Agentic Advantage
+            {appConfig.workspaceName}
           </span>
-          <ChevronDown size={16} aria-hidden color={color.text.secondary} />
-          <Badge tone="neutral">DEMO WORKSPACE</Badge>
+          <ChevronDown size={ICON_SIZE} aria-hidden color={color.text.secondary} />
+          {appConfig.isDemo && <Badge tone="neutral">DEMO WORKSPACE</Badge>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: space[20] }}>
-          {statusBadge ?? <Badge tone="success">Session active</Badge>}
+          {statusBadge ?? <Badge tone={status.tone}>{status.text}</Badge>}
           <span style={{ ...body[14], fontFamily: font.body, color: color.text.primary }}>
-            Orlando Parish
+            {userName}
           </span>
-          <TextLink onClick={signOut} trailingIcon={<LogOut size={15} aria-hidden />}>
+          <TextLink onClick={signOut} trailingIcon={<LogOut size={ICON_SIZE} aria-hidden />}>
             Sign out
           </TextLink>
         </div>
@@ -128,12 +153,14 @@ export function WorkspaceLayout({
               padding: `0 ${space[16]}px`,
             }}
           >
-            <span style={{ ...body[12], fontFamily: font.body, color: color.text.secondary }}>
-              Illustrative providers &amp; endpoints. All credentials are demo values.
-            </span>
-            <TextLink href="#">Documentation</TextLink>
+            {appConfig.isDemo && (
+              <span style={{ ...body[12], fontFamily: font.body, color: color.text.secondary }}>
+                Illustrative providers &amp; endpoints. All credentials are demo values.
+              </span>
+            )}
+            {appConfig.docsUrl && <TextLink href={appConfig.docsUrl}>Documentation</TextLink>}
             <span style={{ ...label[11], fontFamily: font.body, color: color.text.secondary }}>
-              Sandbox · v1.0
+              {appConfig.environment} · v{appConfig.version}
             </span>
           </div>
         </nav>

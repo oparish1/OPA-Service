@@ -28,7 +28,7 @@ afterEach(() => {
 describe('ChangePassword', () => {
   it('shows the account detail and managed-by notice', async () => {
     renderChange();
-    expect(await screen.findByText(/Orlando Parish/)).toBeInTheDocument();
+    expect(await screen.findByText(/Demo User/)).toBeInTheDocument();
     expect(screen.getByText('Managed by your identity provider')).toBeInTheDocument();
   });
 
@@ -36,7 +36,7 @@ describe('ChangePassword', () => {
     configureMocks({ getSessionFailure: true });
     renderChange();
     expect(await screen.findByText('Managed by your identity provider')).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByText(/Orlando Parish/)).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText(/Demo User/)).not.toBeInTheDocument());
   });
 
   it('validates that an identity provider is chosen', async () => {

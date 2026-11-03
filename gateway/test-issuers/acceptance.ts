@@ -58,7 +58,7 @@ async function call(
 
 const neutralMe = {
   sub: 'subject-default',
-  name: 'Orlando Parish',
+  name: 'Demo User',
   email: 'orlando.parish@agentic-advantage.example',
 };
 

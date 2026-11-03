@@ -17,7 +17,8 @@ const PROVIDER_NAME = 'Microsoft Entra ID';
 const GENERIC_ERROR = 'We couldn’t sign you in. Try again.';
 const OIDC_SCOPES = new Set(['openid', 'profile', 'email', 'offline_access']);
 
-let client: PublicClientApplication | null = null;
+let clientPromise: Promise<PublicClientApplication> | null = null;
+let signingIn = false;
 let current: ProviderSession | null = null;
 
 function config(): ProviderConfig {
@@ -38,33 +39,45 @@ function requestScopes(): string[] {
   return [...new Set([...scopes, 'offline_access'])];
 }
 
-async function getClient(): Promise<PublicClientApplication> {
-  if (!client) {
-    const provider = config();
-    const created = new PublicClientApplication({
-      auth: {
-        clientId: provider.clientId,
-        authority: provider.issuer,
-        redirectUri: provider.redirectUri || window.location.origin,
-      },
-      cache: { cacheLocation: 'sessionStorage' },
-      system: {
-        loggerOptions: {
-          logLevel: LogLevel.Warning,
-          piiLoggingEnabled: false,
-          loggerCallback: (level, message, containsPii) => {
-            if (containsPii) return;
-            if (level === LogLevel.Error) log.error(PROVIDER_ID, message);
-            else if (level === LogLevel.Warning) log.warn(PROVIDER_ID, message);
-            else log.debug(PROVIDER_ID, message);
-          },
+async function createClient(): Promise<PublicClientApplication> {
+  const provider = config();
+  const created = new PublicClientApplication({
+    auth: {
+      clientId: provider.clientId,
+      authority: provider.issuer,
+      redirectUri: provider.redirectUri || window.location.origin,
+    },
+    cache: { cacheLocation: 'sessionStorage' },
+    system: {
+      loggerOptions: {
+        logLevel: LogLevel.Warning,
+        piiLoggingEnabled: false,
+        loggerCallback: (level, message, containsPii) => {
+          if (containsPii) return;
+          if (level === LogLevel.Error) log.error(PROVIDER_ID, message);
+          else if (level === LogLevel.Warning) log.warn(PROVIDER_ID, message);
+          else log.debug(PROVIDER_ID, message);
         },
       },
+    },
+  });
+  await created.initialize();
+  return created;
+}
+
+/**
+ * One shared client. Concurrent callers (React StrictMode's double effects, a
+ * redirect check racing a sign-in click) must not each build their own, because
+ * two instances over the same storage fight over MSAL's interaction marker.
+ */
+function getClient(): Promise<PublicClientApplication> {
+  if (!clientPromise) {
+    clientPromise = createClient().catch(error => {
+      clientPromise = null; // allow a retry after a failed initialization
+      throw error;
     });
-    await created.initialize();
-    client = created;
   }
-  return client;
+  return clientPromise;
 }
 
 function stringClaim(claims: Record<string, unknown>, key: string): string {
@@ -123,12 +136,21 @@ async function acquireSilent(forceRefresh = false): Promise<AuthenticationResult
 export function createEntraAuth(): ProviderAuth {
   return {
     async signIn() {
+      // Ignore repeat clicks while a redirect is already being started.
+      if (signingIn) return;
+      signingIn = true;
       try {
         const msal = await getClient();
+        // A sign-in that never came back (closed tab, error page at the provider)
+        // leaves MSAL's "interaction in progress" marker in sessionStorage. With
+        // no response in the URL this call only clears that stale state.
+        if (!window.location.hash) await msal.handleRedirectPromise();
         await msal.loginRedirect({ scopes: requestScopes() });
       } catch (error) {
         log.error(PROVIDER_ID, 'Sign-in failed', { error: describeError(error) });
         throw new Error(GENERIC_ERROR);
+      } finally {
+        signingIn = false;
       }
     },
 

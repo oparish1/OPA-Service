@@ -33,8 +33,8 @@ export default defineConfig({
     port: 5173,
     allowedHosts: ['.internal', 'localhost'], // Permits any subdomain under .internal
     https: {
-      key: fs.readFileSync('./certs/key.pem', "utf8"),
-      cert: fs.readFileSync('./certs/cert.pem', "utf8"),
+      key: fs.readFileSync('./certs/localhost+2-key.pem', 'utf8'),
+      cert: fs.readFileSync('./certs/localhost+2.pem', 'utf8'),
     },
   },
 });

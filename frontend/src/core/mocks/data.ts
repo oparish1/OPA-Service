@@ -1,23 +1,26 @@
 import { getProviderRegistry } from '../providers/active';
 import type { Session } from './types';
 
+/** The demo account, shared by the demo session and the workspace header. */
+const MOCK_ACCOUNT: NonNullable<Session['account']> = {
+  displayName: 'Demo User',
+  email: 'demo.user@agentic-advantage.example',
+  organisation: 'Demo Organisation',
+  role: 'DemoDeveloper',
+  accountId: 'acct_demo_demo_user',
+  createdAt: '10 Oct 2026 · 13:30:00 UTC',
+};
+
 /** The demo session for the provider the active registry reports first. */
 export function mockSession(): Session {
   const provider = getProviderRegistry().all[0];
   return {
     provider: provider?.name ?? 'Test Provider',
     providerId: provider?.id ?? 'test',
-    account: {
-      displayName: 'Orlando Parish',
-      email: 'orlando.parish@agentic-advantage.example',
-      organisation: 'Agentic Advantage',
-      role: 'Developer',
-      accountId: 'acct_demo_orlando_parish',
-      createdAt: '10 Oct 2026 · 13:30:00 UTC',
-    },
+    account: MOCK_ACCOUNT,
     accessToken: {
       masked: 'demo_at_op…9b4e',
-      value: 'demo_at_op_20261010_orlando_parish_9b4e',
+      value: 'demo_at_op_20261010_demo_user_9b4e',
       expiresAt: '10 Oct 2026 · 14:30:00 UTC',
       scopes: 'workspace:read · workspace:write',
     },
@@ -34,11 +37,11 @@ export function mockSession(): Session {
 }
 
 export const MOCK_PROFILE_BODY = {
-  id: 'usr_demo_orlando',
-  display_name: 'Orlando Parish',
-  email: 'orlando.parish@agadv.example',
-  organisation: 'Agentic Advantage',
-  role: 'developer',
+  id: 'usr_demo_user',
+  display_name: 'Demo User',
+  email: 'demo.user@agadv.example',
+  organisation: 'Demo Organisation',
+  role: 'DemoDeveloper',
   permissions: ['workspace:read', 'workspace:write'],
 };
 

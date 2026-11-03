@@ -75,7 +75,7 @@ const AUTH = createEntraAuth();
 
 const RESULT = {
   account: {
-    name: 'Orlando Parish',
+    name: 'Demo User',
     username: 'orlando.parish@agentic-advantage.example',
     localAccountId: 'acct-1',
     idTokenClaims: { iss: 'https://login.microsoftonline.com/tenant/v2.0', tid: 'tenant', roles: ['Workspace.User'] },
