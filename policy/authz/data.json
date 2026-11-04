@@ -1,0 +1,4 @@
+{ "authz": { "config": {
+    "entra":  { "tenant": "7cc3305d-a9e5-46db-ada9-fbff379f9e53", "required_role": "Workspace.User" },
+    "okta":   { "required_group": "Workspace User" },
+    "google": { "hosted_domain": "agentic-advantage.com" } } } }

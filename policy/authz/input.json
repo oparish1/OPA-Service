@@ -1,0 +1,3 @@
+{ "provider": "entra",
+  "claims": { "roles": ["Workspace.User"], "scopes": ["workspace:read"],
+              "tenant": "c414ea0c-7fbe-4cef-bf99-47c0eb35cc5c", "has_subject": true } }
