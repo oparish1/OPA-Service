@@ -1,11 +1,10 @@
-import { existsSync, readFileSync } from 'node:fs';
+import fs from 'node:fs';
 import { join } from 'node:path';
 import react from '@vitejs/plugin-react';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 import { parseAppConfig } from '../shared/app-config';
-import fs from 'node:fs';
-import path from 'node:path'
+
 const PUBLIC_DIR = new URL('./public/', import.meta.url).pathname;
 
 /**
@@ -20,14 +19,15 @@ function validatePublicConfig(): Plugin {
     buildStart() {
       for (const name of ['config.json', 'config.example.json']) {
         const file = join(PUBLIC_DIR, name);
-        if (!existsSync(file)) continue;
-        parseAppConfig(JSON.parse(readFileSync(file, 'utf8')));
+        if (!fs.existsSync(file)) continue;
+        parseAppConfig(JSON.parse(fs.readFileSync(file, 'utf8')));
       }
     },
   };
 }
 
 export default defineConfig({
+  plugins: [react(), validatePublicConfig()],
   server: {
     host: true, // Listens on 0.0.0.0
     port: 5173,
@@ -37,15 +37,10 @@ export default defineConfig({
       cert: fs.readFileSync('./certs/localhost+2.pem', 'utf8'),
     },
   },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './vitest.setup.ts',
+    css: false,
+  },
 });
-
-
-//export default defineConfig({
-//  plugins: [react(), validatePublicConfig()],
-//  test: {
- //   globals: true,
- //   environment: 'jsdom',
-//    setupFiles: './vitest.setup.ts',
-//    css: false,
-//  },
-//});

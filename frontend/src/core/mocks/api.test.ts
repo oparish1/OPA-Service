@@ -96,7 +96,7 @@ describe('getIdentities', () => {
 
 describe('revealToken', () => {
   it('returns the demo access and refresh values', async () => {
-    await expect(revealToken('access')).resolves.toBe('demo_at_op_20261010_orlando_parish_9b4e');
+    await expect(revealToken('access')).resolves.toBe('demo_at_op_20261010_demo_user_9b4e');
     await expect(revealToken('refresh')).resolves.toBe('demo_rt_agadv_20261011_orlando_parish_7c2f');
   });
 });

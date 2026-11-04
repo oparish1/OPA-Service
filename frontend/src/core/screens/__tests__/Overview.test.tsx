@@ -33,7 +33,7 @@ describe('Overview', () => {
     const user = userEvent.setup();
     renderOverview();
     await user.click((await screen.findAllByRole('button', { name: 'Reveal' }))[0]);
-    expect(screen.getByText(/demo_at_op_20261010_orlando_parish_9b4e/)).toBeInTheDocument();
+    expect(screen.getByText(/demo_at_op_20261010_demo_user_9b4e/)).toBeInTheDocument();
     await user.click(screen.getAllByRole('button', { name: 'Copy' })[0]);
     expect(screen.getByText('Copied')).toBeInTheDocument();
   });
@@ -42,7 +42,7 @@ describe('Overview', () => {
     const user = userEvent.setup();
     renderOverview();
     await user.click((await screen.findAllByRole('button', { name: 'Reveal' }))[0]);
-    expect(screen.getByText(/demo_at_op_20261010_orlando_parish_9b4e/)).toBeInTheDocument();
+    expect(screen.getByText(/demo_at_op_20261010_demo_user_9b4e/)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /refresh session/i }));
     await waitFor(() =>

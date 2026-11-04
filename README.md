@@ -89,8 +89,8 @@ IDs, issuers, `entra.apiResource`, requested scopes, the gateway URL and the
 account destination links (FE-1). `shared/app-config.ts` validates it and fails
 the build when a value looks like a secret (long base64, a PEM private key, or
 a `client_secret`-shaped value). The production file is deployment
-configuration and is not committed; only
-`frontend/public/config.example.json` is.
+configuration that overrides the committed demo `frontend/public/config.json`;
+the example file `frontend/public/config.example.json` carries placeholders only.
 
 ## Logging and mock mode
 

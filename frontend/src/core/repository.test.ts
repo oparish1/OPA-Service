@@ -58,7 +58,12 @@ describe('repository acceptance', () => {
     const { parseAppConfig } = await import('../../../shared/app-config');
     const example = JSON.parse(read(join('frontend', 'public', 'config.example.json')));
     expect(() => parseAppConfig(example)).not.toThrow();
-    expect(existsSync(join(REPO_ROOT, 'frontend', 'public', 'config.json'))).toBe(false);
+    // The demo config is committed (a deployment overrides it); when present it
+    // must still satisfy the schema and carry no secret-shaped value.
+    const committed = join(REPO_ROOT, 'frontend', 'public', 'config.json');
+    if (existsSync(committed)) {
+      expect(() => parseAppConfig(JSON.parse(readFileSync(committed, 'utf8')))).not.toThrow();
+    }
   });
 
   it('A18 scans the production bundle when one has been built', () => {
