@@ -15,7 +15,7 @@ tenant_ok if {
 }
 
 scope_ok(cap) if {
-	scope_for(cap) in input.claims.scopes
+	data.authz.scope_granted(input.claims.scopes, scope_for(cap))
 }
 
 scope_for(cap) := "workspace:read" if {

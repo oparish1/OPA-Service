@@ -94,6 +94,35 @@ describe('repository acceptance', () => {
     }
   });
 
+  it('A5 keeps environment values out of the Rego policies', () => {
+    const config = JSON.parse(read(join('frontend', 'public', 'config.json')));
+    const fixture = JSON.parse(read(join('policy', 'fixtures', 'decisions.json')));
+    const sensitive = new Set<string>();
+    const collectStrings = (value: unknown): void => {
+      if (typeof value === 'string') sensitive.add(value);
+      else if (Array.isArray(value)) value.forEach(collectStrings);
+      else if (value && typeof value === 'object') Object.values(value).forEach(collectStrings);
+    };
+    collectStrings(fixture.config);
+    for (const provider of config.providers as Array<{ issuer: string; hostedDomain?: string }>) {
+      if (provider.hostedDomain) sensitive.add(provider.hostedDomain);
+      const tenant = provider.issuer.match(/login\.microsoftonline\.com\/([^/]+)\//);
+      if (tenant) sensitive.add(tenant[1]);
+    }
+
+    const policies = filesUnder(['policy', 'gateway/opa']).filter(
+      file => file.endsWith('.rego') && !file.endsWith('_test.rego')
+    );
+    expect(policies.length).toBeGreaterThan(0);
+    for (const file of policies) {
+      const content = read(file);
+      for (const value of sensitive) {
+        if (!value) continue;
+        expect(content, `${file} must not contain the environment value ${value}`).not.toContain(value);
+      }
+    }
+  });
+
   it('A20 leaves no backend, build-time auth flag, auth.env or database code', () => {
     expect(existsSync(join(REPO_ROOT, 'backend', 'package.json'))).toBe(false);
     expect(existsSync(join(REPO_ROOT, 'backend', 'src'))).toBe(false);

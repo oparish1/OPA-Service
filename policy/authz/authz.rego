@@ -29,6 +29,23 @@ write_capabilities := {"action.api.send.write"}
 
 provider_capabilities := read_capabilities | write_capabilities
 
+# Grant matching accepts the set, array and space-delimited string forms, so a
+# caller that has not normalised its scopes still gets the same decision.
+scope_granted(scopes, required) if {
+	is_set(scopes)
+	required in scopes
+}
+
+scope_granted(scopes, required) if {
+	is_array(scopes)
+	required in scopes
+}
+
+scope_granted(scopes, required) if {
+	is_string(scopes)
+	required in split(scopes, " ")
+}
+
 # The neutral reason codes, in the order the browser's single `reason` picks one.
 # A gateway wrapper translates them to the audit strings the access log carries.
 reason_precedence := [

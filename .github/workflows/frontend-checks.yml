@@ -6,6 +6,7 @@ on:
       - 'frontend/**'
       - 'shared/**'
       - 'gateway/**'
+      - 'policy/**'
       - 'scripts/**'
       - 'docs/**'
       - 'README.md'
@@ -15,6 +16,7 @@ on:
       - 'frontend/**'
       - 'shared/**'
       - 'gateway/**'
+      - 'policy/**'
       - 'scripts/**'
       - 'docs/**'
       - 'README.md'
@@ -34,7 +36,12 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run lint
       - run: bun run typecheck
-      # Build before the tests so the A18 bundle scan sees `dist/`.
+      - name: Install OPA
+        run: |
+          curl -fsSL -o /usr/local/bin/opa https://openpolicyagent.org/downloads/v1.4.2/opa_linux_amd64_static
+          chmod +x /usr/local/bin/opa
+      # Build before the tests so the A18 bundle scan sees `dist/` and the browser
+      # test can load the compiled policy wasm.
       - run: bun run build
       - run: bun run test
       - run: bun run check:catch

@@ -4,8 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "bun run build:policy && vite",
+    "build": "bun run build:policy && tsc -b && vite build",
+    "build:policy": "bun run scripts/build-policy.ts",
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -17,6 +18,7 @@
   "dependencies": {
     "@azure/msal-browser": "3.30.0",
     "@okta/okta-auth-js": "7.14.5",
+    "@open-policy-agent/opa-wasm": "1.10.0",
     "lucide-react": "^0.460.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
