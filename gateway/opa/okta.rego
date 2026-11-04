@@ -2,46 +2,77 @@ package okta
 
 import data.common
 
-config := input.route.labels
+# Decode the token the openid-connect plugin already verified. The shared
+# `authz` package owns the claim rules; this wrapper owns only the audience
+# check, the gateway-only reasons and the audit vocabulary the access log reads.
 
 payload := common.claims(common.bearer)
 
-has_group if {
-	"Workspace User" in common.claim_or(payload, "groups", [])
+capability := data.authz.capability_for(common.claim_or(input.request, "method", ""), common.claim_or(input.request, "path", ""))
+
+authz_request := {"method": input.request.method, "path": input.request.path} if {
+	input.request.path
 }
 
-has_uid if {
-	payload.uid
+authz_request := {"method": input.request.method} if {
+	not input.request.path
+}
+
+authz_input := {
+	"provider": "okta",
+	"claims": {
+		"roles": [],
+		"groups": common.claim_or(payload, "groups", []),
+		"scopes": common.scope_set(common.claim_or(payload, "scp", [])),
+		"tenant": "",
+		"hd": "",
+		"email_verified": false,
+		"has_subject": common.has_claim(payload, "uid"),
+	},
+	"request": authz_request,
+}
+
+authz_config := {"okta": {"required_group": input.route.labels.required_group}}
+
+shared_reasons := reasons if {
+	reasons := data.authz.capability_deny_reasons(capability) with input as authz_input with data.authz.config as authz_config
+}
+
+# `uid` is Okta's subject; the shared package reports it as `not_signed_in`, and
+# the audit log has always called that `no_uid`.
+audit_reason(code) := "no_group" if {
+	code == "missing_group"
+}
+
+audit_reason(code) := "no_uid" if {
+	code == "not_signed_in"
+}
+
+audit_reason(code) := code if {
+	code != "missing_group"
+	code != "not_signed_in"
 }
 
 audience_ok if {
-	payload.aud == config.audience
+	payload.aud == input.route.labels.audience
 }
 
-required_scope := "workspace:read" if common.safe_method
+reasons contains audit_reason(code) if {
+	some code in shared_reasons
+}
 
-required_scope := "workspace:write" if not common.safe_method
-
-scope_ok if {
-	required_scope in common.scope_set(common.claim_or(payload, "scp", []))
+reasons contains "wrong_audience" if {
+	not audience_ok
 }
 
 default allow := false
 
 allow if {
-	has_group
-	has_uid
-	audience_ok
-	scope_ok
+	count(reasons) == 0
 }
 
 headers := common.user_headers("okta", payload) if allow
 
 headers := common.deny_headers("okta", payload, reason) if not allow
-
-reasons contains "no_group" if not has_group
-reasons contains "no_uid" if not has_uid
-reasons contains "wrong_audience" if not audience_ok
-reasons contains "missing_scope" if not scope_ok
 
 reason := concat(",", sort(reasons))

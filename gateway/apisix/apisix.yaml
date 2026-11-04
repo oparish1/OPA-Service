@@ -34,6 +34,7 @@ routes:
       provider: entra
       audience: "${{ENTRA_API_RESOURCE}}"
       tenant: "${{ENTRA_TENANT_ID}}"
+      required_role: "Workspace.User"
     plugins:
       openid-connect:
         client_id: "${{ENTRA_CLIENT_ID}}"
@@ -113,6 +114,7 @@ routes:
     labels:
       provider: okta
       audience: "${{OKTA_API_AUDIENCE}}"
+      required_group: "Workspace User"
     plugins:
       openid-connect:
         client_id: "${{OKTA_CLIENT_ID}}"

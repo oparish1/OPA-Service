@@ -2,7 +2,7 @@ package entra
 
 import data.testutil
 
-base_labels := {"audience": "api://client", "tenant": "tenant-1"}
+base_labels := {"audience": "api://client", "tenant": "tenant-1", "required_role": "Workspace.User"}
 
 base_payload := {
 	"iss": "https://login.microsoftonline.com/tenant-1/v2.0",

@@ -2,48 +2,79 @@ package google
 
 import data.common
 
-# Google uses an ID token and has no scopes. SD-10 makes it read-only, so any
-# unsafe method is denied regardless of the remaining claims.
-config := input.route.labels
+# Decode the token the openid-connect plugin already verified. The shared
+# `authz` package owns the claim and method rules; this wrapper owns only the
+# audience and issuer checks, the gateway-only reasons and the audit vocabulary
+# the access log reads.
 
 payload := common.claims(common.bearer)
 
-read_only if input.request.method == "GET"
+capability := data.authz.capability_for(common.claim_or(input.request, "method", ""), common.claim_or(input.request, "path", ""))
 
-hosted_domain_ok if {
-	common.claim_or(payload, "hd", "") == config.hosted_domain
+authz_request := {"method": input.request.method, "path": input.request.path} if {
+	input.request.path
 }
 
-email_verified_ok if {
-	common.claim_or(payload, "email_verified", false) == true
+authz_request := {"method": input.request.method} if {
+	not input.request.path
+}
+
+authz_input := {
+	"provider": "google",
+	"claims": {
+		"roles": [],
+		"groups": [],
+		"scopes": [],
+		"tenant": "",
+		"hd": common.claim_or(payload, "hd", ""),
+		"email_verified": common.claim_or(payload, "email_verified", false),
+		"has_subject": common.has_claim(payload, "sub"),
+	},
+	"request": authz_request,
+}
+
+authz_config := {"google": {"hosted_domain": input.route.labels.hosted_domain}}
+
+shared_reasons := reasons if {
+	reasons := data.authz.capability_deny_reasons(capability) with input as authz_input with data.authz.config as authz_config
+}
+
+audit_reason(code) := "wrong_hd" if {
+	code == "wrong_domain"
+}
+
+audit_reason(code) := code if {
+	code != "wrong_domain"
 }
 
 audience_ok if {
-	payload.aud == config.audience
+	payload.aud == input.route.labels.audience
 }
 
 issuer_ok if {
 	common.claim_or(payload, "iss", "") == "https://accounts.google.com"
 }
 
+reasons contains audit_reason(code) if {
+	some code in shared_reasons
+}
+
+reasons contains "wrong_audience" if {
+	not audience_ok
+}
+
+reasons contains "wrong_issuer" if {
+	not issuer_ok
+}
+
 default allow := false
 
 allow if {
-	read_only
-	hosted_domain_ok
-	email_verified_ok
-	audience_ok
-	issuer_ok
+	count(reasons) == 0
 }
 
 headers := common.user_headers("google", payload) if allow
 
 headers := common.deny_headers("google", payload, reason) if not allow
-
-reasons contains "method_not_allowed" if not read_only
-reasons contains "wrong_hd" if not hosted_domain_ok
-reasons contains "email_unverified" if not email_verified_ok
-reasons contains "wrong_audience" if not audience_ok
-reasons contains "wrong_issuer" if not issuer_ok
 
 reason := concat(",", sort(reasons))

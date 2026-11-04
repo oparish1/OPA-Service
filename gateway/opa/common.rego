@@ -40,6 +40,10 @@ claim_or(payload, key, fallback) := payload[key] if {
 	payload[key]
 } else := fallback
 
+# True only when the verified payload actually carries the claim; an absent
+# claim is an explicit false so callers can build an object from it.
+has_claim(payload, key) := object.get(payload, key, null) != null
+
 # The headers GW-5 sets from the validated token; the gateway overwrites any
 # client-supplied X-User-* value because these are the only source used below.
 user_headers(provider, payload) := {

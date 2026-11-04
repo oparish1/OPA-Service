@@ -2,7 +2,7 @@ package okta
 
 import data.testutil
 
-base_labels := {"audience": "api://default"}
+base_labels := {"audience": "api://default", "required_group": "Workspace User"}
 
 base_payload := {
 	"iss": "https://dev-1.okta.example/oauth2/default",
