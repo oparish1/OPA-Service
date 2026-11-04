@@ -2,9 +2,9 @@ import { CAPABILITY_IDS } from './types';
 import type { AuthzState, Capabilities, Decision } from './types';
 
 /**
- * The one cached capabilities map. `disabled` and `loading` keep the pre-change
- * behavior (everything available); `ready` applies the policy; `error` is the
- * fail-closed floor, so a load or evaluation failure never enables more.
+ * The one cached capabilities map. `disabled` keeps the pre-change behavior
+ * (everything available); `ready` applies the policy; `error` is the fail-closed
+ * floor, so a load or evaluation failure never enables more.
  */
 
 const ALL_ALLOWED: Capabilities = build(() => ({ allowed: true, reason: '' }));
@@ -42,11 +42,6 @@ export function getSnapshot(): AuthzState {
 /** Pre-change behavior: nothing was loaded and every control is available. */
 export function clearCapabilities(): void {
   state = { status: 'disabled', capabilities: ALL_ALLOWED };
-  emit();
-}
-
-export function setLoading(): void {
-  state = { status: 'loading', capabilities: state.capabilities };
   emit();
 }
 

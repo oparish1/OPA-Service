@@ -57,7 +57,7 @@ export interface AuthzInput {
   claims: AuthzClaims;
 }
 
-export type AuthzStatus = 'disabled' | 'loading' | 'ready' | 'error';
+export type AuthzStatus = 'disabled' | 'ready' | 'error';
 
 export interface AuthzState {
   status: AuthzStatus;

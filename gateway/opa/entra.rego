@@ -23,7 +23,7 @@ authz_input := {
 	"claims": {
 		"roles": common.claim_or(payload, "roles", []),
 		"groups": [],
-		"scopes": common.scope_set(common.claim_or(payload, "scp", "")),
+		"scopes": common.claim_or(payload, "scp", ""),
 		"tenant": common.claim_or(payload, "tid", ""),
 		"hd": "",
 		"email_verified": false,

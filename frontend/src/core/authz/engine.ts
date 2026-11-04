@@ -3,7 +3,7 @@ import { describeError, log } from '../lib/log';
 import { getProviderRegistry } from '../providers/active';
 import { getSession } from '../session/store';
 import { evaluateCapabilities, resetPolicy } from './policy';
-import { clearCapabilities, setCapabilities, setError, setLoading } from './store';
+import { clearCapabilities, setCapabilities, setError } from './store';
 import type { AuthzInput } from './types';
 
 /**
@@ -28,7 +28,6 @@ export async function refreshCapabilities(): Promise<void> {
     return;
   }
 
-  setLoading();
   try {
     const input: AuthzInput = {
       provider: module.id,
