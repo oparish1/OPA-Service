@@ -3,6 +3,7 @@ import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:f
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { PROVIDER_IDS } from '../../shared/providers';
 import { assertWithinBudget, buildPolicyWasm, locateOpa } from './build-policy';
 
 const REPO_ROOT = join(process.cwd(), '..');
@@ -10,22 +11,24 @@ const FIXTURES = join(process.cwd(), 'scripts', 'fixtures');
 const OPA_ABSENT = locateOpa() === null;
 
 describe('policy build', () => {
-  it.skipIf(OPA_ABSENT)(
-    'rejects a policy that uses a built-in the WASM target cannot execute',
-    async () => {
-      const dir = mkdtempSync(join(tmpdir(), 'authz-planted-'));
-      try {
-        cpSync(join(REPO_ROOT, 'policy', 'authz'), join(dir, 'authz'), { recursive: true });
-        writeFileSync(
-          join(dir, 'authz', 'providers', 'entra.rego'),
-          readFileSync(join(FIXTURES, 'unsupported-built-in.rego'))
-        );
-        await expect(buildPolicyWasm({ policyDir: join(dir, 'authz') })).rejects.toThrow(/http\.send/);
-      } finally {
-        rmSync(dir, { recursive: true, force: true });
+  for (const provider of PROVIDER_IDS) {
+    it.skipIf(OPA_ABSENT)(
+      `rejects an unsupported built-in planted in the ${provider} provider`,
+      async () => {
+        const dir = mkdtempSync(join(tmpdir(), 'authz-planted-'));
+        try {
+          cpSync(join(REPO_ROOT, 'policy', 'authz'), join(dir, 'authz'), { recursive: true });
+          writeFileSync(
+            join(dir, 'authz', 'providers', `${provider}.rego`),
+            readFileSync(join(FIXTURES, `unsupported-built-in-${provider}.rego`))
+          );
+          await expect(buildPolicyWasm({ policyDir: join(dir, 'authz') })).rejects.toThrow(/http\.send/);
+        } finally {
+          rmSync(dir, { recursive: true, force: true });
+        }
       }
-    }
-  );
+    );
+  }
 
   it('rejects a wasm artifact over the size budget', () => {
     expect(() => assertWithinBudget(new Uint8Array(11), 10)).toThrow(/budget/);

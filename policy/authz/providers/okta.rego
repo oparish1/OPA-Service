@@ -2,27 +2,17 @@ package authz.providers.okta
 
 # Okta requires the configured group, a subject (`uid`) and a grant of the
 # capability's scope. The group name arrives as data, never as a literal here.
+# A missing configured value fails closed.
 
 config := data.authz.config.okta
 
 group_ok if {
+	config.required_group != ""
 	config.required_group in input.claims.groups
 }
 
 subject_ok if {
 	input.claims.has_subject == true
-}
-
-scope_ok(cap) if {
-	data.authz.scope_granted(input.claims.scopes, scope_for(cap))
-}
-
-scope_for(cap) := "workspace:read" if {
-	cap in data.authz.read_capabilities
-}
-
-scope_for(cap) := "workspace:write" if {
-	not cap in data.authz.read_capabilities
 }
 
 failure_codes := {"missing_group", "not_signed_in", "missing_scope"}
@@ -36,7 +26,7 @@ failure("not_signed_in", _) if {
 }
 
 failure("missing_scope", cap) if {
-	not scope_ok(cap)
+	not data.authz.scope_ok(cap)
 }
 
 deny_by_capability[cap] := failures if {

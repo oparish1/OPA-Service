@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { PROVIDER_IDS } from '../../shared/providers';
 
 /**
  * Compiles the shared `policy/authz/` Rego to WebAssembly for the browser. The
@@ -20,20 +21,52 @@ const DEFAULT_OUT_DIR = join(MODULE_DIR, '..', 'public', 'policy');
 const DEFAULT_BUDGET_BYTES = 1024 * 1024;
 const ENTRYPOINT = 'authz/capabilities';
 
-/** A representative input that reaches every provider rule during validation. */
-const VALIDATION_INPUT = {
-  provider: 'entra',
-  claims: {
-    has_subject: true,
-    roles: [],
-    groups: [],
-    scopes: [],
-    tenant: '',
-    hd: '',
-    email_verified: false,
-  },
-  request: {},
-};
+/** The public config every provider compares against; each reads only its own fields. */
+const VALIDATION_CONFIG = Object.fromEntries(
+  PROVIDER_IDS.map(id => [
+    id,
+    {
+      tenant: 'validation-tenant',
+      required_role: 'validation-role',
+      required_group: 'validation-group',
+      hosted_domain: 'validation.example',
+    },
+  ])
+);
+
+/**
+ * Representative inputs that reach every provider and both sides of its
+ * allow/deny paths. `opa build` accepts a built-in the WASM target cannot
+ * execute, so each provider must be evaluated before the artifact is written.
+ */
+const VALIDATION_INPUTS = [
+  ...PROVIDER_IDS.map(provider => ({
+    provider,
+    claims: {
+      has_subject: true,
+      roles: ['validation-role'],
+      groups: ['validation-group'],
+      scopes: ['workspace:read', 'workspace:write'],
+      tenant: 'validation-tenant',
+      hd: 'validation.example',
+      email_verified: true,
+    },
+    request: { method: 'GET' },
+  })),
+  ...PROVIDER_IDS.map(provider => ({
+    provider,
+    claims: {
+      has_subject: false,
+      roles: [],
+      groups: [],
+      scopes: [],
+      tenant: '',
+      hd: '',
+      email_verified: false,
+    },
+    request: { method: 'POST' },
+  })),
+];
 
 export interface BuildPolicyOptions {
   opaBin?: string;
@@ -76,7 +109,8 @@ export function assertWithinBudget(wasm: Uint8Array, budgetBytes = DEFAULT_BUDGE
 async function validateWasm(wasm: Uint8Array): Promise<void> {
   const { loadPolicy } = await import('@open-policy-agent/opa-wasm');
   const policy = await loadPolicy(wasm);
-  policy.evaluate(VALIDATION_INPUT);
+  policy.setData({ authz: { config: VALIDATION_CONFIG } });
+  for (const input of VALIDATION_INPUTS) policy.evaluate(input);
 }
 
 export async function buildPolicyWasm(options: BuildPolicyOptions = {}): Promise<Uint8Array> {

@@ -39,6 +39,8 @@ services:
     command: ["run", "--server", "--addr=0.0.0.0:8181", "--log-level=error", "/policies"]
     volumes:
       - ./opa:/policies:ro
+      # The wrappers import the shared policy, so it is a second OPA root.
+      - ../policy/authz:/policies/authz:ro
     ports:
       - "8181:8181"
 

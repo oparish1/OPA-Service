@@ -210,6 +210,20 @@ describe('golden fixtures (A17)', () => {
   }
 });
 
+describe('OPA deployment', () => {
+  test('the opa service loads the shared authz package, not just the wrappers', () => {
+    const compose = parse(readFileSync(join(GATEWAY_DIR, 'docker-compose.yml'), 'utf8')) as {
+      services: { opa: { command: string[]; volumes: string[] } };
+    };
+    const { command, volumes } = compose.services.opa;
+    const sharedMount = volumes.find(entry => entry.startsWith('../policy/authz'));
+    expect(sharedMount).toBeDefined();
+    expect(sharedMount).toContain('/policies/authz');
+    // The runtime root must cover the mount so the wrappers can compile.
+    expect(command.some(arg => arg === '/policies' || arg.startsWith('/policies'))).toBe(true);
+  });
+});
+
 describe('provider isolation (A21)', () => {
   test('only the exempt registries name more than one provider', () => {
     expect(findProviderIsolationViolations(join(GATEWAY_DIR, '..'))).toEqual([]);

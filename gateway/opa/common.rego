@@ -24,6 +24,15 @@ claim_or(payload, key, fallback) := payload[key] if {
 	payload[key]
 } else := fallback
 
+# The shared `input.request` slice, built once for every provider wrapper.
+authz_request(req) := {"method": req.method, "path": req.path} if {
+	req.path
+}
+
+authz_request(req) := {"method": req.method} if {
+	not req.path
+}
+
 # True only when the verified payload actually carries the claim; an absent
 # claim is an explicit false so callers can build an object from it.
 has_claim(payload, key) := object.get(payload, key, null) != null

@@ -36,7 +36,7 @@ case_allow(case) := result if {
 	result := data.google.allow with input as token_input(case)
 }
 
-token_input(case) := testutil.input_for(case.request.method, token_claims(case), provider_labels(case.provider))
+token_input(case) := testutil.input_for_path(case.request.method, case.request.path, token_claims(case), provider_labels(case.provider))
 
 provider_labels("entra") := {
 	"audience": "api://test",

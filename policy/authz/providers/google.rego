@@ -4,11 +4,13 @@ package authz.providers.google
 # capability is always `method_not_allowed`, and a gateway read request is
 # accepted only for GET. The browser has no request method, so a read
 # capability without a request context is treated as a read. The hosted domain
-# arrives as data, never as a literal here.
+# arrives as data, never as a literal here; a missing configured value fails
+# closed.
 
 config := data.authz.config.google
 
 domain_ok if {
+	config.hosted_domain != ""
 	input.claims.hd == config.hosted_domain
 }
 
@@ -25,6 +27,8 @@ read_method_ok if {
 }
 
 read_failure_codes := {"wrong_domain", "email_unverified", "method_not_allowed"}
+
+write_claim_failure_codes := {"wrong_domain", "email_unverified"}
 
 failure("wrong_domain", _) if {
 	not domain_ok
@@ -43,6 +47,9 @@ deny_by_capability[cap] := failures if {
 	failures := {code | some code in read_failure_codes; failure(code, cap)}
 }
 
-deny_by_capability[cap] := {"method_not_allowed"} if {
+# A write is never available, but its deny set still carries the claim failures
+# so the gateway audit reason keeps the same codes it has always reported.
+deny_by_capability[cap] := failures | {"method_not_allowed"} if {
 	some cap in data.authz.write_capabilities
+	failures := {code | some code in write_claim_failure_codes; failure(code, cap)}
 }

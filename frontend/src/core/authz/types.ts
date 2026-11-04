@@ -1,20 +1,14 @@
-/** The capability ids the shared Rego policy decides; one union keeps the browser honest. */
-export type CapabilityId =
-  | 'nav.overview'
-  | 'nav.account'
-  | 'nav.api.profile'
-  | 'nav.api.projects'
-  | 'action.api.send.read'
-  | 'action.api.send.write';
-
-export const CAPABILITY_IDS: readonly CapabilityId[] = [
+/** The capability ids the shared Rego policy decides; the array is the single owner. */
+export const CAPABILITY_IDS = [
   'nav.overview',
   'nav.account',
   'nav.api.profile',
   'nav.api.projects',
   'action.api.send.read',
   'action.api.send.write',
-];
+] as const;
+
+export type CapabilityId = (typeof CAPABILITY_IDS)[number];
 
 /** The neutral reason codes the shared policy emits. */
 export type AuthzReason =

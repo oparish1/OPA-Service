@@ -76,6 +76,7 @@ export function ProfileAPI() {
     response !== null && response.status !== 401 && (response.status >= 400 || response.status === 0);
 
   async function handleRun() {
+    if (!readDecision.allowed) return;
     const error = validateRunnerUrl(url);
     setUrlError(error);
     if (error) return;

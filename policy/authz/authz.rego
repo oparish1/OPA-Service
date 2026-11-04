@@ -46,6 +46,19 @@ scope_granted(scopes, required) if {
 	required in split(scopes, " ")
 }
 
+# Read capabilities need the read scope, the write capability the write scope.
+scope_for(cap) := "workspace:read" if {
+	cap in read_capabilities
+}
+
+scope_for(cap) := "workspace:write" if {
+	not cap in read_capabilities
+}
+
+scope_ok(cap) if {
+	scope_granted(input.claims.scopes, scope_for(cap))
+}
+
 # The neutral reason codes, in the order the browser's single `reason` picks one.
 # A gateway wrapper translates them to the audit strings the access log carries.
 reason_precedence := [
@@ -75,15 +88,19 @@ deny_reasons(cap) := set() if {
 	signed_in
 }
 
+known_provider if {
+	data.authz.providers[input.provider]
+}
+
 deny_reasons(cap) := data.authz.providers[input.provider].deny_by_capability[cap] if {
 	not cap in baseline_capabilities
 	input.provider
 }
 
-# An unknown provider fails closed.
+# An unknown or missing provider fails closed.
 deny_reasons(cap) := {"not_signed_in"} if {
 	not cap in baseline_capabilities
-	not input.provider
+	not known_provider
 }
 
 capability_deny_reasons(cap) := deny_reasons(cap)

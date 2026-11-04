@@ -197,6 +197,40 @@ describe('capability engine', () => {
     expect(fetchMock.mock.calls.length).toBeGreaterThan(callsBefore);
   });
 
+  it.skipIf(!HAS_ARTIFACT)('does not repopulate after sign-out resolves a pending refresh (A16)', async () => {
+    const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8')) as { wasm: string };
+    const wasm = readFileSync(join(POLICY_DIR, manifest.wasm));
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.endsWith('manifest.json')) {
+          await gate;
+          return { ok: true, json: async () => manifest };
+        }
+        if (url.endsWith(manifest.wasm)) {
+          return {
+            ok: true,
+            arrayBuffer: async () =>
+              wasm.buffer.slice(wasm.byteOffset, wasm.byteOffset + wasm.byteLength),
+          };
+        }
+        return { ok: false, status: 404 };
+      })
+    );
+
+    const pending = refreshCapabilities();
+    clearPermissions();
+    release();
+    await pending;
+
+    expect(getSnapshot().status).toBe('disabled');
+  });
+
   it('never logs a claim, token or input value (A22)', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(new Error('policy evaluation failed'))));

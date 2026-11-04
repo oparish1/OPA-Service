@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AppProvider } from '../../app/AppProvider';
 import { ScreenRouter } from '../../App';
@@ -60,6 +61,22 @@ describe('advisory UI authorization', () => {
     const run = screen.getByRole('button', { name: /run request/i });
     expect(run).not.toHaveAttribute('aria-disabled');
     expect(run).not.toBeDisabled();
+  });
+
+  it('does not start a denied request from the URL field on Enter (A12)', async () => {
+    seedCapabilities(
+      capabilitiesWith({
+        'nav.api.profile': { allowed: false, reason: 'missing_scope' },
+        'action.api.send.read': { allowed: false, reason: 'missing_scope' },
+      })
+    );
+    renderProfile();
+    await screen.findByText('Run the request to see the response');
+
+    await userEvent.type(screen.getByRole('textbox', { name: 'Request URL' }), '{Enter}');
+
+    expect(screen.queryByText('Request authorised')).not.toBeInTheDocument();
+    expect(screen.getByText('Run the request to see the response')).toBeInTheDocument();
   });
 
   it('shows the access-denied screen for a denied direct route (A13)', async () => {

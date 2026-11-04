@@ -45,7 +45,7 @@ export async function evaluateCapabilities(
   config: Record<string, unknown>
 ): Promise<Capabilities> {
   const policy = await getPolicy();
-  policy.setData({ authz: { config } });
+  policy.setData({ authz: { config: { [input.provider]: config } } });
   const resultSet = policy.evaluate(input) as Array<{ result?: Capabilities }>;
   const result = resultSet[0]?.result;
   if (!result) throw new Error('policy_result_missing');

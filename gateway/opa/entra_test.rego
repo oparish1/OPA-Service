@@ -47,6 +47,14 @@ test_wrong_tenant_claim_is_denied if {
 	not allow with input as testutil.input_for("GET", object.union(base_payload, {"tid": "tenant-2"}), base_labels)
 }
 
+test_missing_required_role_label_fails_closed if {
+	not allow with input as testutil.input_for("GET", base_payload, object.remove(base_labels, ["required_role"]))
+}
+
+test_empty_tenant_label_fails_closed if {
+	not allow with input as testutil.input_for("GET", object.union(base_payload, {"tid": ""}), object.union(base_labels, {"tenant": ""}))
+}
+
 test_missing_scope_is_denied if {
 	not allow with input as testutil.input_for("GET", object.union(base_payload, {"scp": ""}), base_labels)
 }

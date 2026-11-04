@@ -10,13 +10,7 @@ payload := common.claims(common.bearer)
 
 capability := data.authz.capability_for(common.claim_or(input.request, "method", ""), common.claim_or(input.request, "path", ""))
 
-authz_request := {"method": input.request.method, "path": input.request.path} if {
-	input.request.path
-}
-
-authz_request := {"method": input.request.method} if {
-	not input.request.path
-}
+authz_request := common.authz_request(input.request)
 
 authz_input := {
 	"provider": "okta",
@@ -68,6 +62,7 @@ reasons contains "wrong_audience" if {
 default allow := false
 
 allow if {
+	shared_reasons
 	count(reasons) == 0
 }
 

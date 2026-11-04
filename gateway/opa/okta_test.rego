@@ -45,6 +45,14 @@ test_wrong_audience_is_denied if {
 	not allow with input as testutil.input_for("GET", object.union(base_payload, {"aud": "api://other"}), base_labels)
 }
 
+test_missing_required_group_label_fails_closed if {
+	not allow with input as testutil.input_for("GET", base_payload, object.remove(base_labels, ["required_group"]))
+}
+
+test_empty_group_label_fails_closed if {
+	not allow with input as testutil.input_for("GET", base_payload, object.union(base_labels, {"required_group": ""}))
+}
+
 test_headers_come_from_the_token if {
 	headers["X-User-Provider"] == "okta" with input as testutil.input_for("GET", base_payload, base_labels)
 	headers["X-User-Subject"] == "sub-1" with input as testutil.input_for("GET", base_payload, base_labels)
