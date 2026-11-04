@@ -97,6 +97,23 @@ superseded by the static public configuration file; the provider-row ordering
 Entra, Okta, Google and the provider-neutral notice copy remain binding. The
 Round 3/4 UI decisions remain binding.
 
+## Advisory UI authorization (issue #21)
+
+- **The gateway stays the only security authority.** The browser evaluates the
+  same shared Rego policy as OPA-WASM to decide what to show or enable; a
+  browser decision is advisory and can never grant what the gateway refuses.
+- **One shared policy source.** `policy/authz/` holds the claim rules in Rego
+  v1; the gateway wrappers in `gateway/opa/` import it for enforcement and
+  `frontend/src/core/authz/` evaluates the compiled WASM copy for the UI. The
+  two sides never carry separate copies of the claim rules.
+- **Fail closed.** If the WASM policy cannot load or evaluate, the UI keeps a
+  baseline capability floor (Overview and Account) and enables nothing else.
+- **No environment value in Rego.** Tenant, domain and group values arrive as
+  data (`data.authz.config`), sourced from the public config in the browser and
+  from route labels at the gateway.
+- **Rollback.** `authz.enabled` (default true) turns the browser evaluation off
+  and restores pre-change behavior; the gateway is unaffected.
+
 ## Logging and configuration failures (issue #16)
 
 - **One logger.** `frontend/src/core/lib/log.ts` is the only logger. Callers pass

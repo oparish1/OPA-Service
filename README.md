@@ -48,6 +48,9 @@ scope, claim and method rules, then sets `X-User-Issuer`, `X-User-Subject` and
 `X-User-Provider` from the validated token. The gateway itself serves the
 `/v1/me` and `/v1/projects` demo bodies; the golden bodies captured from the
 backend before deletion are kept in `gateway/fixtures/` as the A17 reference.
+The claim rules live once in `policy/authz/`: the gateway wrappers import them
+and the browser compiles the same package to WASM to hide or disable controls.
+UI authorization is advisory; the gateway enforces.
 
 ## Local setup
 

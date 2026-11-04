@@ -55,6 +55,10 @@ except where issue #12 explicitly reverses them.
     allowlist.
   - `main.tsx` loads and validates `config.json`, installs the registry, handles
     the provider redirect callback and renders the app.
+  - `authz/` evaluates the shared `policy/authz/` Rego compiled to WASM once
+    after sign-in and again after a renewal changes claims, caches one
+    capability map and fails closed to a baseline floor. UI authorization is
+    advisory; the gateway enforces.
 - **Gateway** (`gateway/`):
   - `apisix/config.yaml` runs APISIX in declarative mode with JSON access logs,
     no server banner and strict security headers.
@@ -63,7 +67,8 @@ except where issue #12 explicitly reverses them.
     for cryptographic validation and `opa` for audience, scope, claim and method
     authorization, then `serverless-post-function` builds the `/v1` golden
     fixture body.
-  - `opa/*.rego` decode the verified token and return `allow`, the `X-User-*`
+  - `opa/*.rego` import the shared `policy/authz/` claim rules, keep only the
+    gateway-only audience and issuer checks, and return `allow`, the `X-User-*`
     headers, and on deny the `X-Auth-*` audit headers (provider, subject,
     decision, reason) the access log reads for GW-8.
   - `fixtures/` holds the `/v1` golden bodies captured from the deleted backend.

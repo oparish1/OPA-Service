@@ -20,7 +20,12 @@ references environment variables by name only.
   route runs `openid-connect` (bearer-only, JWKS, pinned issuer) then `opa`
   (per-provider policy, `with_route`), then `serverless-post-function` builds
   the `/v1` fixture body after authorization.
-- `opa/*.rego` — provider policies with unit tests (`opa test gateway/opa`).
+- `opa/*.rego` — provider wrappers that import the shared `policy/authz/`
+  claim rules and keep only the gateway-only audience/issuer checks, with unit
+  tests (`opa test policy gateway/opa`).
+- `../policy/authz/` — the one shared Rego source the wrappers enforce and the
+  browser compiles to WASM for advisory UI decisions. UI authorization is
+  advisory; the gateway enforces.
 - `fixtures/*.json` — the golden `/v1/me` and `/v1/projects` bodies captured
   from the backend before deletion (A17).
 - `test-issuers/` — local OIDC issuers used by the Docker integration script.
@@ -34,7 +39,9 @@ and introspection is excluded because it would require a client secret
 performs the cryptographic validation (signature, `iss`, `exp`/`nbf`, algorithm)
 and the `opa` plugin owns the audience plus the per-provider scope, claim and
 method rules. OPA returns the `X-User-*` headers and, on deny, the `X-Auth-*`
-audit headers the access log reads.
+audit headers the access log reads. The browser compiles the same
+`policy/authz/` package to WASM for advisory nav and button decisions; it never
+replaces the gateway decision.
 
 ## Secret placeholders
 
