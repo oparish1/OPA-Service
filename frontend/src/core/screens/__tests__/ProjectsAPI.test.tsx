@@ -172,7 +172,7 @@ describe('ProjectsAPI', () => {
     await user.type(field, `${window.location.origin}/v1/me`);
     await user.click(screen.getByRole('button', { name: /run request/i }));
     expect(await screen.findByText('200 OK')).toBeInTheDocument();
-    expect(screen.getByText(/orlando.parish@agadv.example/)).toBeInTheDocument();
+    expect(screen.getByText(/demo.user@agadv.example/)).toBeInTheDocument();
     expect(screen.queryByText(/prj_01/)).not.toBeInTheDocument();
   });
 

@@ -1,4 +1,5 @@
 import { getAppConfig, getProviderConfig } from '../config';
+import { clearPermissions, refreshCapabilities } from '../authz/engine';
 import { describeError, log } from '../lib/log';
 import { formatTimestamp } from '../lib/response-format';
 import { getProviderRegistry } from '../providers/active';
@@ -64,7 +65,10 @@ function refreshStoredSession(): void {
   const providerId = readStore()?.providerId;
   if (!providerId) return;
   const providerSession = getProviderRegistry().get(providerId)?.auth?.session();
-  if (providerSession) updateSession(toSession(providerSession));
+  if (providerSession) {
+    updateSession(toSession(providerSession));
+    void refreshCapabilities();
+  }
 }
 
 function requireProvider(providerId: string) {
@@ -77,7 +81,10 @@ export async function signIn(providerId: string): Promise<void> {
   const auth = requireProvider(providerId);
   await auth.signIn();
   const providerSession = auth.session();
-  if (providerSession) setSession(toSession(providerSession));
+  if (providerSession) {
+    setSession(toSession(providerSession));
+    void refreshCapabilities();
+  }
 }
 
 /**
@@ -103,7 +110,10 @@ export async function handleRedirect(url: URL): Promise<RedirectOutcome> {
     }
     if (outcome === 'handled') {
       const providerSession = module.auth.session();
-      if (providerSession) setSession(toSession(providerSession));
+      if (providerSession) {
+        setSession(toSession(providerSession));
+        void refreshCapabilities();
+      }
       return 'handled';
     }
     if (outcome === 'rejected') rejected = true;
@@ -114,6 +124,7 @@ export async function handleRedirect(url: URL): Promise<RedirectOutcome> {
 export async function signOut(): Promise<void> {
   const providerId = readStore()?.providerId;
   if (providerId) await getProviderRegistry().get(providerId)?.auth?.signOut();
+  clearPermissions();
   clearSession();
 }
 

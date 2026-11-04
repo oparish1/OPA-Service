@@ -35,7 +35,7 @@ describe('ProfileAPI', () => {
     await screen.findByText('Run the request to see the response');
     await user.click(screen.getByRole('button', { name: /run request/i }));
     expect(await screen.findByText('200 OK')).toBeInTheDocument();
-    expect(screen.getByText(/orlando.parish@agadv.example/)).toBeInTheDocument();
+    expect(screen.getByText(/demo.user@agadv.example/)).toBeInTheDocument();
   });
 
   it('switches the response to the Headers tab', async () => {
@@ -206,7 +206,7 @@ describe('ProfileAPI', () => {
     await user.click(screen.getByRole('button', { name: /run request/i }));
     expect(await screen.findByText('200 OK')).toBeInTheDocument();
     expect(screen.getByText(/prj_01/)).toBeInTheDocument();
-    expect(screen.queryByText(/orlando.parish@agadv.example/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/demo.user@agadv.example/)).not.toBeInTheDocument();
   });
 
   it('repeats the failed run URL on refresh & retry, not the edited field', async () => {
@@ -240,9 +240,9 @@ describe('ProfileAPI', () => {
     await user.type(field, `${window.location.origin}/v1/me`);
     configureMocks({ latencyMs: 0 });
     await user.keyboard('{Enter}');
-    expect(await screen.findByText(/orlando.parish@agadv.example/)).toBeInTheDocument();
+    expect(await screen.findByText(/demo.user@agadv.example/)).toBeInTheDocument();
     await new Promise(resolve => setTimeout(resolve, 500));
-    expect(screen.getByText(/orlando.parish@agadv.example/)).toBeInTheDocument();
+    expect(screen.getByText(/demo.user@agadv.example/)).toBeInTheDocument();
     expect(screen.queryByText(/prj_01/)).not.toBeInTheDocument();
   });
 

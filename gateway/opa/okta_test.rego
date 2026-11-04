@@ -2,7 +2,7 @@ package okta
 
 import data.testutil
 
-base_labels := {"audience": "api://default"}
+base_labels := {"audience": "api://default", "required_group": "Workspace User"}
 
 base_payload := {
 	"iss": "https://dev-1.okta.example/oauth2/default",
@@ -43,6 +43,14 @@ test_missing_uid_is_denied if {
 
 test_wrong_audience_is_denied if {
 	not allow with input as testutil.input_for("GET", object.union(base_payload, {"aud": "api://other"}), base_labels)
+}
+
+test_missing_required_group_label_fails_closed if {
+	not allow with input as testutil.input_for("GET", base_payload, object.remove(base_labels, ["required_group"]))
+}
+
+test_empty_group_label_fails_closed if {
+	not allow with input as testutil.input_for("GET", base_payload, object.union(base_labels, {"required_group": ""}))
 }
 
 test_headers_come_from_the_token if {

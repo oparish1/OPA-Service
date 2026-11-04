@@ -10,8 +10,8 @@ import { PROVIDER_IDS } from '../../../shared/providers';
 
 // Vite may expose `import.meta.url` under its `/@fs` virtual prefix in tests.
 const REPO_ROOT = new URL('../../../', import.meta.url).pathname.replace(/^\/@fs/, '');
-const SCAN_DIRS = ['frontend/src', 'frontend/public', 'shared', 'gateway', 'scripts', 'docs'];
-const CODE_DIRS = ['frontend/src', 'frontend/public', 'shared', 'gateway', 'scripts'];
+const SCAN_DIRS = ['frontend/src', 'frontend/public', 'shared', 'gateway', 'scripts', 'docs', 'policy'];
+const CODE_DIRS = ['frontend/src', 'frontend/public', 'shared', 'gateway', 'scripts', 'policy'];
 const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', 'coverage']);
 const TEXT_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.json', '.md', '.yaml', '.yml', '.sh', '.rego'];
 
@@ -58,7 +58,12 @@ describe('repository acceptance', () => {
     const { parseAppConfig } = await import('../../../shared/app-config');
     const example = JSON.parse(read(join('frontend', 'public', 'config.example.json')));
     expect(() => parseAppConfig(example)).not.toThrow();
-    expect(existsSync(join(REPO_ROOT, 'frontend', 'public', 'config.json'))).toBe(false);
+    // The demo config is committed (a deployment overrides it); when present it
+    // must still satisfy the schema and carry no secret-shaped value.
+    const committed = join(REPO_ROOT, 'frontend', 'public', 'config.json');
+    if (existsSync(committed)) {
+      expect(() => parseAppConfig(JSON.parse(readFileSync(committed, 'utf8')))).not.toThrow();
+    }
   });
 
   it('A18 scans the production bundle when one has been built', () => {
@@ -89,6 +94,35 @@ describe('repository acceptance', () => {
     }
   });
 
+  it('A5 keeps environment values out of the Rego policies', () => {
+    const config = JSON.parse(read(join('frontend', 'public', 'config.json')));
+    const fixture = JSON.parse(read(join('policy', 'fixtures', 'decisions.json')));
+    const sensitive = new Set<string>();
+    const collectStrings = (value: unknown): void => {
+      if (typeof value === 'string') sensitive.add(value);
+      else if (Array.isArray(value)) value.forEach(collectStrings);
+      else if (value && typeof value === 'object') Object.values(value).forEach(collectStrings);
+    };
+    collectStrings(fixture.config);
+    for (const provider of config.providers as Array<{ issuer: string; hostedDomain?: string }>) {
+      if (provider.hostedDomain) sensitive.add(provider.hostedDomain);
+      const tenant = provider.issuer.match(/login\.microsoftonline\.com\/([^/]+)\//);
+      if (tenant) sensitive.add(tenant[1]);
+    }
+
+    const policies = filesUnder(['policy', 'gateway/opa']).filter(
+      file => file.endsWith('.rego') && !file.endsWith('_test.rego')
+    );
+    expect(policies.length).toBeGreaterThan(0);
+    for (const file of policies) {
+      const content = read(file);
+      for (const value of sensitive) {
+        if (!value) continue;
+        expect(content, `${file} must not contain the environment value ${value}`).not.toContain(value);
+      }
+    }
+  });
+
   it('A20 leaves no backend, build-time auth flag, auth.env or database code', () => {
     expect(existsSync(join(REPO_ROOT, 'backend', 'package.json'))).toBe(false);
     expect(existsSync(join(REPO_ROOT, 'backend', 'src'))).toBe(false);
@@ -101,6 +135,16 @@ describe('repository acceptance', () => {
       expect(content, file).not.toMatch(/\bsqlite\b/i);
       expect(content, file).not.toMatch(/CREATE TABLE/i);
     }
+  });
+
+  it('A21 ships wasm-unsafe-eval and never unsafe-eval in the CSP', () => {
+    const headers = read(join('frontend', 'public', '_headers'));
+    const csp = headers
+      .split('\n')
+      .find(line => line.trim().startsWith('Content-Security-Policy:'));
+    expect(csp).toBeDefined();
+    expect(csp).toContain("script-src 'self' 'wasm-unsafe-eval'");
+    expect(csp).not.toContain("'unsafe-eval'");
   });
 
   it('A22 direction documents describe the browser-only direction', () => {

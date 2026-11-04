@@ -2,7 +2,7 @@ package entra
 
 import data.testutil
 
-base_labels := {"audience": "api://client", "tenant": "tenant-1"}
+base_labels := {"audience": "api://client", "tenant": "tenant-1", "required_role": "Workspace.User"}
 
 base_payload := {
 	"iss": "https://login.microsoftonline.com/tenant-1/v2.0",
@@ -45,6 +45,14 @@ test_wrong_audience_is_denied if {
 
 test_wrong_tenant_claim_is_denied if {
 	not allow with input as testutil.input_for("GET", object.union(base_payload, {"tid": "tenant-2"}), base_labels)
+}
+
+test_missing_required_role_label_fails_closed if {
+	not allow with input as testutil.input_for("GET", base_payload, object.remove(base_labels, ["required_role"]))
+}
+
+test_empty_tenant_label_fails_closed if {
+	not allow with input as testutil.input_for("GET", object.union(base_payload, {"tid": ""}), object.union(base_labels, {"tenant": ""}))
 }
 
 test_missing_scope_is_denied if {

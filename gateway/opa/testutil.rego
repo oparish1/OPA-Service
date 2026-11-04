@@ -15,3 +15,13 @@ input_for(method, payload, labels) := {
 	},
 	"route": {"labels": labels},
 }
+
+# A request that carries the APISIX path, so the route table is exercised.
+input_for_path(method, path, payload, labels) := {
+	"request": {
+		"method": method,
+		"path": path,
+		"headers": {"authorization": concat(" ", ["Bearer", unsigned_token(payload)])},
+	},
+	"route": {"labels": labels},
+}

@@ -84,6 +84,7 @@ async function toSession(oktaAuth: OktaAuth): Promise<ProviderSession | null> {
       accountId: stringClaim(claims, 'uid') || stringClaim(claims, 'sub'),
       createdAt: '—',
     },
+    rawClaims: claims,
     accessToken: {
       value: accessToken.accessToken,
       expiresAt: expiresAt(accessToken.expiresAt),

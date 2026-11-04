@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import type { ProviderLinks } from '../../../../shared/providers';
+import type { ProviderConfig } from '../../../../shared/app-config';
 import type { AccountSummary } from '../../../../shared/session';
+import type { AuthzClaims } from '../authz/types';
 
 /** The tokens and identity one provider's auth facet has in memory. */
 export interface ProviderSession {
@@ -8,6 +10,8 @@ export interface ProviderSession {
   providerName: string;
   issuer: string;
   account: AccountSummary | null;
+  /** The verified claims the provider library exposed, normalized by the authz module. */
+  rawClaims: Record<string, unknown>;
   accessToken: {
     value: string;
     expiresAt: string;
@@ -58,6 +62,14 @@ export interface FrontendProviderModule {
   readonly links: ProviderLinks;
   renderIcon(size: number): ReactNode;
   readonly auth?: ProviderAuth;
+  /**
+   * The provider's contribution to the shared policy: normalized claims from its
+   * library session and the public config slice the policy compares against.
+   */
+  readonly authz?: {
+    claims(session: ProviderSession): AuthzClaims;
+    config(providerConfig: ProviderConfig): Record<string, unknown>;
+  };
 }
 
 export interface ProviderRegistry {

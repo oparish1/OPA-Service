@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { useApp } from '../app/app-context';
+import { useCan } from '../authz/useCan';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { Notice } from '../components/Notice';
@@ -8,7 +9,7 @@ import { RequestPanel } from '../components/RequestPanel';
 import { ResponseCard } from '../components/ResponseCard';
 import { SkeletonBlock } from '../components/Skeleton';
 import { useAsyncData } from '../hooks/useAsyncData';
-import { BLOCKED_HOST, GENERIC_ERROR } from '../lib/copy';
+import { BLOCKED_HOST, GENERIC_ERROR, permissionReason } from '../lib/copy';
 import { describeError, log } from '../lib/log';
 import { appUrl, PROJECTS_PATH, runnerAuthOptions, validateRunnerUrl } from '../lib/runner-url';
 import { WorkspaceLayout } from '../layouts/WorkspaceLayout';
@@ -40,6 +41,7 @@ export function ProjectsAPI() {
   const [accessMeta, setAccessMeta] = useState<{ masked: string; expiresAt: string } | null>(null);
   const [lastRun, setLastRun] = useState<{ url: string; auth: RunnerAuth } | null>(null);
   const runSeq = useRef(0);
+  const readDecision = useCan('action.api.send.read');
 
   if (state.status === 'loading') {
     return (
@@ -83,6 +85,7 @@ export function ProjectsAPI() {
     response !== null && response.status !== 401 && (response.status >= 400 || response.status === 0);
 
   async function handleRun() {
+    if (!readDecision.allowed) return;
     const error = validateRunnerUrl(url);
     setUrlError(error);
     if (error) return;
@@ -153,6 +156,7 @@ export function ProjectsAPI() {
         tokenExpired={sessionExpired}
         running={running}
         onRun={handleRun}
+        runDisabledReason={readDecision.allowed ? undefined : permissionReason(readDecision.reason)}
       />
 
       {sessionExpired ? (

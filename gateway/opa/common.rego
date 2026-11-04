@@ -20,25 +20,22 @@ claims(tok) := payload if {
 	[_, payload, _] := io.jwt.decode(tok)
 }
 
-# `scp` is a space-delimited string on Entra access tokens and an array on Okta
-# access tokens, so normalise both to a set.
-scope_set(raw) := {s | some s in split(raw, " ")} if is_string(raw)
-
-scope_set(raw) := {s | some s in raw} if is_array(raw)
-
-scope_set(raw) := set() if {
-	not is_string(raw)
-	not is_array(raw)
-}
-
-# GET, HEAD and OPTIONS are safe; everything else needs a write scope.
-safe_method if {
-	input.request.method in {"GET", "HEAD", "OPTIONS"}
-}
-
 claim_or(payload, key, fallback) := payload[key] if {
 	payload[key]
 } else := fallback
+
+# The shared `input.request` slice, built once for every provider wrapper.
+authz_request(req) := {"method": req.method, "path": req.path} if {
+	req.path
+}
+
+authz_request(req) := {"method": req.method} if {
+	not req.path
+}
+
+# True only when the verified payload actually carries the claim; an absent
+# claim is an explicit false so callers can build an object from it.
+has_claim(payload, key) := object.get(payload, key, null) != null
 
 # The headers GW-5 sets from the validated token; the gateway overwrites any
 # client-supplied X-User-* value because these are the only source used below.

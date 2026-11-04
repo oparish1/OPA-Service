@@ -53,6 +53,14 @@ test_wrong_issuer_is_denied if {
 	not allow with input as testutil.input_for("GET", object.union(base_payload, {"iss": "https://example.com"}), base_labels)
 }
 
+test_missing_hosted_domain_label_fails_closed if {
+	not allow with input as testutil.input_for("GET", base_payload, object.remove(base_labels, ["hosted_domain"]))
+}
+
+test_empty_hosted_domain_label_fails_closed if {
+	not allow with input as testutil.input_for("GET", object.union(base_payload, {"hd": ""}), object.union(base_labels, {"hosted_domain": ""}))
+}
+
 test_headers_come_from_the_token if {
 	headers["X-User-Provider"] == "google" with input as testutil.input_for("GET", base_payload, base_labels)
 	headers["X-User-Subject"] == "sub-1" with input as testutil.input_for("GET", base_payload, base_labels)
@@ -60,6 +68,10 @@ test_headers_come_from_the_token if {
 
 test_reason_reports_the_first_failure if {
 	reason == "wrong_hd" with input as testutil.input_for("GET", object.remove(base_payload, ["hd"]), base_labels)
+}
+
+test_write_deny_reason_keeps_the_claim_failures if {
+	reason == "email_unverified,method_not_allowed,wrong_hd" with input as testutil.input_for("POST", object.union(base_payload, {"hd": "other.example", "email_verified": false}), base_labels)
 }
 
 test_deny_headers_report_provider_subject_decision_and_reason if {

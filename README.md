@@ -48,6 +48,9 @@ scope, claim and method rules, then sets `X-User-Issuer`, `X-User-Subject` and
 `X-User-Provider` from the validated token. The gateway itself serves the
 `/v1/me` and `/v1/projects` demo bodies; the golden bodies captured from the
 backend before deletion are kept in `gateway/fixtures/` as the A17 reference.
+The claim rules live once in `policy/authz/`: the gateway wrappers import them
+and the browser compiles the same package to WASM to hide or disable controls.
+UI authorization is advisory; the gateway enforces.
 
 ## Local setup
 
@@ -89,8 +92,8 @@ IDs, issuers, `entra.apiResource`, requested scopes, the gateway URL and the
 account destination links (FE-1). `shared/app-config.ts` validates it and fails
 the build when a value looks like a secret (long base64, a PEM private key, or
 a `client_secret`-shaped value). The production file is deployment
-configuration and is not committed; only
-`frontend/public/config.example.json` is.
+configuration that overrides the committed demo `frontend/public/config.json`;
+the example file `frontend/public/config.example.json` carries placeholders only.
 
 ## Logging and mock mode
 
@@ -125,6 +128,28 @@ origin can read it; it is cleared on sign-out. The
 30-minute idle and 8-hour absolute session limits are enforced in the browser as
 a courtesy; the security bound is the token lifetime checked at the gateway.
 
+## Advisory UI authorization
+
+The claim rules live once, in `policy/authz/` (Rego v1). Each provider wrapper in
+`gateway/opa/` imports that package, keeps only the audience and issuer checks,
+and translates the shared reason codes to the `X-Auth-Reason` strings the access
+log has always carried, so the gateway's deny reasons and tests are unchanged.
+The browser compiles the same package with `opa build -t wasm` to
+`frontend/public/policy/authz.<hash>.wasm` (about 150 KB, under a 1 MB budget)
+and evaluates it once after sign-in and again when a renewal changes the claims
+to hide menu items and disable buttons with an accessible reason. The browser
+fails closed to Overview and Account if the wasm cannot load or evaluate.
+**UI authorization is advisory; the gateway enforces every request.** Setting
+`authz.enabled` to `false` in the public config (default `true`) skips the wasm
+load and restores the pre-change behavior without touching the gateway.
+
+The bundle pins `@open-policy-agent/opa-wasm` `1.10.0`; the build and CI use OPA
+`1.4.2`. `bun run build:policy` compiles and validates the wasm (rejecting a
+built-in the WASM target cannot execute) before the Vite build copies it from
+`public/policy/`, which is git-ignored. The gateway and browser reason sets are
+tied together by a Rego golden decision table in `policy/fixtures/decisions.json`,
+evaluated by both a Rego test and a frontend test that loads the compiled wasm.
+
 ## Checks
 
 The frontend package defines its gates. Build before the tests so the A18
@@ -144,8 +169,14 @@ fresh clone:
 cd gateway && bun install --frozen-lockfile
 cd ..
 bun test gateway                 # parses and asserts the APISIX route config
-opa test gateway/opa             # Rego policy unit tests
+opa fmt --fail --list policy gateway/opa
+opa check --strict policy gateway/opa
+opa test policy gateway/opa      # shared policy, gateway wrappers and the golden table
 ```
+
+The existing gateway negative tests still deny out-of-role, out-of-group,
+wrong-domain and missing-scope requests while the browser policy is irrelevant,
+proving the gateway is independent of the advisory UI decision (A11).
 
 The Docker Compose integration script
 (`bun run gateway/test-issuers/acceptance.ts`) is the second gateway gate and

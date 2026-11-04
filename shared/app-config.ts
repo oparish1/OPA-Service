@@ -16,6 +16,12 @@ export interface ProviderConfig extends ProviderLinks {
   redirectUri?: string;
   /** Entra only: the API application id URI scopes are composed against. */
   apiResource?: string;
+  /** Entra only: the tenant the token's `tid` claim must match. */
+  tenant?: string;
+  /** Entra only: the application role the token must carry. */
+  requiredRole?: string;
+  /** Okta only: the group the token must carry. */
+  requiredGroup?: string;
   /** Google only: the Workspace hosted domain the ID token must carry. */
   hostedDomain?: string;
   /** Scopes to request; defaults to `workspace:read`. */
@@ -26,12 +32,19 @@ export type AppLogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 const LOG_LEVELS: readonly AppLogLevel[] = ['debug', 'info', 'warn', 'error'];
 
+export interface AuthzConfig {
+  /** When false the browser skips the WASM policy and keeps pre-change behavior. */
+  enabled: boolean;
+}
+
 export interface AppConfig {
   /** The gateway origin; the request runner may call no other origin. */
   gatewayUrl: string;
   providers: ProviderConfig[];
   /** Optional browser log level; defaults to debug in development and warn in production. */
   logLevel?: AppLogLevel;
+  /** Advisory UI authorization; the gateway enforces regardless. */
+  authz: AuthzConfig;
 }
 
 export type AppConfigErrorReason = 'invalid' | 'secret';
@@ -151,6 +164,18 @@ export function parseAppConfig(raw: unknown): AppConfig {
         provider.apiResource === undefined
           ? undefined
           : requireString(provider.apiResource, `providers[${index}].apiResource`),
+      tenant:
+        provider.tenant === undefined
+          ? undefined
+          : requireString(provider.tenant, `providers[${index}].tenant`),
+      requiredRole:
+        provider.requiredRole === undefined
+          ? undefined
+          : requireString(provider.requiredRole, `providers[${index}].requiredRole`),
+      requiredGroup:
+        provider.requiredGroup === undefined
+          ? undefined
+          : requireString(provider.requiredGroup, `providers[${index}].requiredGroup`),
       hostedDomain:
         provider.hostedDomain === undefined
           ? undefined
@@ -171,5 +196,15 @@ export function parseAppConfig(raw: unknown): AppConfig {
     };
   });
 
-  return { gatewayUrl, providers, logLevel: logLevel as AppLogLevel | undefined };
+  return { gatewayUrl, providers, logLevel: logLevel as AppLogLevel | undefined, authz: parseAuthz(value.authz) };
+}
+
+function parseAuthz(raw: unknown): AuthzConfig {
+  if (raw === undefined) return { enabled: true };
+  if (!raw || typeof raw !== 'object') throw new AppConfigError('authz must be an object');
+  const enabled = (raw as Record<string, unknown>).enabled;
+  if (enabled !== undefined && typeof enabled !== 'boolean') {
+    throw new AppConfigError('authz.enabled must be a boolean');
+  }
+  return { enabled: enabled !== false };
 }
