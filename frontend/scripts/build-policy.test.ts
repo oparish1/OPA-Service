@@ -32,6 +32,13 @@ describe('policy build', () => {
   });
 
   it('keeps the built policy out of git and ignores its output directory', () => {
+    // The provider-bundle checks run this suite against a copied tree with no
+    // `.git`, so there is nothing to assert there.
+    const inRepo =
+      spawnSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: REPO_ROOT, encoding: 'utf8' }).stdout.trim() ===
+      'true';
+    if (!inRepo) return;
+
     const tracked = spawnSync('git', ['ls-files', 'frontend/public/policy'], {
       cwd: REPO_ROOT,
       encoding: 'utf8',

@@ -61,14 +61,16 @@ The gateway listens on `https://localhost:9080`; OPA on `:8181`.
 
 ## Checks
 
-Install the gateway dependencies once on a fresh clone, then run the two
-gates from the repository root:
+Install the gateway dependencies once on a fresh clone, then run the gates from
+the repository root:
 
 ```sh
 cd gateway && bun install --frozen-lockfile
 cd ..
 bun test gateway        # Docker-free route config assertions
-opa test gateway/opa    # Rego policy unit tests
+opa fmt --fail --list policy gateway/opa
+opa check --strict policy gateway/opa
+opa test policy gateway/opa    # shared policy, wrappers and the golden table
 ```
 
 The Docker integration gate is `bun run gateway/test-issuers/acceptance.ts`; it

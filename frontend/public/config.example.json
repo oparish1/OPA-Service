@@ -1,5 +1,8 @@
 {
   "gatewayUrl": "https://localhost:9080",
+  "authz": {
+    "enabled": true
+  },
   "logLevel": "warn",
   "providers": [
     {
@@ -8,6 +11,8 @@
       "clientId": "REPLACE-WITH-ENTRA-SPA-CLIENT-ID",
       "issuer": "https://login.microsoftonline.com/REPLACE-WITH-TENANT-ID/v2.0",
       "apiResource": "api://REPLACE-WITH-ENTRA-API-CLIENT-ID",
+      "tenant": "REPLACE-WITH-TENANT-ID",
+      "requiredRole": "Workspace.User",
       "scopes": [
         "workspace:read"
       ],
@@ -23,6 +28,7 @@
       "scopes": [
         "workspace:read"
       ],
+      "requiredGroup": "Workspace User",
       "forgotPasswordUrl": "https://example.com/reset",
       "changePasswordUrl": "https://example.com/change",
       "manageAccountUrl": "https://example.com/manage/okta"

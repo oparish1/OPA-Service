@@ -1,4 +1,7 @@
 import { useApp } from '../app/app-context';
+import { CAPABILITY_IDS } from '../authz/types';
+import type { CapabilityId } from '../authz/types';
+import { useCapabilities } from '../authz/useCapabilities';
 import { Avatar } from '../components/Avatar';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
@@ -8,11 +11,20 @@ import { ProviderRow } from '../components/ProviderRow';
 import { Skeleton } from '../components/Skeleton';
 import { TextLink } from '../components/TextLink';
 import { useAsyncData } from '../hooks/useAsyncData';
-import { GENERIC_ERROR } from '../lib/copy';
+import { GENERIC_ERROR, permissionReason } from '../lib/copy';
 import { WorkspaceLayout } from '../layouts/WorkspaceLayout';
 import { getIdentities, getSession } from '../api';
 import type { Identity } from '../mocks/types';
 import { body, color, font, heading, label, radius, size, space, weight } from '../styles/tokens';
+
+const CAPABILITY_LABELS: Record<CapabilityId, string> = {
+  'nav.overview': 'Overview',
+  'nav.account': 'Account & identity',
+  'nav.api.profile': 'Profile API',
+  'nav.api.projects': 'Projects API',
+  'action.api.send.read': 'Send read requests',
+  'action.api.send.write': 'Send write requests',
+};
 
 function initials(name: string): string {
   return name
@@ -39,6 +51,7 @@ function rowFor(identity: Identity) {
 /** Account & identity providers: provisioned account, identities, security. */
 export function AccountIdentity() {
   const { navigate } = useApp();
+  const { capabilities } = useCapabilities();
   const { state, reload } = useAsyncData(async () => {
     const [session, identities] = await Promise.all([getSession(), getIdentities()]);
     return { session, identities };
@@ -198,6 +211,52 @@ export function AccountIdentity() {
         Linking another provider requires verification of both identities. A matching email alone does not
         merge accounts.
       </Notice>
+
+      <section
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: space[12],
+          padding: space[24],
+          border: `1px solid ${color.border.subtle}`,
+          borderRadius: radius.card,
+        }}
+      >
+        <h2 style={{ margin: 0, ...label[16], fontFamily: font.body, color: color.text.primary }}>
+          Your permissions
+        </h2>
+        <p style={{ margin: 0, ...body[14], fontFamily: font.body, color: color.text.secondary }}>
+          These controls follow the same policy the gateway enforces. Hiding or disabling a control
+          here is advisory; the gateway decides every request.
+        </p>
+        <ul
+          style={{
+            listStyle: 'none',
+            margin: 0,
+            padding: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: space[8],
+          }}
+        >
+          {CAPABILITY_IDS.map(capability => {
+            const decision = capabilities[capability];
+            return (
+              <li
+                key={capability}
+                style={{ display: 'flex', justifyContent: 'space-between', gap: space[16] }}
+              >
+                <span style={{ ...body[14], fontFamily: font.body, color: color.text.primary }}>
+                  {CAPABILITY_LABELS[capability]}
+                </span>
+                <span style={{ ...body[14], fontFamily: font.body, color: color.text.secondary }}>
+                  {decision.allowed ? 'Allowed' : `Denied — ${permissionReason(decision.reason)}`}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
 
       <section
         style={{

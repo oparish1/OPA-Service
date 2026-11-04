@@ -10,8 +10,8 @@ import { PROVIDER_IDS } from '../../../shared/providers';
 
 // Vite may expose `import.meta.url` under its `/@fs` virtual prefix in tests.
 const REPO_ROOT = new URL('../../../', import.meta.url).pathname.replace(/^\/@fs/, '');
-const SCAN_DIRS = ['frontend/src', 'frontend/public', 'shared', 'gateway', 'scripts', 'docs'];
-const CODE_DIRS = ['frontend/src', 'frontend/public', 'shared', 'gateway', 'scripts'];
+const SCAN_DIRS = ['frontend/src', 'frontend/public', 'shared', 'gateway', 'scripts', 'docs', 'policy'];
+const CODE_DIRS = ['frontend/src', 'frontend/public', 'shared', 'gateway', 'scripts', 'policy'];
 const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', 'coverage']);
 const TEXT_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.json', '.md', '.yaml', '.yml', '.sh', '.rego'];
 
@@ -135,6 +135,16 @@ describe('repository acceptance', () => {
       expect(content, file).not.toMatch(/\bsqlite\b/i);
       expect(content, file).not.toMatch(/CREATE TABLE/i);
     }
+  });
+
+  it('A21 ships wasm-unsafe-eval and never unsafe-eval in the CSP', () => {
+    const headers = read(join('frontend', 'public', '_headers'));
+    const csp = headers
+      .split('\n')
+      .find(line => line.trim().startsWith('Content-Security-Policy:'));
+    expect(csp).toBeDefined();
+    expect(csp).toContain("script-src 'self' 'wasm-unsafe-eval'");
+    expect(csp).not.toContain("'unsafe-eval'");
   });
 
   it('A22 direction documents describe the browser-only direction', () => {

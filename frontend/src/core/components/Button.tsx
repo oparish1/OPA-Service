@@ -1,6 +1,7 @@
 import { LoaderCircle } from 'lucide-react';
+import { useId } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import { color, font, label, opacity, radius, size, space } from '../styles/tokens';
+import { body, color, font, label, opacity, radius, size, space } from '../styles/tokens';
 
 export type ButtonVariant = 'primary' | 'secondary';
 export type ButtonState = 'default' | 'in-progress' | 'disabled';
@@ -13,6 +14,8 @@ interface ButtonProps {
   type?: 'button' | 'submit';
   onClick?: () => void;
   trailingIcon?: ReactNode;
+  /** Advisory policy reason; keeps the control focusable and explains why it is off. */
+  disabledReason?: string;
 }
 
 /** AA/Button — Style=Primary|Secondary, State=Default|In-progress|Disabled. */
@@ -24,9 +27,12 @@ export function Button({
   type = 'button',
   onClick,
   trailingIcon,
+  disabledReason,
 }: ButtonProps) {
+  const reasonId = useId();
   const inProgress = state === 'in-progress';
   const disabled = state === 'disabled' || inProgress;
+  const blocked = disabledReason !== undefined;
 
   const style: CSSProperties = {
     display: 'inline-flex',
@@ -37,7 +43,7 @@ export function Button({
     width: fullWidth ? '100%' : undefined,
     padding: `0 ${space[20]}px`,
     borderRadius: radius.button,
-    cursor: disabled ? 'default' : 'pointer',
+    cursor: disabled || blocked ? 'default' : 'pointer',
     opacity: state === 'disabled' ? opacity.disabled : 1,
     border: variant === 'primary' ? '1px solid transparent' : `1px solid ${color.border.control}`,
     background: variant === 'primary' ? color.action.primary : color.background.canvas,
@@ -46,18 +52,31 @@ export function Button({
     fontFamily: font.body,
   };
 
-  return (
+  const control = (
     <button
       className="aa-focusable"
       type={type}
       disabled={disabled}
       aria-busy={inProgress || undefined}
-      onClick={onClick}
+      aria-disabled={blocked || undefined}
+      aria-describedby={blocked ? reasonId : undefined}
+      onClick={disabled || blocked ? undefined : onClick}
       style={style}
     >
       {inProgress ? <LoaderCircle className="aa-spin" size={16} aria-hidden /> : null}
       <span>{children}</span>
       {!inProgress && trailingIcon}
     </button>
+  );
+
+  if (!blocked) return control;
+
+  return (
+    <span style={{ display: 'inline-flex', flexDirection: 'column', gap: space[4] }}>
+      {control}
+      <span id={reasonId} style={{ ...body[12], fontFamily: font.body, color: color.text.secondary }}>
+        {disabledReason}
+      </span>
+    </span>
   );
 }

@@ -1,7 +1,10 @@
 import { useEffect } from 'react';
 import { AppProvider } from './app/AppProvider';
 import { useApp } from './app/app-context';
+import type { CapabilityId } from './authz/types';
+import { useCan } from './authz/useCan';
 import type { Screen } from './mocks/types';
+import { AccessDenied } from './screens/AccessDenied';
 import { AccountIdentity } from './screens/AccountIdentity';
 import { ChangePassword } from './screens/ChangePassword';
 import { ForgotPassword } from './screens/ForgotPassword';
@@ -20,12 +23,22 @@ const SCREEN_TITLES: Record<Screen, string> = {
   'projects-api': 'Projects API',
 };
 
-function ScreenRouter() {
+const SCREEN_CAPABILITY: Partial<Record<Screen, CapabilityId>> = {
+  'profile-api': 'nav.api.profile',
+  'projects-api': 'nav.api.projects',
+};
+
+export function ScreenRouter() {
   const { screen } = useApp();
+  const guard = useCan(SCREEN_CAPABILITY[screen] ?? 'nav.overview');
 
   useEffect(() => {
     document.title = `${SCREEN_TITLES[screen]} · Your Identity`;
   }, [screen]);
+
+  if (SCREEN_CAPABILITY[screen] && !guard.allowed) {
+    return <AccessDenied screen={screen} />;
+  }
 
   switch (screen) {
     case 'sign-in':

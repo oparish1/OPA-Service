@@ -20,6 +20,8 @@ interface RequestPanelProps {
   tokenExpired?: boolean;
   running: boolean;
   onRun: () => void;
+  /** Advisory policy reason that disables the run control. */
+  runDisabledReason?: string;
 }
 
 /**
@@ -38,6 +40,7 @@ export function RequestPanel({
   tokenExpired = false,
   running,
   onRun,
+  runDisabledReason,
 }: RequestPanelProps) {
   const { navigate } = useApp();
 
@@ -67,7 +70,7 @@ export function RequestPanel({
             error={urlError}
           />
         </div>
-        <Button state={running ? 'in-progress' : 'default'} onClick={onRun}>
+        <Button state={running ? 'in-progress' : 'default'} onClick={onRun} disabledReason={runDisabledReason}>
           Run request
         </Button>
       </div>

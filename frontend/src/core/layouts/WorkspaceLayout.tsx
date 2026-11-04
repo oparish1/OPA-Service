@@ -1,11 +1,17 @@
 import { Braces, ChevronDown, FolderKanban, LayoutDashboard, LogOut, UserRound } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useApp } from '../app/app-context';
+import { refreshCapabilities } from '../authz/engine';
+import type { CapabilityId } from '../authz/types';
+import { useCapabilities } from '../authz/useCapabilities';
 import { Badge } from '../components/Badge';
+import { Button } from '../components/Button';
 import { Logo } from '../components/Logo';
 import { NavigationItem } from '../components/NavigationItem';
+import { Notice } from '../components/Notice';
 import { TextLink } from '../components/TextLink';
 import { appConfig } from '../config/app-config';
+import { PERMISSIONS_UNAVAILABLE } from '../lib/copy';
 import type { Screen } from '../mocks/types';
 import { getSession } from '../session/store';
 import { body, color, font, heading, label, size, space, tracking, weight } from '../styles/tokens';
@@ -38,20 +44,40 @@ const ICON_SIZE = size.iconSmall;
  */
 const NAV_SECTIONS: ReadonlyArray<{
   label: string;
-  items: ReadonlyArray<{ screen: Screen; label: string; icon: ReactNode }>;
+  items: ReadonlyArray<{ screen: Screen; label: string; icon: ReactNode; capability: CapabilityId }>;
 }> = [
   {
     label: 'WORKSPACE',
     items: [
-      { screen: 'overview', label: 'Overview', icon: <LayoutDashboard size={ICON_SIZE} aria-hidden /> },
-      { screen: 'account', label: 'Account & identity', icon: <UserRound size={ICON_SIZE} aria-hidden /> },
+      {
+        screen: 'overview',
+        label: 'Overview',
+        icon: <LayoutDashboard size={ICON_SIZE} aria-hidden />,
+        capability: 'nav.overview',
+      },
+      {
+        screen: 'account',
+        label: 'Account & identity',
+        icon: <UserRound size={ICON_SIZE} aria-hidden />,
+        capability: 'nav.account',
+      },
     ],
   },
   {
     label: 'DOWNSTREAM APIs',
     items: [
-      { screen: 'profile-api', label: 'Profile API', icon: <Braces size={ICON_SIZE} aria-hidden /> },
-      { screen: 'projects-api', label: 'Projects API', icon: <FolderKanban size={ICON_SIZE} aria-hidden /> },
+      {
+        screen: 'profile-api',
+        label: 'Profile API',
+        icon: <Braces size={ICON_SIZE} aria-hidden />,
+        capability: 'nav.api.profile',
+      },
+      {
+        screen: 'projects-api',
+        label: 'Projects API',
+        icon: <FolderKanban size={ICON_SIZE} aria-hidden />,
+        capability: 'nav.api.projects',
+      },
     ],
   },
 ];
@@ -66,6 +92,7 @@ export function WorkspaceLayout({
   children,
 }: WorkspaceLayoutProps) {
   const { navigate, signOut } = useApp();
+  const { capabilities, status: authzStatus } = useCapabilities();
 
   // The signed-in identity comes from the session store, the same source the
   // Account screen reads. The layout only renders while signed in.
@@ -133,15 +160,17 @@ export function WorkspaceLayout({
                 >
                   {section.label}
                 </span>
-                {section.items.map(item => (
-                  <NavigationItem
-                    key={item.screen}
-                    label={item.label}
-                    icon={item.icon}
-                    selected={active === item.screen}
-                    onClick={() => navigate(item.screen)}
-                  />
-                ))}
+                {section.items
+                  .filter(item => capabilities[item.capability].allowed)
+                  .map(item => (
+                    <NavigationItem
+                      key={item.screen}
+                      label={item.label}
+                      icon={item.icon}
+                      selected={active === item.screen}
+                      onClick={() => navigate(item.screen)}
+                    />
+                  ))}
               </div>
             ))}
           </div>
@@ -200,6 +229,19 @@ export function WorkspaceLayout({
             </h1>
             {actions}
           </div>
+          {authzStatus === 'error' ? (
+            <Notice
+              tone="error"
+              heading={PERMISSIONS_UNAVAILABLE}
+              action={
+                <Button variant="secondary" onClick={() => void refreshCapabilities()}>
+                  Retry
+                </Button>
+              }
+            >
+              Some controls stay unavailable until permissions load.
+            </Notice>
+          ) : null}
           {children}
         </main>
       </div>
