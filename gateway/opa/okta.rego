@@ -26,7 +26,9 @@ authz_input := {
 	"request": authz_request,
 }
 
-authz_config := {"okta": {"required_group": input.route.labels.required_group}}
+# Okta has no environment values; the role names come from the shared
+# claim-to-role map, not from route labels.
+authz_config := {}
 
 shared_reasons := reasons if {
 	reasons := data.authz.capability_deny_reasons(capability) with input as authz_input with data.authz.config as authz_config

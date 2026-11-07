@@ -41,7 +41,7 @@ describe('entra claim normalization', () => {
   });
 
   it('builds the policy config slice from the public provider config', () => {
-    const config = { tenant: 'tenant-1', requiredRole: 'Workspace.User' } as ProviderConfig;
-    expect(entraAuthzConfig(config)).toEqual({ tenant: 'tenant-1', required_role: 'Workspace.User' });
+    const config = { tenant: 'tenant-1' } as ProviderConfig;
+    expect(entraAuthzConfig(config)).toEqual({ tenant: 'tenant-1' });
   });
 });

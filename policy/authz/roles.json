@@ -1,0 +1,8 @@
+{
+  "roles": {
+    "viewer": { "includes": [] },
+    "user": { "includes": ["viewer"] },
+    "admin": { "includes": ["user", "viewer"] },
+    "auditor": { "includes": ["viewer"] }
+  }
+}

@@ -2,7 +2,7 @@ package okta
 
 import data.testutil
 
-base_labels := {"audience": "api://default", "required_group": "Workspace User"}
+base_labels := {"audience": "api://default"}
 
 base_payload := {
 	"iss": "https://dev-1.okta.example/oauth2/default",
@@ -45,12 +45,20 @@ test_wrong_audience_is_denied if {
 	not allow with input as testutil.input_for("GET", object.union(base_payload, {"aud": "api://other"}), base_labels)
 }
 
-test_missing_required_group_label_fails_closed if {
-	not allow with input as testutil.input_for("GET", base_payload, object.remove(base_labels, ["required_group"]))
+test_projects_denied_for_non_admin if {
+	not allow with input as testutil.input_for_path("GET", "/okta/v1/projects", base_payload, base_labels)
 }
 
-test_empty_group_label_fails_closed if {
-	not allow with input as testutil.input_for("GET", base_payload, object.union(base_labels, {"required_group": ""}))
+test_projects_insufficient_role_audit_reason if {
+	reason == "insufficient_role" with input as testutil.input_for_path("GET", "/okta/v1/projects", base_payload, base_labels)
+}
+
+test_missing_role_map_fails_closed if {
+	not allow with input as testutil.input_for("GET", base_payload, base_labels) with data.authz.role_map as {}
+}
+
+test_empty_okta_role_map_fails_closed if {
+	not allow with input as testutil.input_for("GET", base_payload, base_labels) with data.authz.role_map as {"okta": {}}
 }
 
 test_headers_come_from_the_token if {

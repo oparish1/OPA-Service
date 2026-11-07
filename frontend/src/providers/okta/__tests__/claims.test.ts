@@ -35,8 +35,8 @@ describe('okta claim normalization', () => {
     });
   });
 
-  it('builds the policy config slice from the public provider config', () => {
-    const config = { requiredGroup: 'Workspace User' } as ProviderConfig;
-    expect(oktaAuthzConfig(config)).toEqual({ required_group: 'Workspace User' });
+  it('builds the empty policy config slice: Okta has no environment values', () => {
+    const config = {} as ProviderConfig;
+    expect(oktaAuthzConfig(config)).toEqual({});
   });
 });

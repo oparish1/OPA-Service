@@ -210,6 +210,23 @@ describe('golden fixtures (A17)', () => {
   }
 });
 
+describe('fixture body routing (R1)', () => {
+  test('the admin-only projects body is served only for a path ending with the policy route suffix', () => {
+    const routes = JSON.parse(
+      readFileSync(join(GATEWAY_DIR, '..', 'policy', 'authz', 'routes.json'), 'utf8')
+    ) as { routes: { suffixes: Array<{ suffix: string; capability: string }> } };
+    const projects = routes.routes.suffixes.find(route => route.capability === 'nav.api.projects');
+    if (!projects) throw new Error('the policy route table has no nav.api.projects suffix');
+    for (const provider of PROVIDERS) {
+      const source = serverlessSource(provider);
+      expect(source, provider).toContain(`string.find(path, "${projects.suffix}$")`);
+      // An unanchored substring match would serve the body for a path the policy
+      // classifies as the read fallback.
+      expect(source, provider).not.toContain(`string.find(path, "${projects.suffix}", 1, true)`);
+    }
+  });
+});
+
 describe('OPA deployment', () => {
   test('the opa service loads the shared authz package, not just the wrappers', () => {
     const compose = parse(readFileSync(join(GATEWAY_DIR, 'docker-compose.yml'), 'utf8')) as {

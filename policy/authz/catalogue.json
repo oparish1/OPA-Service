@@ -1,0 +1,10 @@
+{
+  "catalogue": {
+    "nav.overview": { "kind": "baseline", "role": null, "scope": null },
+    "nav.account": { "kind": "baseline", "role": null, "scope": null },
+    "nav.api.profile": { "kind": "read", "role": "user", "scope": "workspace:read" },
+    "action.api.send.read": { "kind": "read", "role": "user", "scope": "workspace:read" },
+    "nav.api.projects": { "kind": "read", "role": "admin", "scope": "workspace:read" },
+    "action.api.send.write": { "kind": "write", "role": "user", "scope": "workspace:write" }
+  }
+}

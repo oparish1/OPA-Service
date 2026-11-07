@@ -1,0 +1,11 @@
+{
+  "routes": {
+    "suffixes": [
+      { "suffix": "/v1/projects", "capability": "nav.api.projects" }
+    ],
+    "fallback": {
+      "safe": "nav.api.profile",
+      "unsafe": "action.api.send.write"
+    }
+  }
+}

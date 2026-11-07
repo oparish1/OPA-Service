@@ -1,0 +1,17 @@
+{
+  "role_map": {
+    "entra": {
+      "Workspace.User": "user",
+      "Workspace.Admin": "admin",
+      "Workspace.Viewer": "viewer",
+      "Workspace.Auditor": "auditor"
+    },
+    "okta": {
+      "Workspace User": "user",
+      "Workspace Admin": "admin",
+      "Workspace Viewer": "viewer",
+      "Workspace Auditor": "auditor"
+    },
+    "google": { "default_role": "user" }
+  }
+}

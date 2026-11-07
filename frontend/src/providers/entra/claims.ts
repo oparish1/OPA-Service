@@ -22,7 +22,7 @@ export function entraClaims(session: ProviderSession): AuthzClaims {
 }
 
 export function entraAuthzConfig(config: ProviderConfig): Record<string, unknown> {
-  return { tenant: config.tenant ?? '', required_role: config.requiredRole ?? '' };
+  return { tenant: config.tenant ?? '' };
 }
 
 function bareScope(scope: string): string {

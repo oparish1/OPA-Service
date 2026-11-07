@@ -34,7 +34,6 @@ routes:
       provider: entra
       audience: "${{ENTRA_API_RESOURCE}}"
       tenant: "${{ENTRA_TENANT_ID}}"
-      required_role: ["Workspace.User", "Workspace.Admin"]
     plugins:
       openid-connect:
         client_id: "${{ENTRA_CLIENT_ID}}"
@@ -93,7 +92,7 @@ routes:
               core.response.set_header("X-Auth-Subject", subject)
               core.response.set_header("X-Auth-Decision", "allow")
               core.response.set_header("X-Auth-Reason", "")
-              if method == "GET" and string.find(path, "/v1/projects", 1, true) then
+              if method == "GET" and string.find(path, "/v1/projects$") then
                 core.response.exit(200, {projects = {{id = "prj_01", name = "Atlas", status = "active"}, {id = "prj_02", name = "Beacon", status = "active"}, {id = "prj_03", name = "Cedar", status = "archived"}}})
                 return
               end
@@ -114,7 +113,6 @@ routes:
     labels:
       provider: okta
       audience: "${{OKTA_API_AUDIENCE}}"
-      required_group: ["Workspace User", "Workspace Admin"]
     plugins:
       openid-connect:
         client_id: "${{OKTA_CLIENT_ID}}"
@@ -173,7 +171,7 @@ routes:
               core.response.set_header("X-Auth-Subject", subject)
               core.response.set_header("X-Auth-Decision", "allow")
               core.response.set_header("X-Auth-Reason", "")
-              if method == "GET" and string.find(path, "/v1/projects", 1, true) then
+              if method == "GET" and string.find(path, "/v1/projects$") then
                 core.response.exit(200, {projects = {{id = "prj_01", name = "Atlas", status = "active"}, {id = "prj_02", name = "Beacon", status = "active"}, {id = "prj_03", name = "Cedar", status = "archived"}}})
                 return
               end
@@ -253,7 +251,7 @@ routes:
               core.response.set_header("X-Auth-Subject", subject)
               core.response.set_header("X-Auth-Decision", "allow")
               core.response.set_header("X-Auth-Reason", "")
-              if method == "GET" and string.find(path, "/v1/projects", 1, true) then
+              if method == "GET" and string.find(path, "/v1/projects$") then
                 core.response.exit(200, {projects = {{id = "prj_01", name = "Atlas", status = "active"}, {id = "prj_02", name = "Beacon", status = "active"}, {id = "prj_03", name = "Cedar", status = "archived"}}})
                 return
               end

@@ -45,3 +45,6 @@ jobs:
       - run: bun run build
       - run: bun run test
       - run: bun run check:catch
+      # The generated capability/reason types and persona snapshot must match the
+      # policy; this fails when either is stale.
+      - run: bun run check:authz

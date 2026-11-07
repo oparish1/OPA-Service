@@ -18,10 +18,6 @@ export interface ProviderConfig extends ProviderLinks {
   apiResource?: string;
   /** Entra only: the tenant the token's `tid` claim must match. */
   tenant?: string;
-  /** Entra only: the application role the token must carry. */
-  requiredRole?: string;
-  /** Okta only: the group the token must carry. */
-  requiredGroup?: string;
   /** Google only: the Workspace hosted domain the ID token must carry. */
   hostedDomain?: string;
   /** Scopes to request; defaults to `workspace:read`. */
@@ -151,7 +147,7 @@ export function parseAppConfig(raw: unknown): AppConfig {
       throw new AppConfigError(`providers[${index}].scopes must be an array of strings`);
     }
 
-    return {
+    const normalized: ProviderConfig = {
       id: id as ProviderConfig['id'],
       name: requireString(provider.name, `providers[${index}].name`),
       clientId: requireString(provider.clientId, `providers[${index}].clientId`),
@@ -168,14 +164,6 @@ export function parseAppConfig(raw: unknown): AppConfig {
         provider.tenant === undefined
           ? undefined
           : requireString(provider.tenant, `providers[${index}].tenant`),
-      requiredRole:
-        provider.requiredRole === undefined
-          ? undefined
-          : requireString(provider.requiredRole, `providers[${index}].requiredRole`),
-      requiredGroup:
-        provider.requiredGroup === undefined
-          ? undefined
-          : requireString(provider.requiredGroup, `providers[${index}].requiredGroup`),
       hostedDomain:
         provider.hostedDomain === undefined
           ? undefined
@@ -194,6 +182,18 @@ export function parseAppConfig(raw: unknown): AppConfig {
           ? undefined
           : requireHttpUrl(provider.manageAccountUrl, `providers[${index}].manageAccountUrl`),
     };
+
+    // The role and group the policy used to compare are now derived from the
+    // provider claim through the shared claim-to-role map; any field outside
+    // the normalized shape fails the build, so the schema cannot drift from
+    // `ProviderConfig`.
+    for (const key of Object.keys(provider)) {
+      if (!Object.hasOwn(normalized, key)) {
+        throw new AppConfigError(`providers[${index}].${key} is not a supported field`);
+      }
+    }
+
+    return normalized;
   });
 
   return { gatewayUrl, providers, logLevel: logLevel as AppLogLevel | undefined, authz: parseAuthz(value.authz) };
@@ -202,7 +202,13 @@ export function parseAppConfig(raw: unknown): AppConfig {
 function parseAuthz(raw: unknown): AuthzConfig {
   if (raw === undefined) return { enabled: true };
   if (!raw || typeof raw !== 'object') throw new AppConfigError('authz must be an object');
-  const enabled = (raw as Record<string, unknown>).enabled;
+  const value = raw as Record<string, unknown>;
+  // The old per-provider role/group keys lived under `authz`; any key outside
+  // the normalized shape fails the build rather than being silently dropped.
+  for (const key of Object.keys(value)) {
+    if (key !== 'enabled') throw new AppConfigError(`authz.${key} is not a supported field`);
+  }
+  const enabled = value.enabled;
   if (enabled !== undefined && typeof enabled !== 'boolean') {
     throw new AppConfigError('authz.enabled must be a boolean');
   }

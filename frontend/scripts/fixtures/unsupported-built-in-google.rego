@@ -1,20 +1,19 @@
 package authz.providers.google
 
-# Fixture for the build-validation test: like the real provider, but the rule
-# calls `http.send`, a built-in the WASM target cannot execute. `opa build`
-# accepts it, so the build must reject it when it evaluates this provider.
+# Fixture for the build-validation test: the same contract as the real provider,
+# but the rule calls `http.send`, a built-in the WASM target cannot execute.
+# `opa build` accepts it, so the build must reject it when it loads the artifact.
 
-config := data.authz.config.google
+uses_scopes := false
 
-domain_ok if {
-	config.hosted_domain == input.claims.hd
+granted_roles contains role if {
+	role := data.authz.role_map.google.default_role
 }
 
-deny_by_capability[cap] := failures if {
-	some cap in data.authz.read_capabilities
+gate_failures[cap] := failures if {
+	some cap in data.authz.provider_capabilities
 	failures := {code |
 		code := "wrong_domain"
 		http.send({"method": "get", "url": "https://example.com"})
-		not domain_ok
 	}
 }

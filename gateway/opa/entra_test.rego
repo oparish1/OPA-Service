@@ -2,7 +2,7 @@ package entra
 
 import data.testutil
 
-base_labels := {"audience": "api://client", "tenant": "tenant-1", "required_role": "Workspace.User"}
+base_labels := {"audience": "api://client", "tenant": "tenant-1"}
 
 base_payload := {
 	"iss": "https://login.microsoftonline.com/tenant-1/v2.0",
@@ -47,8 +47,20 @@ test_wrong_tenant_claim_is_denied if {
 	not allow with input as testutil.input_for("GET", object.union(base_payload, {"tid": "tenant-2"}), base_labels)
 }
 
-test_missing_required_role_label_fails_closed if {
-	not allow with input as testutil.input_for("GET", base_payload, object.remove(base_labels, ["required_role"]))
+test_projects_denied_for_non_admin if {
+	not allow with input as testutil.input_for_path("GET", "/entra/v1/projects", base_payload, base_labels)
+}
+
+test_projects_insufficient_role_audit_reason if {
+	reason == "insufficient_role" with input as testutil.input_for_path("GET", "/entra/v1/projects", base_payload, base_labels)
+}
+
+test_missing_role_map_fails_closed if {
+	not allow with input as testutil.input_for("GET", base_payload, base_labels) with data.authz.role_map as {}
+}
+
+test_empty_entra_role_map_fails_closed if {
+	not allow with input as testutil.input_for("GET", base_payload, base_labels) with data.authz.role_map as {"entra": {}}
 }
 
 test_empty_tenant_label_fails_closed if {

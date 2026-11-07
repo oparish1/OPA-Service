@@ -1,0 +1,99 @@
+{
+  "config": {
+    "entra": { "tenant": "tenant-1" },
+    "okta": {},
+    "google": { "hosted_domain": "agentic-advantage.com" }
+  },
+  "personas": [
+    {
+      "id": "entra-user",
+      "provider": "entra",
+      "claims": { "has_subject": true, "roles": ["Workspace.User"], "groups": [], "scopes": ["workspace:read", "workspace:write"], "tenant": "tenant-1", "hd": "", "email_verified": false }
+    },
+    {
+      "id": "entra-admin",
+      "provider": "entra",
+      "claims": { "has_subject": true, "roles": ["Workspace.Admin"], "groups": [], "scopes": ["workspace:read", "workspace:write"], "tenant": "tenant-1", "hd": "", "email_verified": false }
+    },
+    {
+      "id": "entra-viewer",
+      "provider": "entra",
+      "claims": { "has_subject": true, "roles": ["Workspace.Viewer"], "groups": [], "scopes": ["workspace:read", "workspace:write"], "tenant": "tenant-1", "hd": "", "email_verified": false }
+    },
+    {
+      "id": "entra-auditor",
+      "provider": "entra",
+      "claims": { "has_subject": true, "roles": ["Workspace.Auditor"], "groups": [], "scopes": ["workspace:read", "workspace:write"], "tenant": "tenant-1", "hd": "", "email_verified": false }
+    },
+    {
+      "id": "entra-unmapped",
+      "provider": "entra",
+      "claims": { "has_subject": true, "roles": ["Workspace.Contractor"], "groups": [], "scopes": ["workspace:read", "workspace:write"], "tenant": "tenant-1", "hd": "", "email_verified": false }
+    },
+    {
+      "id": "entra-signed-out",
+      "provider": "entra",
+      "claims": { "has_subject": false, "roles": [], "groups": [], "scopes": ["workspace:read", "workspace:write"], "tenant": "tenant-1", "hd": "", "email_verified": false }
+    },
+    {
+      "id": "entra-wrong-tenant",
+      "provider": "entra",
+      "claims": { "has_subject": true, "roles": ["Workspace.User"], "groups": [], "scopes": ["workspace:read", "workspace:write"], "tenant": "tenant-2", "hd": "", "email_verified": false }
+    },
+    {
+      "id": "okta-user",
+      "provider": "okta",
+      "claims": { "has_subject": true, "roles": [], "groups": ["Workspace User"], "scopes": ["workspace:read", "workspace:write"], "tenant": "", "hd": "", "email_verified": false }
+    },
+    {
+      "id": "okta-admin",
+      "provider": "okta",
+      "claims": { "has_subject": true, "roles": [], "groups": ["Workspace Admin"], "scopes": ["workspace:read", "workspace:write"], "tenant": "", "hd": "", "email_verified": false }
+    },
+    {
+      "id": "okta-viewer",
+      "provider": "okta",
+      "claims": { "has_subject": true, "roles": [], "groups": ["Workspace Viewer"], "scopes": ["workspace:read", "workspace:write"], "tenant": "", "hd": "", "email_verified": false }
+    },
+    {
+      "id": "okta-auditor",
+      "provider": "okta",
+      "claims": { "has_subject": true, "roles": [], "groups": ["Workspace Auditor"], "scopes": ["workspace:read", "workspace:write"], "tenant": "", "hd": "", "email_verified": false }
+    },
+    {
+      "id": "okta-unmapped",
+      "provider": "okta",
+      "claims": { "has_subject": true, "roles": [], "groups": ["Everyone"], "scopes": ["workspace:read", "workspace:write"], "tenant": "", "hd": "", "email_verified": false }
+    },
+    {
+      "id": "okta-signed-out",
+      "provider": "okta",
+      "claims": { "has_subject": false, "roles": [], "groups": [], "scopes": ["workspace:read", "workspace:write"], "tenant": "", "hd": "", "email_verified": false }
+    },
+    {
+      "id": "google-user",
+      "provider": "google",
+      "claims": { "has_subject": true, "roles": [], "groups": [], "scopes": [], "tenant": "", "hd": "agentic-advantage.com", "email_verified": true }
+    },
+    {
+      "id": "google-wrong-domain",
+      "provider": "google",
+      "claims": { "has_subject": true, "roles": [], "groups": [], "scopes": [], "tenant": "", "hd": "other.example", "email_verified": true }
+    },
+    {
+      "id": "google-missing-domain",
+      "provider": "google",
+      "claims": { "has_subject": true, "roles": [], "groups": [], "scopes": [], "tenant": "", "hd": "", "email_verified": true }
+    },
+    {
+      "id": "google-unverified-email",
+      "provider": "google",
+      "claims": { "has_subject": true, "roles": [], "groups": [], "scopes": [], "tenant": "", "hd": "agentic-advantage.com", "email_verified": false }
+    },
+    {
+      "id": "google-signed-out",
+      "provider": "google",
+      "claims": { "has_subject": false, "roles": [], "groups": [], "scopes": [], "tenant": "", "hd": "", "email_verified": false }
+    }
+  ]
+}

@@ -1,10 +1,7 @@
 {
   "gatewayUrl": "https://apisix.uneaksoft.com/",
   "authz": {
-    "enabled": true,
-    "entra":  { "tenant": "7cc3305d-a9e5-46db-ada9-fbff379f9e53", "requiredRole": "Workspace.User" },
-    "okta":   { "requiredGroup": "Workspace User" },
-    "google": { "hostedDomain": "agentic-advantage.com" }
+    "enabled": true
   },
   "logLevel": "error",
   "providers": [
@@ -15,7 +12,6 @@
       "issuer": "https://login.microsoftonline.com/7cc3305d-a9e5-46db-ada9-fbff379f9e53/v2.0",
       "apiResource": "api://5df5900e-0f93-4af5-a5c2-b9cb22b6ce69",
       "tenant": "7cc3305d-a9e5-46db-ada9-fbff379f9e53",
-      "requiredRole": "Workspace.User",
       "scopes": [
         "workspace:read"
       ],
@@ -32,7 +28,6 @@
       "scopes": [
         "workspace:read"
       ],
-      "requiredGroup": "Workspace User",
       "forgotPasswordUrl": "https://integrator-3993617.okta.com/signin/forgot-password",
       "changePasswordUrl": "https://integrator-3993617.okta.com/enduser/settings",
       "manageAccountUrl": "https://integrator-3993617.okta.com/enduser/settings",

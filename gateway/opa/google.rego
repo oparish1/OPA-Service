@@ -27,6 +27,8 @@ authz_input := {
 	"request": authz_request,
 }
 
+# The granted role comes from the shared claim-to-role map, so only the
+# environment value stays a route label.
 authz_config := {"google": {"hosted_domain": input.route.labels.hosted_domain}}
 
 shared_reasons := reasons if {

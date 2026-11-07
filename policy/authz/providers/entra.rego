@@ -1,15 +1,17 @@
 package authz.providers.entra
 
-# Entra requires an application role, the configured tenant in the `tid` claim
-# and a grant of the capability's scope (read for reads, write for writes).
-# The role, tenant and scope names arrive as data, never as literals here.
-# A missing configured value fails closed.
+# Entra derives its roles from the `roles` claim through the shared
+# claim-to-role map and checks the configured tenant. The tenant and the role
+# map arrive as data, never as literals here; a missing configured value or role
+# map fails closed.
 
 config := data.authz.config.entra
 
-role_ok if {
-	config.required_role != ""
-	config.required_role in input.claims.roles
+uses_scopes := true
+
+granted_roles contains role if {
+	some value in input.claims.roles
+	role := data.authz.role_map.entra[value]
 }
 
 tenant_ok if {
@@ -17,21 +19,16 @@ tenant_ok if {
 	input.claims.tenant == config.tenant
 }
 
-failure_codes := {"missing_role", "wrong_tenant", "missing_scope"}
+failure_codes := {"missing_role", "wrong_tenant"}
 
 failure("missing_role", _) if {
-	not role_ok
+	count(granted_roles) == 0
 }
 
 failure("wrong_tenant", _) if {
 	not tenant_ok
 }
 
-failure("missing_scope", cap) if {
-	not data.authz.scope_ok(cap)
-}
-
-deny_by_capability[cap] := failures if {
+gate_failures[cap] := {code | some code in failure_codes; failure(code, cap)} if {
 	some cap in data.authz.provider_capabilities
-	failures := {code | some code in failure_codes; failure(code, cap)}
 }

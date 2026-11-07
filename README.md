@@ -21,9 +21,10 @@ its own:
   `shared/providers.ts`, `shared/app-config.ts`, the per-provider folders and
   `gateway/apisix/apisix.yaml` name more than one provider.
 
-Adding a provider touches its folder, its `gateway/opa/<id>.rego` and its route
-in `gateway/apisix/apisix.yaml`, adds its id to `shared/providers.ts` and adds
-one registry entry; removing one deletes those.
+Adding a provider touches its folder, its `policy/authz/providers/<id>.rego` and
+`role_map` entry, its `gateway/opa/<id>.rego` and its route in
+`gateway/apisix/apisix.yaml`, adds its id to `shared/providers.ts` and adds one
+registry entry; removing one deletes those.
 
 ## Architecture
 
@@ -130,25 +131,63 @@ a courtesy; the security bound is the token lifetime checked at the gateway.
 
 ## Advisory UI authorization
 
-The claim rules live once, in `policy/authz/` (Rego v1). Each provider wrapper in
-`gateway/opa/` imports that package, keeps only the audience and issuer checks,
-and translates the shared reason codes to the `X-Auth-Reason` strings the access
-log has always carried, so the gateway's deny reasons and tests are unchanged.
+The claim rules live once, in `policy/authz/` (Rego v1). The capability
+catalogue, role hierarchy, claim-to-role map and route table are non-secret
+static data in `policy/authz/{catalogue,roles,role_map,routes}.json`; the engine
+derives every capability set, the effective roles and the per-capability deny
+set from them, and names no capability, role or provider. Each provider file in
+`policy/authz/providers/` supplies only its own claim logic: the roles it grants
+through the shared map, the gate failures it raises, and whether scopes apply.
+Each gateway wrapper in `gateway/opa/` imports the shared package, keeps only
+the audience and issuer checks, and translates the shared reason codes to the
+`X-Auth-Reason` strings the access log has always carried.
+
 The browser compiles the same package with `opa build -t wasm` to
-`frontend/public/policy/authz.<hash>.wasm` (about 150 KB, under a 1 MB budget)
+`frontend/public/policy/authz.<hash>.wasm` (about 180 KB, under a 1 MB budget)
 and evaluates it once after sign-in and again when a renewal changes the claims
-to hide menu items and disable buttons with an accessible reason. The browser
-fails closed to Overview and Account if the wasm cannot load or evaluate.
-**UI authorization is advisory; the gateway enforces every request.** Setting
-`authz.enabled` to `false` in the public config (default `true`) skips the wasm
-load and restores the pre-change behavior without touching the gateway.
+to hide menu items and disable buttons with an accessible reason. `setData`
+replaces the whole document, so the build also writes the static tables to
+`frontend/public/policy/authz.data.json` and the browser supplies them beside
+the provider's runtime config. The browser fails closed to Overview and Account
+if the wasm cannot load or evaluate. **UI authorization is advisory; the gateway
+enforces every request.** Setting `authz.enabled` to `false` in the public
+config (default `true`) skips the wasm load and restores the pre-change behavior
+without touching the gateway.
 
 The bundle pins `@open-policy-agent/opa-wasm` `1.10.0`; the build and CI use OPA
 `1.4.2`. `bun run build:policy` compiles and validates the wasm (rejecting a
 built-in the WASM target cannot execute) before the Vite build copies it from
-`public/policy/`, which is git-ignored. The gateway and browser reason sets are
-tied together by a Rego golden decision table in `policy/fixtures/decisions.json`,
-evaluated by both a Rego test and a frontend test that loads the compiled wasm.
+`public/policy/`, which is git-ignored. `policy/fixtures/matrix.snapshot.json`
+is the committed decision grid for the personas in
+`policy/fixtures/personas.json`; a frontend test loads the compiled wasm and
+asserts it matches, and CI fails when the policy changes without regenerating
+either artifact.
+
+### How to add a capability, a role or a route
+
+- **Capability.** Add one entry to `policy/authz/catalogue.json`
+  (`{"kind": "read" | "write" | "baseline", "role": <role or null>, "scope":
+  "workspace:read" | "workspace:write" | null}`), a route entry to
+  `policy/authz/routes.json` when it is API-backed, and copy only if it
+  introduces a new reason code. No Rego change.
+- **Role.** Add one entry to `policy/authz/roles.json` with its flattened
+  `includes`, map the provider claim values in `policy/authz/role_map.json`, and
+  use it in catalogue entries. No Rego change.
+- **Route.** Add `{"suffix": ..., "capability": ...}` to `routes.json`; the
+  longest matching suffix wins, and the `safe`/`unsafe` fallbacks cover the
+  rest.
+- **Provider.** Add `policy/authz/providers/<id>.rego` honouring the provider
+  contract, role-map and config data, a `gateway/opa/<id>.rego` wrapper and a
+  frontend `claims.ts`.
+
+After any policy change run `bun run gen:authz`, which regenerates
+`frontend/src/core/authz/generated.ts` (the `CapabilityId` and reason unions)
+and `policy/fixtures/matrix.snapshot.json`; review the snapshot diff, then
+commit both. CI runs `bun run check:authz` and fails when either is stale.
+
+A frontend test evaluates a generated 150-capability catalogue through the
+compiled wasm and logs the time; it fails above 250 ms. The last local run
+recorded 8 ms, and the wasm stays under the 1 MB budget (about 180 KB).
 
 ## Checks
 
@@ -156,7 +195,7 @@ The frontend package defines its gates. Build before the tests so the A18
 bundle scan inspects `dist/`:
 
 ```sh
-cd frontend && bun run lint && bun run typecheck && bun run build && bun run test && bun run check:catch
+cd frontend && bun run lint && bun run typecheck && bun run build && bun run test && bun run check:catch && bun run check:authz
 ```
 
 `bun run check` runs the same sequence. `check:catch` enforces the no-silent-catch

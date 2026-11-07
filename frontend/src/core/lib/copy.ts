@@ -15,6 +15,7 @@ export const AUTHZ_REASON_COPY: Record<DecisionReason, string> = {
   wrong_domain: 'Sign in with your workspace account.',
   email_unverified: 'Verify your email address to continue.',
   missing_scope: 'Your session does not have the required permission.',
+  insufficient_role: 'Your role does not include this.',
   method_not_allowed: 'This action is not available for your account.',
   permissions_unavailable: PERMISSIONS_UNAVAILABLE,
 };

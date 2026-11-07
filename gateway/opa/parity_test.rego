@@ -1,82 +1,82 @@
 package parity
 
-import data.fixtures
 import data.testutil
 
-# A9: for every route-backed capability and every golden case, the provider
-# wrapper's decision for the mapped request equals the shared policy's decision.
-# The wrapper adds only the audience/issuer checks, which the synthetic token
-# below satisfies, so a mismatch means the two sides stopped sharing a rule.
+# TS-9: for every route-backed capability and every persona, the provider
+# wrapper's decision for the mapped request equals the shared policy's decision
+# with the same claims. The wrappers add only the audience/issuer checks, which
+# the synthetic token below satisfies, so a mismatch means the two sides stopped
+# sharing a rule.
 
 test_gateway_parity if {
 	count(parity_mismatches) == 0
 }
 
+route_capabilities := {route.capability | some route in data.authz.routes.suffixes} | {data.authz.routes.fallback.safe, data.authz.routes.fallback.unsafe}
+
+route_request(cap, provider) := {"method": "GET", "path": sprintf("/%s%s", [provider, route.suffix])} if {
+	some route in data.authz.routes.suffixes
+	route.capability == cap
+}
+
+route_request(cap, provider) := {"method": "GET", "path": sprintf("/%s/v1/me", [provider])} if {
+	cap == data.authz.routes.fallback.safe
+}
+
+route_request(cap, provider) := {"method": "POST", "path": sprintf("/%s/v1/me", [provider])} if {
+	cap == data.authz.routes.fallback.unsafe
+}
+
 parity_mismatches contains mismatch if {
-	some case in fixtures.cases
-	case.capability in data.authz.provider_capabilities
-	gateway := case_allow(case)
-	shared := data.authz.capabilities[case.capability].allowed with input as case_input(case) with data.authz.config as fixtures.config
+	some persona in data.fixtures.personas
+	some cap in route_capabilities
+	request := route_request(cap, persona.provider)
+	gateway := provider_allow(persona.provider, token_input(persona, request))
+	shared := data.authz.capabilities[cap].allowed with input as authz_input(persona, request) with data.authz.config as data.fixtures.config
 	gateway != shared
-	mismatch := {"id": case.id, "gateway": gateway, "shared": shared}
+	mismatch := {"persona": persona.id, "capability": cap, "gateway": gateway, "shared": shared}
 }
 
-case_allow(case) := result if {
-	case.provider == "entra"
-	result := data.entra.allow with input as token_input(case)
+provider_allow(provider, token) := result if {
+	provider == "entra"
+	result := data.entra.allow with input as token
 }
 
-case_allow(case) := result if {
-	case.provider == "okta"
-	result := data.okta.allow with input as token_input(case)
+provider_allow(provider, token) := result if {
+	provider == "okta"
+	result := data.okta.allow with input as token
 }
 
-case_allow(case) := result if {
-	case.provider == "google"
-	result := data.google.allow with input as token_input(case)
+provider_allow(provider, token) := result if {
+	provider == "google"
+	result := data.google.allow with input as token
 }
 
-token_input(case) := testutil.input_for_path(case.request.method, case.request.path, token_claims(case), provider_labels(case.provider))
+token_input(persona, request) := testutil.input_for_path(request.method, request.path, token_payload(persona), provider_labels(persona.provider))
 
-provider_labels("entra") := {
-	"audience": "api://test",
-	"tenant": fixtures.config.entra.tenant,
-	"required_role": fixtures.config.entra.required_role,
+token_payload(persona) := object.union(base_payload(persona), {"sub": "subject-1", "uid": "uid-1"}) if {
+	persona.claims.has_subject
 }
 
-provider_labels("okta") := {
-	"audience": "api://test",
-	"required_group": fixtures.config.okta.required_group,
+token_payload(persona) := base_payload(persona) if {
+	not persona.claims.has_subject
 }
 
-provider_labels("google") := {
-	"audience": "api://test",
-	"hosted_domain": fixtures.config.google.hosted_domain,
-}
-
-token_claims(case) := object.union(base_claims(case), subject_claims(case))
-
-base_claims(case) := {
+base_payload(persona) := {
 	"aud": "api://test",
 	"iss": "https://accounts.google.com",
-	"scp": case.claims.scopes,
-	"roles": case.claims.roles,
-	"groups": case.claims.groups,
-	"tid": case.claims.tenant,
-	"hd": case.claims.hd,
-	"email_verified": case.claims.email_verified,
+	"scp": persona.claims.scopes,
+	"roles": persona.claims.roles,
+	"groups": persona.claims.groups,
+	"tid": persona.claims.tenant,
+	"hd": persona.claims.hd,
+	"email_verified": persona.claims.email_verified,
 }
 
-subject_claims(case) := {"sub": "subject-1", "uid": "uid-1"} if {
-	case.claims.has_subject
-}
+provider_labels("entra") := {"audience": "api://test", "tenant": data.fixtures.config.entra.tenant}
 
-subject_claims(case) := {} if {
-	not case.claims.has_subject
-}
+provider_labels("okta") := {"audience": "api://test"}
 
-case_input(case) := {
-	"provider": case.provider,
-	"claims": case.claims,
-	"request": case.request,
-}
+provider_labels("google") := {"audience": "api://test", "hosted_domain": data.fixtures.config.google.hosted_domain}
+
+authz_input(persona, request) := {"provider": persona.provider, "claims": persona.claims, "request": request}

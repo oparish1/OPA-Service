@@ -24,8 +24,13 @@ references environment variables by name only.
   claim rules and keep only the gateway-only audience/issuer checks, with unit
   tests (`opa test policy gateway/opa`).
 - `../policy/authz/` — the one shared Rego source the wrappers enforce and the
-  browser compiles to WASM for advisory UI decisions. UI authorization is
-  advisory; the gateway enforces.
+  browser compiles to WASM for advisory UI decisions. The capability
+  catalogue, role hierarchy, claim-to-role map and route table are the static
+  tables beside the engine (`catalogue.json`, `roles.json`, `role_map.json`,
+  `routes.json`); the provider files under `providers/` supply only claim
+  logic. The route labels carry environment values only — role and group
+  labels are gone, because the role names come from the shared map. UI
+  authorization is advisory; the gateway enforces.
 - `fixtures/*.json` — the golden `/v1/me` and `/v1/projects` bodies captured
   from the backend before deletion (A17).
 - `test-issuers/` — local OIDC issuers used by the Docker integration script.

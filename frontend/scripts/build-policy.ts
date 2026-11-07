@@ -3,13 +3,15 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { AUTHZ_TABLE_NAMES } from '../src/core/authz/tables';
 import { PROVIDER_IDS } from '../../shared/providers';
 
 /**
  * Compiles the shared `policy/authz/` Rego to WebAssembly for the browser. The
  * gateway imports the same package directly, so the two sides cannot drift. The
- * output is a content-hashed `.wasm` plus a manifest the browser reads to find
- * it; both are build artifacts and are never committed.
+ * output is a content-hashed `.wasm`, the static tables the browser must supply
+ * with its runtime config, and a manifest naming both; all are build artifacts
+ * and are never committed.
  */
 
 // Bun provides `import.meta.dir`; the fallback keeps the module usable when the
@@ -21,16 +23,14 @@ const DEFAULT_OUT_DIR = join(MODULE_DIR, '..', 'public', 'policy');
 const DEFAULT_BUDGET_BYTES = 1024 * 1024;
 const ENTRYPOINT = 'authz/capabilities';
 
-/** The public config every provider compares against; each reads only its own fields. */
+/**
+ * The public config every provider compares against; each reads only its own
+ * fields, so one placeholder object covers all of them.
+ */
 const VALIDATION_CONFIG = Object.fromEntries(
   PROVIDER_IDS.map(id => [
     id,
-    {
-      tenant: 'validation-tenant',
-      required_role: 'validation-role',
-      required_group: 'validation-group',
-      hosted_domain: 'validation.example',
-    },
+    { tenant: 'validation-tenant', hosted_domain: 'validation.example' },
   ])
 );
 
@@ -44,8 +44,8 @@ const VALIDATION_INPUTS = [
     provider,
     claims: {
       has_subject: true,
-      roles: ['validation-role'],
-      groups: ['validation-group'],
+      roles: ['Workspace.User'],
+      groups: ['Workspace User'],
       scopes: ['workspace:read', 'workspace:write'],
       tenant: 'validation-tenant',
       hd: 'validation.example',
@@ -79,6 +79,7 @@ export interface BuildPolicyOptions {
 
 export interface PolicyArtifacts {
   wasmFile: string;
+  dataFile: string;
   manifestFile: string;
   sha256: string;
   bytes: number;
@@ -102,14 +103,25 @@ export function assertWithinBudget(wasm: Uint8Array, budgetBytes = DEFAULT_BUDGE
   }
 }
 
+/** Merges the four committed table files into the `data.authz` document. */
+export function readPolicyTables(policyDir: string): Record<string, unknown> {
+  const tables: Record<string, unknown> = {};
+  for (const name of AUTHZ_TABLE_NAMES) {
+    Object.assign(tables, JSON.parse(readFileSync(join(policyDir, `${name}.json`), 'utf8')));
+  }
+  return tables;
+}
+
 /**
  * `opa build` succeeds even for a built-in the WASM target cannot execute, so
- * the artifact is loaded and evaluated before it can be written.
+ * the artifact is loaded and evaluated before it can be written. `setData`
+ * replaces the whole document, so the static tables must be supplied again
+ * beside the runtime config.
  */
-async function validateWasm(wasm: Uint8Array): Promise<void> {
+async function validateWasm(wasm: Uint8Array, data: Record<string, unknown>): Promise<void> {
   const { loadPolicy } = await import('@open-policy-agent/opa-wasm');
   const policy = await loadPolicy(wasm);
-  policy.setData({ authz: { config: VALIDATION_CONFIG } });
+  policy.setData({ authz: { ...data, config: VALIDATION_CONFIG } });
   for (const input of VALIDATION_INPUTS) policy.evaluate(input);
 }
 
@@ -135,16 +147,17 @@ export async function buildPolicyWasm(options: BuildPolicyOptions = {}): Promise
     }
     const wasm = new Uint8Array(readFileSync(join(work, 'policy.wasm')));
     assertWithinBudget(wasm, options.budgetBytes ?? DEFAULT_BUDGET_BYTES);
-    await validateWasm(wasm);
+    await validateWasm(wasm, readPolicyTables(policyDir));
     return wasm;
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
 }
 
-/** Writes the hashed wasm and its manifest, and removes any stale wasm file. */
+/** Writes the hashed wasm, the static data and the manifest, and removes any stale wasm. */
 export function writePolicyArtifacts(
   wasm: Uint8Array,
+  data: Record<string, unknown>,
   outDir = DEFAULT_OUT_DIR
 ): PolicyArtifacts {
   mkdirSync(outDir, { recursive: true });
@@ -156,21 +169,25 @@ export function writePolicyArtifacts(
     }
   }
   writeFileSync(join(outDir, wasmFile), wasm);
+  const dataFile = 'authz.data.json';
+  writeFileSync(join(outDir, dataFile), `${JSON.stringify({ authz: data }, null, 2)}\n`);
   const manifestFile = 'manifest.json';
   const manifest = {
     entrypoint: ENTRYPOINT,
     wasm: wasmFile,
+    data: dataFile,
     sha256,
     bytes: wasm.byteLength,
   };
   writeFileSync(join(outDir, manifestFile), `${JSON.stringify(manifest, null, 2)}\n`);
-  return { wasmFile, manifestFile, sha256, bytes: wasm.byteLength };
+  return { wasmFile, dataFile, manifestFile, sha256, bytes: wasm.byteLength };
 }
 
 async function main(): Promise<void> {
   const outDir = process.env.AUTHZ_OUT_DIR ?? DEFAULT_OUT_DIR;
+  const policyDir = join(REPO_ROOT, 'policy', 'authz');
   const wasm = await buildPolicyWasm();
-  const { wasmFile } = writePolicyArtifacts(wasm, outDir);
+  const { wasmFile } = writePolicyArtifacts(wasm, readPolicyTables(policyDir), outDir);
   console.log(`built ${wasmFile} (${wasm.byteLength} bytes)`);
 }
 
