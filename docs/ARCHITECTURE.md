@@ -110,3 +110,14 @@ except where issue #12 explicitly reverses them.
 - **Checks:** `bun run lint && bun run typecheck && bun run build && bun run test && bun run check:catch`
   in `frontend/`; `bun test gateway` and `opa test policy gateway/opa` from the root.
   The two provider-boundary scripts run from the repository root.
+
+## Catalogue-driven authorization (issue #24)
+
+The shared policy is data-driven. `policy/authz/` holds the neutral Rego engine
+and the four static tables (`catalogue.json`, `roles.json`, `role_map.json`,
+`routes.json`); the engine derives every capability set, the effective roles and
+the per-capability deny set from them. Each `policy/authz/providers/` file keeps
+only its own claim logic. `frontend/src/core/authz/generated.ts` and
+`policy/fixtures/matrix.snapshot.json` are generated from the policy by
+`bun run gen:authz` and checked by `bun run check:authz` in CI, so the browser
+types and the decision grid cannot drift from the gateway rules.

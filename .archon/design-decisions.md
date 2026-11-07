@@ -138,3 +138,26 @@ Round 3/4 UI decisions remain binding.
   opt-in with `?mock=1` in a development build.
 - **Startup failures.** A throw after config loads shows a generic startup
   notice with a reference; it does not point the operator at `config.json`.
+
+## Catalogue-driven policy (issue #24)
+
+- **Capabilities, roles and routes are data.** `policy/authz/` keeps the Rego
+  engine; the capability catalogue, the flattened role hierarchy, the
+  claim-to-role map and the route table live in
+  `policy/authz/{catalogue,roles,role_map,routes}.json`. Adding a capability or
+  a role is a data edit with no Rego change.
+- **Provider files hold provider logic only.** Each `policy/authz/providers/`
+  file exposes the roles it grants (through the shared map), its gate failures
+  and whether scopes apply. It names no capability and no role. The neutral
+  engine builds the per-capability deny set once for all providers.
+- **One new reason code.** `insufficient_role` is reported only after the
+  provider's base gate passes, so existing deny sets and audit reasons are
+  unchanged; `missing_admin` does not exist.
+- **One shared source, two consumers.** The browser still compiles the same
+  package to WASM for advisory decisions and supplies the static tables beside
+  its runtime config; the gateway still enforces. `frontend/src/core/authz/generated.ts`
+  and `policy/fixtures/matrix.snapshot.json` are generated from the policy and
+  checked for freshness in CI.
+- **No environment value in the policy.** Entra's tenant and Google's hosted
+  domain remain `data.authz.config`, supplied from the public config and route
+  labels; the static tables carry neither.
