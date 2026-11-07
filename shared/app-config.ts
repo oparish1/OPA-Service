@@ -55,22 +55,6 @@ export class AppConfigError extends Error {
   }
 }
 
-/** The only keys a provider entry may carry; anything else fails the build. */
-const PROVIDER_KEYS = new Set([
-  'id',
-  'name',
-  'clientId',
-  'issuer',
-  'redirectUri',
-  'apiResource',
-  'tenant',
-  'hostedDomain',
-  'scopes',
-  'forgotPasswordUrl',
-  'changePasswordUrl',
-  'manageAccountUrl',
-]);
-
 const SECRET_KEY = /^(client_?secret|private_?key|api_?key|password|secret)$/i;
 const PEM = /-----BEGIN [A-Z ]*PRIVATE KEY-----/;
 const LONG_BASE64 = /^[A-Za-z0-9+/]{40,}={0,2}$/;
@@ -158,21 +142,12 @@ export function parseAppConfig(raw: unknown): AppConfig {
     if (seen.has(id)) throw new AppConfigError(`duplicate provider id ${id}`);
     seen.add(id);
 
-    // The role and group the policy used to compare are now derived from the
-    // provider claim through the shared claim-to-role map; an unknown provider
-    // field fails the build rather than being silently ignored.
-    for (const key of Object.keys(provider)) {
-      if (!PROVIDER_KEYS.has(key)) {
-        throw new AppConfigError(`providers[${index}].${key} is not a supported field`);
-      }
-    }
-
     const scopes = provider.scopes;
     if (scopes !== undefined && (!Array.isArray(scopes) || scopes.some(s => typeof s !== 'string'))) {
       throw new AppConfigError(`providers[${index}].scopes must be an array of strings`);
     }
 
-    return {
+    const normalized: ProviderConfig = {
       id: id as ProviderConfig['id'],
       name: requireString(provider.name, `providers[${index}].name`),
       clientId: requireString(provider.clientId, `providers[${index}].clientId`),
@@ -207,6 +182,18 @@ export function parseAppConfig(raw: unknown): AppConfig {
           ? undefined
           : requireHttpUrl(provider.manageAccountUrl, `providers[${index}].manageAccountUrl`),
     };
+
+    // The role and group the policy used to compare are now derived from the
+    // provider claim through the shared claim-to-role map; any field outside
+    // the normalized shape fails the build, so the schema cannot drift from
+    // `ProviderConfig`.
+    for (const key of Object.keys(provider)) {
+      if (!Object.hasOwn(normalized, key)) {
+        throw new AppConfigError(`providers[${index}].${key} is not a supported field`);
+      }
+    }
+
+    return normalized;
   });
 
   return { gatewayUrl, providers, logLevel: logLevel as AppLogLevel | undefined, authz: parseAuthz(value.authz) };
