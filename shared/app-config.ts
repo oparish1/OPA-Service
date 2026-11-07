@@ -202,7 +202,13 @@ export function parseAppConfig(raw: unknown): AppConfig {
 function parseAuthz(raw: unknown): AuthzConfig {
   if (raw === undefined) return { enabled: true };
   if (!raw || typeof raw !== 'object') throw new AppConfigError('authz must be an object');
-  const enabled = (raw as Record<string, unknown>).enabled;
+  const value = raw as Record<string, unknown>;
+  // The old per-provider role/group keys lived under `authz`; any key outside
+  // the normalized shape fails the build rather than being silently dropped.
+  for (const key of Object.keys(value)) {
+    if (key !== 'enabled') throw new AppConfigError(`authz.${key} is not a supported field`);
+  }
+  const enabled = value.enabled;
   if (enabled !== undefined && typeof enabled !== 'boolean') {
     throw new AppConfigError('authz.enabled must be a boolean');
   }

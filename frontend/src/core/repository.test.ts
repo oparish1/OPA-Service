@@ -169,6 +169,14 @@ describe('repository acceptance', () => {
       withKey.providers[0][key] = 'Workspace.User';
       expect(() => parseAppConfig(withKey)).toThrow(/not a supported field/);
     }
+    // The pre-change config carried the keys on the `authz` section, nested per
+    // provider; that location must fail too, not be silently dropped.
+    const withAuthzKeys = JSON.parse(JSON.stringify(base));
+    withAuthzKeys.authz = {
+      enabled: true,
+      [PROVIDER_IDS[0]]: { tenant: 'tenant-1', requiredRole: 'Workspace.User' },
+    };
+    expect(() => parseAppConfig(withAuthzKeys)).toThrow(/authz\..* is not a supported field/);
   });
 
   it('A20 leaves no backend, build-time auth flag, auth.env or database code', () => {

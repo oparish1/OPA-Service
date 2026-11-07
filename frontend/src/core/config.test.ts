@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AppConfigError, parseAppConfig } from '../../../shared/app-config';
+import { PROVIDER_IDS } from '../../../shared/providers';
 
 const VALID = {
   gatewayUrl: 'https://localhost:9080',
@@ -78,5 +79,27 @@ describe('parseAppConfig', () => {
 
   it('fails on a client_secret key', () => {
     expect(() => parseAppConfig({ ...VALID, client_secret: 'anything' })).toThrow(/looks like a secret/);
+  });
+
+  it('rejects the removed role/group keys under authz (A4, R2)', () => {
+    const removed = ['requiredRole', 'requiredGroup', 'required_role', 'required_group', 'admin_role', 'admin_group'];
+    for (const key of removed) {
+      expect(() => parseAppConfig({ ...VALID, authz: { enabled: true, [key]: 'Workspace.User' } })).toThrow(
+        /not a supported field/
+      );
+    }
+    // The old config nested them per provider under `authz`; the whole section
+    // only accepts `enabled`.
+    const providerKey = PROVIDER_IDS[0];
+    expect(() =>
+      parseAppConfig({
+        ...VALID,
+        authz: { enabled: true, [providerKey]: { tenant: 'tenant-1', requiredRole: 'Workspace.User' } },
+      })
+    ).toThrow(new RegExp(`authz\\.${providerKey} is not a supported field`));
+  });
+
+  it('accepts an authz section that only carries enabled', () => {
+    expect(parseAppConfig({ ...VALID, authz: { enabled: false } }).authz).toEqual({ enabled: false });
   });
 });

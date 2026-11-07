@@ -175,6 +175,33 @@ describe('capability engine', () => {
     expect(snapshot.capabilities['action.api.send.write'].allowed).toBe(false);
   });
 
+  it.skipIf(!HAS_ARTIFACT)('fails closed when the policy data artifact lacks the static tables (A20, R3)', async () => {
+    const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8')) as { wasm: string; data: string };
+    const wasm = readFileSync(join(POLICY_DIR, manifest.wasm));
+    const serveData = (data: unknown) =>
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.endsWith('manifest.json')) return { ok: true, json: async () => manifest };
+        if (url.endsWith(manifest.wasm)) {
+          return {
+            ok: true,
+            arrayBuffer: async () => wasm.buffer.slice(wasm.byteOffset, wasm.byteOffset + wasm.byteLength),
+          };
+        }
+        if (url.endsWith(manifest.data)) return { ok: true, json: async () => data };
+        return { ok: false, status: 404 };
+      });
+
+    for (const malformed of [{}, { authz: { config: {} } }]) {
+      resetPolicy();
+      vi.stubGlobal('fetch', serveData(malformed));
+      await refreshCapabilities();
+      expect(getSnapshot().status).toBe('error');
+      expect(getSnapshot().capabilities['nav.overview'].allowed).toBe(true);
+      expect(getSnapshot().capabilities['nav.api.profile'].allowed).toBe(false);
+    }
+  });
+
   it('loads nothing when authz is disabled (A17)', async () => {
     configure(false);
     const fetchMock = vi.fn();

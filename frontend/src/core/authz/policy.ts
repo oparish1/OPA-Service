@@ -41,8 +41,18 @@ function getBundle(): Promise<PolicyBundle> {
       if (!wasmResponse.ok) throw new Error('policy_wasm_unavailable');
       if (!dataResponse.ok) throw new Error('policy_data_unavailable');
       const policy = await loadPolicy(await wasmResponse.arrayBuffer());
-      const data = (await dataResponse.json()) as { authz: Record<string, unknown> };
-      return { policy, tables: data.authz };
+      const data = (await dataResponse.json()) as { authz?: unknown };
+      const tables = data.authz;
+      // A valid-JSON payload that lacks the static tables would otherwise evaluate
+      // to an empty capability map and be cached as a ready policy, skipping the
+      // fail-closed floor; validate the table payload before caching it.
+      if (!tables || typeof tables !== 'object') throw new Error('policy_data_invalid');
+      const bundleTables = tables as Record<string, unknown>;
+      for (const name of ['catalogue', 'roles', 'role_map', 'routes']) {
+        const table = bundleTables[name];
+        if (!table || typeof table !== 'object') throw new Error('policy_data_invalid');
+      }
+      return { policy, tables: bundleTables };
     })().catch(error => {
       bundlePromise = null;
       throw error;
