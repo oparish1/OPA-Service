@@ -92,7 +92,7 @@ routes:
               core.response.set_header("X-Auth-Subject", subject)
               core.response.set_header("X-Auth-Decision", "allow")
               core.response.set_header("X-Auth-Reason", "")
-              if method == "GET" and string.find(path, "/v1/projects", 1, true) then
+              if method == "GET" and string.find(path, "/v1/projects$") then
                 core.response.exit(200, {projects = {{id = "prj_01", name = "Atlas", status = "active"}, {id = "prj_02", name = "Beacon", status = "active"}, {id = "prj_03", name = "Cedar", status = "archived"}}})
                 return
               end
@@ -171,7 +171,7 @@ routes:
               core.response.set_header("X-Auth-Subject", subject)
               core.response.set_header("X-Auth-Decision", "allow")
               core.response.set_header("X-Auth-Reason", "")
-              if method == "GET" and string.find(path, "/v1/projects", 1, true) then
+              if method == "GET" and string.find(path, "/v1/projects$") then
                 core.response.exit(200, {projects = {{id = "prj_01", name = "Atlas", status = "active"}, {id = "prj_02", name = "Beacon", status = "active"}, {id = "prj_03", name = "Cedar", status = "archived"}}})
                 return
               end
@@ -251,7 +251,7 @@ routes:
               core.response.set_header("X-Auth-Subject", subject)
               core.response.set_header("X-Auth-Decision", "allow")
               core.response.set_header("X-Auth-Reason", "")
-              if method == "GET" and string.find(path, "/v1/projects", 1, true) then
+              if method == "GET" and string.find(path, "/v1/projects$") then
                 core.response.exit(200, {projects = {{id = "prj_01", name = "Atlas", status = "active"}, {id = "prj_02", name = "Beacon", status = "active"}, {id = "prj_03", name = "Cedar", status = "archived"}}})
                 return
               end
