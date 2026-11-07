@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { AUTHZ_TABLE_NAMES } from '../src/core/authz/tables';
 import { PROVIDER_IDS } from '../../shared/providers';
 
 /**
@@ -21,9 +22,6 @@ const REPO_ROOT = join(MODULE_DIR, '..', '..');
 const DEFAULT_OUT_DIR = join(MODULE_DIR, '..', 'public', 'policy');
 const DEFAULT_BUDGET_BYTES = 1024 * 1024;
 const ENTRYPOINT = 'authz/capabilities';
-
-/** The static tables that ship beside the wasm; the names match the data files. */
-const TABLE_FILES = ['catalogue', 'roles', 'role_map', 'routes'] as const;
 
 /**
  * The public config every provider compares against; each reads only its own
@@ -108,7 +106,7 @@ export function assertWithinBudget(wasm: Uint8Array, budgetBytes = DEFAULT_BUDGE
 /** Merges the four committed table files into the `data.authz` document. */
 export function readPolicyTables(policyDir: string): Record<string, unknown> {
   const tables: Record<string, unknown> = {};
-  for (const name of TABLE_FILES) {
+  for (const name of AUTHZ_TABLE_NAMES) {
     Object.assign(tables, JSON.parse(readFileSync(join(policyDir, `${name}.json`), 'utf8')));
   }
   return tables;

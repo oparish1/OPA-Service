@@ -1,5 +1,6 @@
 import { loadPolicy } from '@open-policy-agent/opa-wasm';
 import type { LoadedPolicy } from '@open-policy-agent/opa-wasm';
+import { AUTHZ_TABLE_NAMES } from './tables';
 import type { AuthzInput, Capabilities } from './types';
 
 /**
@@ -48,7 +49,7 @@ function getBundle(): Promise<PolicyBundle> {
       // fail-closed floor; validate the table payload before caching it.
       if (!tables || typeof tables !== 'object') throw new Error('policy_data_invalid');
       const bundleTables = tables as Record<string, unknown>;
-      for (const name of ['catalogue', 'roles', 'role_map', 'routes']) {
+      for (const name of AUTHZ_TABLE_NAMES) {
         const table = bundleTables[name];
         if (!table || typeof table !== 'object') throw new Error('policy_data_invalid');
       }
