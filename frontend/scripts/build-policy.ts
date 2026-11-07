@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PROVIDER_IDS } from '../../shared/providers';
@@ -134,13 +134,10 @@ export async function buildPolicyWasm(options: BuildPolicyOptions = {}): Promise
   const policyDir = options.policyDir ?? join(repoRoot, 'policy', 'authz');
   const work = mkdtempSync(join(tmpdir(), 'authz-policy-'));
   try {
-    // Building from a parent whose only child is `authz/` makes the data files
-    // load at `data.authz`, the same path the gateway and `opa test` use.
-    cpSync(policyDir, join(work, 'authz'), { recursive: true });
     const bundle = join(work, 'bundle.tar.gz');
     const build = spawnSync(
       opa,
-      ['build', '-t', 'wasm', '-e', ENTRYPOINT, '-o', bundle, work],
+      ['build', '-t', 'wasm', '-e', ENTRYPOINT, '-o', bundle, policyDir],
       { encoding: 'utf8' }
     );
     if (build.status !== 0) {
