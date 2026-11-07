@@ -184,6 +184,10 @@ After any policy change run `bun run gen:authz`, which regenerates
 and `policy/fixtures/matrix.snapshot.json`; review the snapshot diff, then
 commit both. CI runs `bun run check:authz` and fails when either is stale.
 
+A frontend test evaluates a generated 150-capability catalogue through the
+compiled wasm and logs the time; it fails above 250 ms. The last local run
+recorded 8 ms, and the wasm stays under the 1 MB budget (about 180 KB).
+
 ## Checks
 
 The frontend package defines its gates. Build before the tests so the A18
