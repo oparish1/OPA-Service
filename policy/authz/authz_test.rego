@@ -92,17 +92,20 @@ test_invariant_unmapped_grants_nothing if {
 }
 
 # 4. Google is denied every write capability and every capability above its
-# default role.
+# default role. The ceiling is the effective-role set of the configured Google
+# default, derived from the role data, so a data-only role change cannot make
+# this test false-fail or stop testing the invariant.
 test_invariant_google_ceiling if {
 	count({[cap] |
 		some cap in data.authz.write_capabilities
 		decision := data.authz.decision(cap) with input as persona_input("google-user") with data.authz.config as fixture_config
 		decision.allowed
 	}) == 0
+	google_roles := data.authz.effective_roles with input as persona_input("google-user") with data.authz.config as fixture_config
 	count({[cap] |
 		some cap in data.authz.provider_capabilities
 		role := data.authz.catalogue[cap].role
-		not role in {"viewer", "user"}
+		not role in google_roles
 		decision := data.authz.decision(cap) with input as persona_input("google-user") with data.authz.config as fixture_config
 		decision.allowed
 	}) == 0
@@ -179,6 +182,13 @@ test_integrity_roles if {
 		some role, entry in data.authz.roles
 		{included | some included in entry.includes} != includes_closure(role)
 	}) == 0
+}
+
+# CT-4: an auditor includes viewer only. The snapshot is generated from the
+# policy, so this ceiling needs its own assertion or a hierarchy edit plus a
+# regenerated snapshot would promote every auditor to user capabilities.
+test_integrity_auditor_excludes_user if {
+	not "user" in includes_closure("auditor")
 }
 
 test_integrity_role_map if {

@@ -30,6 +30,33 @@
         "google-unverified-email",
         "google-signed-out"
       ]
+    },
+    {
+      "capability": "nav.api.profile",
+      "personas": [
+        "entra-viewer",
+        "entra-auditor",
+        "okta-viewer",
+        "okta-auditor"
+      ]
+    },
+    {
+      "capability": "action.api.send.read",
+      "personas": [
+        "entra-viewer",
+        "entra-auditor",
+        "okta-viewer",
+        "okta-auditor"
+      ]
+    },
+    {
+      "capability": "action.api.send.write",
+      "personas": [
+        "entra-viewer",
+        "entra-auditor",
+        "okta-viewer",
+        "okta-auditor"
+      ]
     }
   ]
 }

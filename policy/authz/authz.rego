@@ -79,15 +79,11 @@ capability_role(cap) := role if {
 }
 
 # Provider gate failures cover the base gate (subject, tenant/domain, email) and
-# the provider's method rules, never scope or role. A provider that does not
-# exist contributes no gate failures; the unknown-provider rule below denies.
+# the provider's method rules, never scope or role. The unknown-provider rule
+# below denies without consulting them.
 gate_failures(cap) := failures if {
 	known_provider
 	failures := data.authz.providers[input.provider].gate_failures[cap]
-}
-
-gate_failures(_) := set() if {
-	not known_provider
 }
 
 # `insufficient_role` is reported only after the base gate passes (ignoring the
