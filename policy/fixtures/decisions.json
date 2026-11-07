@@ -1,7 +1,7 @@
 {
   "config": {
-    "entra": { "tenant": "tenant-1", "required_role": "Workspace.User" },
-    "okta": { "required_group": "Workspace User" },
+    "entra": { "tenant": "tenant-1", "required_role": ["Workspace.User", "Workspace.Admin"] },
+    "okta": { "required_group": ["Workspace User", "Workspace Admin"] },
     "google": { "hosted_domain": "agentic-advantage.com" }
   },
   "cases": [
@@ -15,13 +15,40 @@
       "reason": ""
     },
     {
-      "id": "entra-read-projects-allowed",
+      "id": "entra-projects-admin-allowed",
+      "provider": "entra",
+      "capability": "nav.api.projects",
+      "claims": { "has_subject": true, "roles": ["Workspace.User", "Workspace.Admin"], "groups": [], "scopes": ["workspace:read"], "tenant": "tenant-1", "hd": "", "email_verified": false },
+      "request": { "method": "GET", "path": "/entra/v1/projects" },
+      "allowed": true,
+      "reason": ""
+    },
+    {
+      "id": "entra-projects-missing-admin",
       "provider": "entra",
       "capability": "nav.api.projects",
       "claims": { "has_subject": true, "roles": ["Workspace.User"], "groups": [], "scopes": ["workspace:read"], "tenant": "tenant-1", "hd": "", "email_verified": false },
       "request": { "method": "GET", "path": "/entra/v1/projects" },
-      "allowed": true,
-      "reason": ""
+      "allowed": false,
+      "reason": "method_not_allowed"
+    },
+    {
+      "id": "entra-projects-admin-only-no-user-role",
+      "provider": "entra",
+      "capability": "nav.api.projects",
+      "claims": { "has_subject": true, "roles": ["Workspace.Admin"], "groups": [], "scopes": ["workspace:read"], "tenant": "tenant-1", "hd": "", "email_verified": false },
+      "request": { "method": "GET", "path": "/entra/v1/projects" },
+      "allowed": false,
+      "reason": "missing_role"
+    },
+    {
+      "id": "entra-projects-missing-scope-and-admin",
+      "provider": "entra",
+      "capability": "nav.api.projects",
+      "claims": { "has_subject": true, "roles": ["Workspace.User"], "groups": [], "scopes": [], "tenant": "tenant-1", "hd": "", "email_verified": false },
+      "request": { "method": "GET", "path": "/entra/v1/projects" },
+      "allowed": false,
+      "reason": "missing_scope"
     },
     {
       "id": "entra-send-read-allowed",
@@ -96,13 +123,31 @@
       "reason": ""
     },
     {
-      "id": "okta-projects-allowed",
+      "id": "okta-projects-admin-allowed",
+      "provider": "okta",
+      "capability": "nav.api.projects",
+      "claims": { "has_subject": true, "roles": [], "groups": ["Workspace User", "Workspace Admin"], "scopes": ["workspace:read"], "tenant": "", "hd": "", "email_verified": false },
+      "request": { "method": "GET", "path": "/okta/v1/projects" },
+      "allowed": true,
+      "reason": ""
+    },
+    {
+      "id": "okta-projects-missing-admin",
       "provider": "okta",
       "capability": "nav.api.projects",
       "claims": { "has_subject": true, "roles": [], "groups": ["Workspace User"], "scopes": ["workspace:read"], "tenant": "", "hd": "", "email_verified": false },
       "request": { "method": "GET", "path": "/okta/v1/projects" },
-      "allowed": true,
-      "reason": ""
+      "allowed": false,
+      "reason": "method_not_allowed"
+    },
+    {
+      "id": "okta-projects-admin-only-no-user-group",
+      "provider": "okta",
+      "capability": "nav.api.projects",
+      "claims": { "has_subject": true, "roles": [], "groups": ["Workspace Admin"], "scopes": ["workspace:read"], "tenant": "", "hd": "", "email_verified": false },
+      "request": { "method": "GET", "path": "/okta/v1/projects" },
+      "allowed": false,
+      "reason": "missing_group"
     },
     {
       "id": "okta-missing-group",
@@ -159,13 +204,22 @@
       "reason": ""
     },
     {
-      "id": "google-projects-allowed",
+      "id": "google-projects-denied-no-admin",
       "provider": "google",
       "capability": "nav.api.projects",
       "claims": { "has_subject": true, "roles": [], "groups": [], "scopes": [], "tenant": "", "hd": "agentic-advantage.com", "email_verified": true },
       "request": { "method": "GET", "path": "/google/v1/projects" },
-      "allowed": true,
-      "reason": ""
+      "allowed": false,
+      "reason": "method_not_allowed"
+    },
+    {
+      "id": "google-projects-wrong-domain",
+      "provider": "google",
+      "capability": "nav.api.projects",
+      "claims": { "has_subject": true, "roles": [], "groups": [], "scopes": [], "tenant": "", "hd": "other.example", "email_verified": true },
+      "request": { "method": "GET", "path": "/google/v1/projects" },
+      "allowed": false,
+      "reason": "wrong_domain"
     },
     {
       "id": "google-wrong-domain",

@@ -1,12 +1,12 @@
 {
-  "gatewayUrl": "https://localhost:9080",
+  "gatewayUrl": "https://apisix.uneaksoft.com/",
   "authz": {
     "enabled": true,
     "entra":  { "tenant": "7cc3305d-a9e5-46db-ada9-fbff379f9e53", "requiredRole": "Workspace.User" },
     "okta":   { "requiredGroup": "Workspace User" },
     "google": { "hostedDomain": "agentic-advantage.com" }
   },
-  "loglevel": "error",
+  "logLevel": "error",
   "providers": [
     {
       "id": "entra",

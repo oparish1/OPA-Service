@@ -25,6 +25,9 @@ baseline_capabilities := {"nav.overview", "nav.account"}
 # write rule.
 read_capabilities := {"nav.api.profile", "nav.api.projects", "action.api.send.read"}
 
+# Capabilities that also require the provider's admin role or group.
+admin_capabilities := {"nav.api.projects"}
+
 write_capabilities := {"action.api.send.write"}
 
 provider_capabilities := read_capabilities | write_capabilities
