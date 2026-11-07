@@ -21,9 +21,10 @@ its own:
   `shared/providers.ts`, `shared/app-config.ts`, the per-provider folders and
   `gateway/apisix/apisix.yaml` name more than one provider.
 
-Adding a provider touches its folder, its `gateway/opa/<id>.rego` and its route
-in `gateway/apisix/apisix.yaml`, adds its id to `shared/providers.ts` and adds
-one registry entry; removing one deletes those.
+Adding a provider touches its folder, its `policy/authz/providers/<id>.rego` and
+`role_map` entry, its `gateway/opa/<id>.rego` and its route in
+`gateway/apisix/apisix.yaml`, adds its id to `shared/providers.ts` and adds one
+registry entry; removing one deletes those.
 
 ## Architecture
 
