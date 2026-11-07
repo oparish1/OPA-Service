@@ -96,7 +96,7 @@ describe('repository acceptance', () => {
 
   it('A5 keeps environment values out of the Rego policies', () => {
     const config = JSON.parse(read(join('frontend', 'public', 'config.json')));
-    const fixture = JSON.parse(read(join('policy', 'fixtures', 'decisions.json')));
+    const fixture = JSON.parse(read(join('policy', 'fixtures', 'personas.json')));
     const sensitive = new Set<string>();
     const collectStrings = (value: unknown): void => {
       if (typeof value === 'string') sensitive.add(value);
@@ -120,6 +120,54 @@ describe('repository acceptance', () => {
         if (!value) continue;
         expect(content, `${file} must not contain the environment value ${value}`).not.toContain(value);
       }
+    }
+  });
+
+  it('A2 keeps capability ids, role names and other providers out of the shared engine', () => {
+    const catalogue = JSON.parse(read(join('policy', 'authz', 'catalogue.json'))) as {
+      catalogue: Record<string, unknown>;
+    };
+    const roles = JSON.parse(read(join('policy', 'authz', 'roles.json'))) as { roles: Record<string, unknown> };
+    const capabilityIds = Object.keys(catalogue.catalogue);
+    const roleNames = Object.keys(roles.roles);
+
+    const engine = read(join('policy', 'authz', 'authz.rego'));
+    for (const capability of capabilityIds) expect(engine, capability).not.toContain(capability);
+    for (const role of roleNames) expect(engine, role).not.toContain(`"${role}"`);
+    for (const provider of PROVIDER_IDS) expect(engine, provider).not.toMatch(new RegExp(`\\b${provider}\\b`));
+
+    // A provider file may name its own provider and its own claim logic, but no
+    // capability id, no role name and no other provider id.
+    for (const provider of PROVIDER_IDS) {
+      const source = read(join('policy', 'authz', 'providers', `${provider}.rego`));
+      for (const capability of capabilityIds) expect(source, `${provider}: ${capability}`).not.toContain(capability);
+      for (const role of roleNames) expect(source, `${provider}: ${role}`).not.toContain(`"${role}"`);
+      for (const other of PROVIDER_IDS) {
+        if (other === provider) continue;
+        expect(source, `${provider}.rego names ${other}`).not.toMatch(new RegExp(`\\b${other}\\b`));
+      }
+    }
+  });
+
+  it('A3 reduces each provider file to the provider-gate contract', () => {
+    for (const provider of PROVIDER_IDS) {
+      const source = read(join('policy', 'authz', 'providers', `${provider}.rego`));
+      expect(source, `${provider}: deny_by_capability`).not.toContain('deny_by_capability');
+      expect(source, `${provider}: missing_scope`).not.toContain('missing_scope');
+      expect(source, `${provider}: insufficient_role`).not.toContain('insufficient_role');
+      for (const name of ['uses_scopes', 'granted_roles', 'gate_failures']) {
+        expect(source, `${provider}: ${name}`).toContain(name);
+      }
+    }
+  });
+
+  it('A4 rejects the removed role and group config keys', async () => {
+    const { parseAppConfig } = await import('../../../shared/app-config');
+    const base = JSON.parse(read(join('frontend', 'public', 'config.example.json')));
+    for (const key of ['requiredRole', 'requiredGroup']) {
+      const withKey = JSON.parse(JSON.stringify(base));
+      withKey.providers[0][key] = 'Workspace.User';
+      expect(() => parseAppConfig(withKey)).toThrow(/not a supported field/);
     }
   });
 

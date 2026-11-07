@@ -1,0 +1,215 @@
+{
+  "snapshot": {
+    "entra-user": {
+      "allowed": [
+        "action.api.send.read",
+        "action.api.send.write",
+        "nav.account",
+        "nav.api.profile",
+        "nav.overview"
+      ],
+      "denied": {
+        "nav.api.projects": "insufficient_role"
+      }
+    },
+    "entra-admin": {
+      "allowed": [
+        "action.api.send.read",
+        "action.api.send.write",
+        "nav.account",
+        "nav.api.profile",
+        "nav.api.projects",
+        "nav.overview"
+      ],
+      "denied": {}
+    },
+    "entra-viewer": {
+      "allowed": [
+        "nav.account",
+        "nav.overview"
+      ],
+      "denied": {
+        "action.api.send.read": "insufficient_role",
+        "action.api.send.write": "insufficient_role",
+        "nav.api.profile": "insufficient_role",
+        "nav.api.projects": "insufficient_role"
+      }
+    },
+    "entra-auditor": {
+      "allowed": [
+        "nav.account",
+        "nav.overview"
+      ],
+      "denied": {
+        "action.api.send.read": "insufficient_role",
+        "action.api.send.write": "insufficient_role",
+        "nav.api.profile": "insufficient_role",
+        "nav.api.projects": "insufficient_role"
+      }
+    },
+    "entra-unmapped": {
+      "allowed": [
+        "nav.account",
+        "nav.overview"
+      ],
+      "denied": {
+        "action.api.send.read": "missing_role",
+        "action.api.send.write": "missing_role",
+        "nav.api.profile": "missing_role",
+        "nav.api.projects": "missing_role"
+      }
+    },
+    "entra-signed-out": {
+      "allowed": [],
+      "denied": {
+        "action.api.send.read": "missing_role",
+        "action.api.send.write": "missing_role",
+        "nav.account": "not_signed_in",
+        "nav.api.profile": "missing_role",
+        "nav.api.projects": "missing_role",
+        "nav.overview": "not_signed_in"
+      }
+    },
+    "entra-wrong-tenant": {
+      "allowed": [
+        "nav.account",
+        "nav.overview"
+      ],
+      "denied": {
+        "action.api.send.read": "wrong_tenant",
+        "action.api.send.write": "wrong_tenant",
+        "nav.api.profile": "wrong_tenant",
+        "nav.api.projects": "wrong_tenant"
+      }
+    },
+    "okta-user": {
+      "allowed": [
+        "action.api.send.read",
+        "action.api.send.write",
+        "nav.account",
+        "nav.api.profile",
+        "nav.overview"
+      ],
+      "denied": {
+        "nav.api.projects": "insufficient_role"
+      }
+    },
+    "okta-admin": {
+      "allowed": [
+        "action.api.send.read",
+        "action.api.send.write",
+        "nav.account",
+        "nav.api.profile",
+        "nav.api.projects",
+        "nav.overview"
+      ],
+      "denied": {}
+    },
+    "okta-viewer": {
+      "allowed": [
+        "nav.account",
+        "nav.overview"
+      ],
+      "denied": {
+        "action.api.send.read": "insufficient_role",
+        "action.api.send.write": "insufficient_role",
+        "nav.api.profile": "insufficient_role",
+        "nav.api.projects": "insufficient_role"
+      }
+    },
+    "okta-auditor": {
+      "allowed": [
+        "nav.account",
+        "nav.overview"
+      ],
+      "denied": {
+        "action.api.send.read": "insufficient_role",
+        "action.api.send.write": "insufficient_role",
+        "nav.api.profile": "insufficient_role",
+        "nav.api.projects": "insufficient_role"
+      }
+    },
+    "okta-unmapped": {
+      "allowed": [
+        "nav.account",
+        "nav.overview"
+      ],
+      "denied": {
+        "action.api.send.read": "missing_group",
+        "action.api.send.write": "missing_group",
+        "nav.api.profile": "missing_group",
+        "nav.api.projects": "missing_group"
+      }
+    },
+    "okta-signed-out": {
+      "allowed": [],
+      "denied": {
+        "action.api.send.read": "not_signed_in",
+        "action.api.send.write": "not_signed_in",
+        "nav.account": "not_signed_in",
+        "nav.api.profile": "not_signed_in",
+        "nav.api.projects": "not_signed_in",
+        "nav.overview": "not_signed_in"
+      }
+    },
+    "google-user": {
+      "allowed": [
+        "action.api.send.read",
+        "nav.account",
+        "nav.api.profile",
+        "nav.overview"
+      ],
+      "denied": {
+        "action.api.send.write": "method_not_allowed",
+        "nav.api.projects": "insufficient_role"
+      }
+    },
+    "google-wrong-domain": {
+      "allowed": [
+        "nav.account",
+        "nav.overview"
+      ],
+      "denied": {
+        "action.api.send.read": "wrong_domain",
+        "action.api.send.write": "method_not_allowed",
+        "nav.api.profile": "wrong_domain",
+        "nav.api.projects": "wrong_domain"
+      }
+    },
+    "google-missing-domain": {
+      "allowed": [
+        "nav.account",
+        "nav.overview"
+      ],
+      "denied": {
+        "action.api.send.read": "wrong_domain",
+        "action.api.send.write": "method_not_allowed",
+        "nav.api.profile": "wrong_domain",
+        "nav.api.projects": "wrong_domain"
+      }
+    },
+    "google-unverified-email": {
+      "allowed": [
+        "nav.account",
+        "nav.overview"
+      ],
+      "denied": {
+        "action.api.send.read": "email_unverified",
+        "action.api.send.write": "method_not_allowed",
+        "nav.api.profile": "email_unverified",
+        "nav.api.projects": "email_unverified"
+      }
+    },
+    "google-signed-out": {
+      "allowed": [],
+      "denied": {
+        "action.api.send.read": "wrong_domain",
+        "action.api.send.write": "method_not_allowed",
+        "nav.account": "not_signed_in",
+        "nav.api.profile": "wrong_domain",
+        "nav.api.projects": "wrong_domain",
+        "nav.overview": "not_signed_in"
+      }
+    }
+  }
+}

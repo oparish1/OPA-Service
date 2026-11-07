@@ -70,7 +70,7 @@ function provider(): FrontendProviderModule {
         email_verified: false,
         has_subject: true,
       }),
-      config: () => ({ tenant: 'tenant-1', required_role: 'Workspace.User' }),
+      config: () => ({ tenant: 'tenant-1' }),
     },
   };
 }
@@ -86,16 +86,16 @@ function configure(enabled = true): void {
         clientId: 'client-id',
         issuer: 'https://login.example/tenant/v2.0',
         tenant: 'tenant-1',
-        requiredRole: 'Workspace.User',
       },
     ],
   });
 }
 
-/** Serves the on-disk wasm artifact over the fetch surface the loader uses. */
+/** Serves the on-disk wasm artifact and its static data over the fetch surface. */
 function servingFetch(): ReturnType<typeof vi.fn> {
-  const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8')) as { wasm: string };
+  const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8')) as { wasm: string; data: string };
   const wasm = readFileSync(join(POLICY_DIR, manifest.wasm));
+  const data = JSON.parse(readFileSync(join(POLICY_DIR, manifest.data), 'utf8'));
   return vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('manifest.json')) return { ok: true, json: async () => manifest };
@@ -106,6 +106,7 @@ function servingFetch(): ReturnType<typeof vi.fn> {
           wasm.buffer.slice(wasm.byteOffset, wasm.byteOffset + wasm.byteLength),
       };
     }
+    if (url.endsWith(manifest.data)) return { ok: true, json: async () => data };
     return { ok: false, status: 404 };
   });
 }
@@ -198,8 +199,9 @@ describe('capability engine', () => {
   });
 
   it.skipIf(!HAS_ARTIFACT)('does not repopulate after sign-out resolves a pending refresh (A16)', async () => {
-    const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8')) as { wasm: string };
+    const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8')) as { wasm: string; data: string };
     const wasm = readFileSync(join(POLICY_DIR, manifest.wasm));
+    const data = JSON.parse(readFileSync(join(POLICY_DIR, manifest.data), 'utf8'));
     let release!: () => void;
     const gate = new Promise<void>(resolve => {
       release = resolve;
@@ -219,6 +221,7 @@ describe('capability engine', () => {
               wasm.buffer.slice(wasm.byteOffset, wasm.byteOffset + wasm.byteLength),
           };
         }
+        if (url.endsWith(manifest.data)) return { ok: true, json: async () => data };
         return { ok: false, status: 404 };
       })
     );

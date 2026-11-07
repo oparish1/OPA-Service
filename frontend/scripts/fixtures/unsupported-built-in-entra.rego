@@ -1,22 +1,20 @@
 package authz.providers.entra
 
-# Fixture for the build-validation test: the same shape as the real provider,
+# Fixture for the build-validation test: the same contract as the real provider,
 # but the rule calls `http.send`, a built-in the WASM target cannot execute.
 # `opa build` accepts it, so the build must reject it when it loads the artifact.
 
-config := data.authz.config.entra
+uses_scopes := true
 
-role_ok if {
-	config.required_role in input.claims.roles
+granted_roles contains role if {
+	some value in input.claims.roles
+	role := data.authz.role_map.entra[value]
 }
 
-failure_codes := {"missing_role"}
-
-deny_by_capability[cap] := failures if {
+gate_failures[cap] := failures if {
 	some cap in data.authz.provider_capabilities
 	failures := {code |
-		some code in failure_codes
+		code := "missing_role"
 		http.send({"method": "get", "url": "https://example.com"})
-		not role_ok
 	}
 }

@@ -17,6 +17,6 @@ export function oktaClaims(session: ProviderSession): AuthzClaims {
   };
 }
 
-export function oktaAuthzConfig(config: ProviderConfig): Record<string, unknown> {
-  return { required_group: config.requiredGroup ?? '' };
+export function oktaAuthzConfig(_config: ProviderConfig): Record<string, unknown> {
+  return {};
 }

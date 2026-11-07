@@ -1,25 +1,8 @@
-/** The capability ids the shared Rego policy decides; the array is the single owner. */
-export const CAPABILITY_IDS = [
-  'nav.overview',
-  'nav.account',
-  'nav.api.profile',
-  'nav.api.projects',
-  'action.api.send.read',
-  'action.api.send.write',
-] as const;
+import { AUTHZ_REASONS, CAPABILITY_IDS } from './generated';
+import type { AuthzReason, CapabilityId } from './generated';
 
-export type CapabilityId = (typeof CAPABILITY_IDS)[number];
-
-/** The neutral reason codes the shared policy emits. */
-export type AuthzReason =
-  | 'not_signed_in'
-  | 'missing_role'
-  | 'missing_group'
-  | 'wrong_tenant'
-  | 'wrong_domain'
-  | 'email_unverified'
-  | 'missing_scope'
-  | 'method_not_allowed';
+export { AUTHZ_REASONS, CAPABILITY_IDS };
+export type { AuthzReason, CapabilityId };
 
 /**
  * A reason the UI may render. `permissions_unavailable` is never emitted by the

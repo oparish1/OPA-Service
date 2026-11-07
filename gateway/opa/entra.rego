@@ -28,10 +28,8 @@ authz_input := {
 
 # Route labels carry the public environment values; `aud` stays a gateway-only
 # check because the openid-connect plugin does not verify it on the JWKS path.
-authz_config := {"entra": {
-	"required_role": input.route.labels.required_role,
-	"tenant": input.route.labels.tenant,
-}}
+# The role names come from the shared claim-to-role map, not from route labels.
+authz_config := {"entra": {"tenant": input.route.labels.tenant}}
 
 shared_reasons := reasons if {
 	reasons := data.authz.capability_deny_reasons(capability) with input as authz_input with data.authz.config as authz_config

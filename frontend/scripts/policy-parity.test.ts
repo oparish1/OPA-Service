@@ -23,7 +23,7 @@ describe('single policy source (A10)', () => {
 
       const entra = join(dir, 'policy', 'authz', 'providers', 'entra.rego');
       const original = readFileSync(entra, 'utf8');
-      const mutated = original.replace('failure("missing_role", _)', 'failure("missing_role_removed", _)');
+      const mutated = original.replace('uses_scopes := true', 'uses_scopes := false');
       expect(mutated).not.toBe(original);
       writeFileSync(entra, mutated);
 
@@ -32,8 +32,8 @@ describe('single policy source (A10)', () => {
       });
       const output = `${result.stdout}\n${result.stderr}`;
       expect(result.status).not.toBe(0);
-      expect(output).toContain('data.authz.test_golden_decisions: FAIL');
-      expect(output).toContain('data.entra.test_missing_role_is_denied: FAIL');
+      expect(output).toContain('data.authz.test_gate_cases: FAIL');
+      expect(output).toContain('data.entra.test_missing_scope_is_denied: FAIL');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

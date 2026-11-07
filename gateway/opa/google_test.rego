@@ -49,6 +49,14 @@ test_wrong_audience_is_denied if {
 	not allow with input as testutil.input_for("GET", object.union(base_payload, {"aud": "other-client"}), base_labels)
 }
 
+test_projects_are_denied_with_insufficient_role if {
+	not allow with input as testutil.input_for_path("GET", "/google/v1/projects", base_payload, base_labels)
+}
+
+test_projects_insufficient_role_audit_reason if {
+	reason == "insufficient_role" with input as testutil.input_for_path("GET", "/google/v1/projects", base_payload, base_labels)
+}
+
 test_wrong_issuer_is_denied if {
 	not allow with input as testutil.input_for("GET", object.union(base_payload, {"iss": "https://example.com"}), base_labels)
 }

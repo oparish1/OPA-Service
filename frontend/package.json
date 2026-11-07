@@ -7,13 +7,15 @@
     "dev": "bun run build:policy && vite",
     "build": "bun run build:policy && tsc -b && vite build",
     "build:policy": "bun run scripts/build-policy.ts",
+    "gen:authz": "bun run scripts/authz-codegen.ts generate",
+    "check:authz": "bun run scripts/authz-codegen.ts check",
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "check:catch": "bun run ../scripts/check-catch-handling.ts",
-    "check": "bun run lint && bun run typecheck && bun run build && bun run test && bun run check:catch"
+    "check": "bun run lint && bun run typecheck && bun run build && bun run test && bun run check:catch && bun run check:authz"
   },
   "dependencies": {
     "@azure/msal-browser": "3.30.0",

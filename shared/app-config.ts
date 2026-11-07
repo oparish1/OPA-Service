@@ -18,10 +18,6 @@ export interface ProviderConfig extends ProviderLinks {
   apiResource?: string;
   /** Entra only: the tenant the token's `tid` claim must match. */
   tenant?: string;
-  /** Entra only: the application role the token must carry. */
-  requiredRole?: string;
-  /** Okta only: the group the token must carry. */
-  requiredGroup?: string;
   /** Google only: the Workspace hosted domain the ID token must carry. */
   hostedDomain?: string;
   /** Scopes to request; defaults to `workspace:read`. */
@@ -58,6 +54,22 @@ export class AppConfigError extends Error {
     this.reason = reason;
   }
 }
+
+/** The only keys a provider entry may carry; anything else fails the build. */
+const PROVIDER_KEYS = new Set([
+  'id',
+  'name',
+  'clientId',
+  'issuer',
+  'redirectUri',
+  'apiResource',
+  'tenant',
+  'hostedDomain',
+  'scopes',
+  'forgotPasswordUrl',
+  'changePasswordUrl',
+  'manageAccountUrl',
+]);
 
 const SECRET_KEY = /^(client_?secret|private_?key|api_?key|password|secret)$/i;
 const PEM = /-----BEGIN [A-Z ]*PRIVATE KEY-----/;
@@ -146,6 +158,15 @@ export function parseAppConfig(raw: unknown): AppConfig {
     if (seen.has(id)) throw new AppConfigError(`duplicate provider id ${id}`);
     seen.add(id);
 
+    // The role and group the policy used to compare are now derived from the
+    // provider claim through the shared claim-to-role map; an unknown provider
+    // field fails the build rather than being silently ignored.
+    for (const key of Object.keys(provider)) {
+      if (!PROVIDER_KEYS.has(key)) {
+        throw new AppConfigError(`providers[${index}].${key} is not a supported field`);
+      }
+    }
+
     const scopes = provider.scopes;
     if (scopes !== undefined && (!Array.isArray(scopes) || scopes.some(s => typeof s !== 'string'))) {
       throw new AppConfigError(`providers[${index}].scopes must be an array of strings`);
@@ -168,14 +189,6 @@ export function parseAppConfig(raw: unknown): AppConfig {
         provider.tenant === undefined
           ? undefined
           : requireString(provider.tenant, `providers[${index}].tenant`),
-      requiredRole:
-        provider.requiredRole === undefined
-          ? undefined
-          : requireString(provider.requiredRole, `providers[${index}].requiredRole`),
-      requiredGroup:
-        provider.requiredGroup === undefined
-          ? undefined
-          : requireString(provider.requiredGroup, `providers[${index}].requiredGroup`),
       hostedDomain:
         provider.hostedDomain === undefined
           ? undefined

@@ -1,36 +1,24 @@
 # The one shared claim policy. The gateway wrappers in `gateway/opa/` import this
 # package for enforcement and the browser compiles it to WASM for advisory UI
-# decisions. It names no provider secret, tenant, domain or group: those arrive
-# as data under `data.authz.config`. The browser decision is advisory; the
-# gateway is the only security authority.
+# decisions. It names no capability, role, provider secret, tenant, domain or
+# group: the catalogue, the role hierarchy, the claim-to-role map and the route
+# table live in the data files beside this policy, and the environment values
+# arrive as `data.authz.config`. The browser decision is advisory; the gateway
+# is the only security authority.
 
 package authz
 
-# The capability catalogue. `nav.*` drive what the shell shows; `action.*` drive
-# what a request control allows.
-capability_ids := [
-	"nav.overview",
-	"nav.account",
-	"nav.api.profile",
-	"nav.api.projects",
-	"action.api.send.read",
-	"action.api.send.write",
-]
+# The capability catalogue, role hierarchy and route table are data; the engine
+# derives every set below from them.
+capability_ids := {cap | some cap, _ in data.authz.catalogue}
 
-# Overview and Account are available to any signed-in session; every other
-# capability depends on the provider's claims.
-baseline_capabilities := {"nav.overview", "nav.account"}
+baseline_capabilities := {cap | some cap, entry in data.authz.catalogue; entry.kind == "baseline"}
 
-# Read capabilities use the provider's read rule; the write capability uses its
-# write rule.
-read_capabilities := {"nav.api.profile", "nav.api.projects", "action.api.send.read"}
+read_capabilities := {cap | some cap, entry in data.authz.catalogue; entry.kind == "read"}
 
-# Capabilities that also require the provider's admin role or group.
-admin_capabilities := {"nav.api.projects"}
+write_capabilities := {cap | some cap, entry in data.authz.catalogue; entry.kind == "write"}
 
-write_capabilities := {"action.api.send.write"}
-
-provider_capabilities := read_capabilities | write_capabilities
+provider_capabilities := capability_ids - baseline_capabilities
 
 # Grant matching accepts the set, array and space-delimited string forms, so a
 # caller that has not normalised its scopes still gets the same decision.
@@ -49,19 +37,6 @@ scope_granted(scopes, required) if {
 	required in split(scopes, " ")
 }
 
-# Read capabilities need the read scope, the write capability the write scope.
-scope_for(cap) := "workspace:read" if {
-	cap in read_capabilities
-}
-
-scope_for(cap) := "workspace:write" if {
-	not cap in read_capabilities
-}
-
-scope_ok(cap) if {
-	scope_granted(input.claims.scopes, scope_for(cap))
-}
-
 # The neutral reason codes, in the order the browser's single `reason` picks one.
 # A gateway wrapper translates them to the audit strings the access log carries.
 reason_precedence := [
@@ -73,10 +48,68 @@ reason_precedence := [
 	"wrong_domain",
 	"email_unverified",
 	"missing_scope",
+	"insufficient_role",
 ]
 
 signed_in if {
 	input.claims.has_subject == true
+}
+
+# An unknown or missing provider fails closed.
+known_provider if {
+	data.authz.providers[input.provider]
+}
+
+uses_scopes if {
+	data.authz.providers[input.provider].uses_scopes == true
+}
+
+# A principal's effective roles are its granted roles plus everything those
+# roles include. The hierarchy is stored flattened, so one step is enough.
+effective_roles := granted_roles | {included |
+	some role in granted_roles
+	some included in data.authz.roles[role].includes
+}
+
+granted_roles := data.authz.providers[input.provider].granted_roles
+
+capability_role(cap) := role if {
+	role := data.authz.catalogue[cap].role
+	role != null
+}
+
+# Provider gate failures cover the base gate (subject, tenant/domain, email) and
+# the provider's method rules, never scope or role. A provider that does not
+# exist contributes no gate failures; the unknown-provider rule below denies.
+gate_failures(cap) := failures if {
+	known_provider
+	failures := data.authz.providers[input.provider].gate_failures[cap]
+}
+
+gate_failures(_) := set() if {
+	not known_provider
+}
+
+# `insufficient_role` is reported only after the base gate passes (ignoring the
+# provider's method rule), so a principal that fails the base gate keeps exactly
+# the gate codes it had before.
+base_gate_passed(cap) if {
+	count(gate_failures(cap) - {"method_not_allowed"}) == 0
+}
+
+scope_failures(cap) := {code |
+	code := "missing_scope"
+	uses_scopes
+	scope := data.authz.catalogue[cap].scope
+	scope != null
+	not scope_granted(input.claims.scopes, scope)
+}
+
+role_failures(cap) := {code |
+	code := "insufficient_role"
+	required := capability_role(cap)
+	base_gate_passed(cap)
+	not required in effective_roles
 }
 
 # A denied capability carries the set of neutral codes that failed; an allowed
@@ -91,13 +124,10 @@ deny_reasons(cap) := set() if {
 	signed_in
 }
 
-known_provider if {
-	data.authz.providers[input.provider]
-}
-
-deny_reasons(cap) := data.authz.providers[input.provider].deny_by_capability[cap] if {
+deny_reasons(cap) := reasons if {
 	not cap in baseline_capabilities
-	input.provider
+	known_provider
+	reasons := (gate_failures(cap) | scope_failures(cap)) | role_failures(cap)
 }
 
 # An unknown or missing provider fails closed.
@@ -128,20 +158,31 @@ decision(cap) := {"allowed": false, "reason": primary_reason(capability_deny_rea
 	count(capability_deny_reasons(cap)) > 0
 }
 
-# The gateway maps its (method, path) to a capability through this table. The
-# path is suffix-matched because APISIX passes the full `/entra/v1/me` URI.
+# The gateway maps its (method, path) to a capability through the route table.
+# The path is suffix-matched because APISIX passes the full prefixed URI; the
+# longest matching suffix wins, and the fallbacks cover every other request.
 safe_methods := {"GET", "HEAD", "OPTIONS"}
 
-capability_for(method, path) := "nav.api.projects" if {
+route_matches(path) := [route |
+	some route in data.authz.routes.suffixes
+	endswith(path, route.suffix)
+]
+
+capability_for(method, path) := capability if {
 	method in safe_methods
-	endswith(path, "/v1/projects")
+	matches := route_matches(path)
+	count(matches) > 0
+	longest := max([count(route.suffix) | some route in matches])
+	some route in matches
+	count(route.suffix) == longest
+	capability := route.capability
 }
 
-capability_for(method, path) := "nav.api.profile" if {
+capability_for(method, path) := data.authz.routes.fallback.safe if {
 	method in safe_methods
-	not endswith(path, "/v1/projects")
+	count(route_matches(path)) == 0
 }
 
-capability_for(method, _) := "action.api.send.write" if {
+capability_for(method, _) := data.authz.routes.fallback.unsafe if {
 	not method in safe_methods
 }
