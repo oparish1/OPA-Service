@@ -5,6 +5,7 @@
     "nav.api.profile": { "kind": "read", "role": "user", "scope": "workspace:read" },
     "action.api.send.read": { "kind": "read", "role": "user", "scope": "workspace:read" },
     "nav.api.projects": { "kind": "read", "role": "admin", "scope": "workspace:read" },
-    "action.api.send.write": { "kind": "write", "role": "user", "scope": "workspace:write" }
+    "action.api.send.write": { "kind": "write", "role": "user", "scope": "workspace:write" },
+    "action.projects.delete": { "kind": "write", "role": "admin", "scope": "workspace:write" }
   }
 }

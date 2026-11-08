@@ -1,4 +1,4 @@
 { "config": {
-    "entra":  { "tenant": "" },
+    "entra":  { "tenant": "7cc3305d-a9e5-46db-ada9-fbff379f9e53" },
     "okta":   {},
     "google": { "hosted_domain": "" } } }
