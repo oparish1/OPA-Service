@@ -219,6 +219,11 @@ test_integrity_routes if {
 		some fallback, cap in data.authz.routes.fallback
 		not data.authz.catalogue[cap]
 	}) == 0
+	count({[suffix] |
+		some route in data.authz.routes.suffixes
+		suffix := route.suffix
+		data.authz.catalogue[route.capability].kind == "baseline"
+	}) == 0
 }
 
 provider_failure_codes(provider) := {code |
@@ -305,4 +310,34 @@ test_scale if {
 
 	limited := data.authz.capabilities with input as scale_input("Workspace.Level1") with data.authz.catalogue as scale_catalogue with data.authz.roles as scale_roles with data.authz.role_map as {"entra": {"Workspace.Level1": "level1"}} with data.authz.config as fixture_config
 	count({cap | some cap, decision in limited; decision.allowed; cap != "scale.baseline"}) == 0
+}
+
+# --- route kind and fallback cases ------------------------------------------
+
+test_unsafe_method_uses_route if {
+	capability_for("POST", "/entra/v1/projects/42/delete") == "action.projects.delete"
+	capability_for("POST", "/entra/add_customer") == "data.customer.write"
+}
+
+test_wildcard_route_matches if {
+	capability_for("GET", "/entra/v1/projects/42") == "nav.api.projects"
+	capability_for("GET", "/entra/get_customer_list") == "data.customer.list"
+}
+
+test_write_method_never_matches_read_route if {
+	capability_for("DELETE", "/entra/v1/projects/42") == "action.api.send.write"
+	capability_for("POST", "/entra/v1/projects") == "action.api.send.write"
+}
+
+test_safe_method_never_matches_write_route if {
+	capability_for("GET", "/entra/v1/projects/42/delete") == "nav.api.profile"
+	capability_for("GET", "/entra/add_customer") == "nav.api.profile"
+}
+
+test_unmatched_unsafe_uses_fallback if {
+	capability_for("POST", "/entra/v1/me") == "action.api.send.write"
+}
+
+test_unmatched_safe_uses_fallback if {
+	capability_for("GET", "/entra/v1/me") == "nav.api.profile"
 }

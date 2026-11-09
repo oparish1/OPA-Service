@@ -14,25 +14,32 @@ test_gateway_parity if {
 
 route_capabilities := {route.capability | some route in data.authz.routes.suffixes} | {data.authz.routes.fallback.safe, data.authz.routes.fallback.unsafe}
 
-route_request(cap, provider) := {"method": "GET", "path": sprintf("/%s%s", [provider, route.suffix])} if {
+route_requests(cap, provider) := ({req |
 	some route in data.authz.routes.suffixes
 	route.capability == cap
-}
-
-route_request(cap, provider) := {"method": "GET", "path": sprintf("/%s/v1/me", [provider])} if {
+	req := {"method": route_method(cap), "path": sprintf("/%s%s", [provider, route.suffix])}
+} | {req |
 	cap == data.authz.routes.fallback.safe
+	req := {"method": "GET", "path": sprintf("/%s/v1/me", [provider])}
+}) | {req |
+	cap == data.authz.routes.fallback.unsafe
+	req := {"method": "POST", "path": sprintf("/%s/v1/me", [provider])}
 }
 
-route_request(cap, provider) := {"method": "POST", "path": sprintf("/%s/v1/me", [provider])} if {
-	cap == data.authz.routes.fallback.unsafe
+route_method(cap) := "GET" if data.authz.catalogue[cap].kind == "read"
+
+route_method(cap) := "POST" if data.authz.catalogue[cap].kind == "write"
+
+shared_allowed(cap, persona, request) := allowed if {
+	allowed := count(data.authz.capability_deny_reasons(cap)) == 0 with input as authz_input(persona, request) with data.authz.config as data.fixtures.config
 }
 
 parity_mismatches contains mismatch if {
 	some persona in data.fixtures.personas
 	some cap in route_capabilities
-	request := route_request(cap, persona.provider)
+	some request in route_requests(cap, persona.provider)
 	gateway := provider_allow(persona.provider, token_input(persona, request))
-	shared := data.authz.capabilities[cap].allowed with input as authz_input(persona, request) with data.authz.config as data.fixtures.config
+	shared := shared_allowed(cap, persona, request)
 	gateway != shared
 	mismatch := {"persona": persona.id, "capability": cap, "gateway": gateway, "shared": shared}
 }

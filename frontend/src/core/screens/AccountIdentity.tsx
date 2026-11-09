@@ -24,6 +24,15 @@ const CAPABILITY_LABELS: Record<CapabilityId, string> = {
   'nav.api.projects': 'Projects API',
   'action.api.send.read': 'Send read requests',
   'action.api.send.write': 'Send write requests',
+  'action.projects.delete': 'Delete projects',
+  'action.unmapped.write': 'Make changes to unmapped resources',
+  'data.actor.list': 'View the actor list',
+  'data.customer.details': 'View customer details',
+  'data.customer.list': 'View the customer list',
+  'data.customer.write': 'Edit customer records',
+  'data.film.list': 'View the film list',
+  'data.staff.list': 'View the staff list',
+  'data.unmapped': 'View unmapped resources',
 };
 
 function initials(name: string): string {

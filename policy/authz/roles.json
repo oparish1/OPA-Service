@@ -2,7 +2,8 @@
   "roles": {
     "viewer": { "includes": [] },
     "user": { "includes": ["viewer"] },
-    "admin": { "includes": ["user", "viewer"] },
-    "auditor": { "includes": ["viewer"] }
+    "admin": { "includes": ["user", "viewer", "customers_reader"] },
+    "auditor": { "includes": ["viewer", "customers_reader"] },
+    "customers_reader": { "includes": [] }
   }
 }

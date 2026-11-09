@@ -155,18 +155,25 @@ decision(cap) := {"allowed": false, "reason": primary_reason(capability_deny_rea
 }
 
 # The gateway maps its (method, path) to a capability through the route table.
-# The path is suffix-matched because APISIX passes the full prefixed URI; the
-# longest matching suffix wins, and the fallbacks cover every other request.
+# Suffix patterns may contain `*` (one path segment). The leading `**` lets the
+# pattern match after whatever prefix APISIX adds to the URI. The longest
+# matching suffix wins, and the fallbacks cover every request no route matches.
 safe_methods := {"GET", "HEAD", "OPTIONS"}
 
-route_matches(path) := [route |
+# A safe method may only match a read route and an unsafe method only a write
+# route, so a mutating request can never be authorised as a read capability.
+route_kind(method) := "read" if method in safe_methods
+
+route_kind(method) := "write" if not method in safe_methods
+
+route_matches(method, path) := [route |
 	some route in data.authz.routes.suffixes
-	endswith(path, route.suffix)
+	data.authz.catalogue[route.capability].kind == route_kind(method)
+	glob.match(concat("", ["**", route.suffix]), ["/"], path)
 ]
 
 capability_for(method, path) := capability if {
-	method in safe_methods
-	matches := route_matches(path)
+	matches := route_matches(method, path)
 	count(matches) > 0
 	longest := max([count(route.suffix) | some route in matches])
 	some route in matches
@@ -176,9 +183,10 @@ capability_for(method, path) := capability if {
 
 capability_for(method, path) := data.authz.routes.fallback.safe if {
 	method in safe_methods
-	count(route_matches(path)) == 0
+	count(route_matches(method, path)) == 0
 }
 
-capability_for(method, _) := data.authz.routes.fallback.unsafe if {
+capability_for(method, path) := data.authz.routes.fallback.unsafe if {
 	not method in safe_methods
+	count(route_matches(method, path)) == 0
 }

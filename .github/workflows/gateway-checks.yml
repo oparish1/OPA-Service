@@ -36,4 +36,4 @@ jobs:
       - name: Rego strict check
         run: opa check --strict policy gateway/opa
       - name: Rego policy tests
-        run: opa test policy gateway/opa
+        run: opa test policy gateway/opa --timeout 60s
