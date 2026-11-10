@@ -256,7 +256,8 @@ describe('OPA deployment', () => {
 
   test('container-to-container discovery and issuer URLs match the plaintext test issuers', () => {
     const apisixEnv = compose.services.apisix.environment ?? {};
-    const issuerHosts = new Set(['entra-issuer', 'okta-issuer', 'google-issuer']);
+    const issuerServices = PROVIDERS.map(provider => `${provider}-issuer`);
+    const issuerHosts = new Set(issuerServices);
     for (const [name, value] of Object.entries(apisixEnv)) {
       if (!/_DISCOVERY$|_ISSUER$/.test(name)) continue;
       if (!issuerHosts.has(new URL(value).hostname)) continue;
@@ -264,7 +265,7 @@ describe('OPA deployment', () => {
     }
     // The test issuers publish discovery through a plain Bun.serve with no tls
     // option, so their advertised origin must be plaintext too.
-    for (const service of ['entra-issuer', 'okta-issuer', 'google-issuer']) {
+    for (const service of issuerServices) {
       const origin = compose.services[service].environment?.ISSUER_ORIGIN;
       expect(origin, service).toBeDefined();
       expect(origin?.startsWith('http://'), service).toBe(true);
