@@ -15,8 +15,8 @@ import { AUTHZ_REASONS, CAPABILITY_IDS } from '../types';
 
 const REPO_ROOT = new URL('../../../../../', import.meta.url).pathname.replace(/^\/@fs/, '');
 const POLICY_DIR = join(REPO_ROOT, 'frontend', 'public', 'policy');
-const PERSONAS = join(REPO_ROOT, 'policy', 'fixtures', 'personas.json');
-const SNAPSHOT = join(REPO_ROOT, 'policy', 'fixtures', 'matrix.snapshot.json');
+const PERSONAS = join(REPO_ROOT, 'authz-service', 'fixtures', 'personas.json');
+const SNAPSHOT = join(REPO_ROOT, 'authz-service', 'fixtures', 'matrix.snapshot.json');
 
 interface Decision {
   allowed: boolean;

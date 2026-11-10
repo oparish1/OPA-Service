@@ -1,4 +1,4 @@
-package entra
+package authz.v1.gateway.entra
 
 import data.testutil
 

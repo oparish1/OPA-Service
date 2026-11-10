@@ -1,6 +1,6 @@
 import { loadPolicy } from '@open-policy-agent/opa-wasm';
 import type { LoadedPolicy } from '@open-policy-agent/opa-wasm';
-import { AUTHZ_TABLE_NAMES } from './tables';
+import { AUTHZ_TABLE_NAMES } from '../../../../shared/authz-tables';
 import type { AuthzInput, Capabilities } from './types';
 
 /**

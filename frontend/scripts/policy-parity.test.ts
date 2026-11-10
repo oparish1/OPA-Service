@@ -18,22 +18,22 @@ describe('single policy source (A10)', () => {
   it.skipIf(OPA === null)('fails both suites when a shared rule is removed', () => {
     const dir = mkdtempSync(join(tmpdir(), 'authz-parity-'));
     try {
-      cpSync(join(REPO_ROOT, 'policy'), join(dir, 'policy'), { recursive: true });
+      cpSync(join(REPO_ROOT, 'authz-service'), join(dir, 'authz-service'), { recursive: true });
       cpSync(join(REPO_ROOT, 'gateway', 'opa'), join(dir, 'gateway', 'opa'), { recursive: true });
 
-      const entra = join(dir, 'policy', 'authz', 'providers', 'entra.rego');
+      const entra = join(dir, 'authz-service', 'authz', 'providers', 'entra.rego');
       const original = readFileSync(entra, 'utf8');
       const mutated = original.replace('uses_scopes := true', 'uses_scopes := false');
       expect(mutated).not.toBe(original);
       writeFileSync(entra, mutated);
 
-      const result = spawnSync(OPA as string, ['test', join(dir, 'policy'), join(dir, 'gateway', 'opa')], {
+      const result = spawnSync(OPA as string, ['test', join(dir, 'authz-service'), join(dir, 'gateway', 'opa')], {
         encoding: 'utf8',
       });
       const output = `${result.stdout}\n${result.stderr}`;
       expect(result.status).not.toBe(0);
       expect(output).toContain('data.authz.test_gate_cases: FAIL');
-      expect(output).toContain('data.entra.test_missing_scope_is_denied: FAIL');
+      expect(output).toContain('data.authz.v1.gateway.entra.test_missing_scope_is_denied: FAIL');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

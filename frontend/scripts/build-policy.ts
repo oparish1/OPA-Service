@@ -3,12 +3,12 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AUTHZ_TABLE_NAMES } from '../src/core/authz/tables';
+import { AUTHZ_TABLE_NAMES } from '../../shared/authz-tables';
 import { PROVIDER_IDS } from '../../shared/providers';
 
 /**
- * Compiles the shared `policy/authz/` Rego to WebAssembly for the browser. The
- * gateway imports the same package directly, so the two sides cannot drift. The
+ * Compiles the shared `authz-service/authz/` Rego to WebAssembly for the browser.
+ * The gateway imports the same package directly, so the two sides cannot drift. The
  * output is a content-hashed `.wasm`, the static tables the browser must supply
  * with its runtime config, and a manifest naming both; all are build artifacts
  * and are never committed.
@@ -129,7 +129,7 @@ export async function buildPolicyWasm(options: BuildPolicyOptions = {}): Promise
   const opa = locateOpa(options.opaBin);
   if (!opa) throw new Error('opa was not found; install OPA 1.4.2 or set OPA_BIN');
   const repoRoot = options.repoRoot ?? REPO_ROOT;
-  const policyDir = options.policyDir ?? join(repoRoot, 'policy', 'authz');
+  const policyDir = options.policyDir ?? join(repoRoot, 'authz-service', 'authz');
   const work = mkdtempSync(join(tmpdir(), 'authz-policy-'));
   try {
     const bundle = join(work, 'bundle.tar.gz');
@@ -185,7 +185,7 @@ export function writePolicyArtifacts(
 
 async function main(): Promise<void> {
   const outDir = process.env.AUTHZ_OUT_DIR ?? DEFAULT_OUT_DIR;
-  const policyDir = join(REPO_ROOT, 'policy', 'authz');
+  const policyDir = join(REPO_ROOT, 'authz-service', 'authz');
   const wasm = await buildPolicyWasm();
   const { wasmFile } = writePolicyArtifacts(wasm, readPolicyTables(policyDir), outDir);
   console.log(`built ${wasmFile} (${wasm.byteLength} bytes)`);

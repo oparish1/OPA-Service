@@ -10,10 +10,11 @@ identity-provider secret in the app, the repository or the gateway route files.
 Each identity provider lives entirely in its own folder so it can be taken on
 its own:
 
-- `frontend/src/core/` holds provider-neutral code; `gateway/opa/` holds the
-  provider-neutral policy helpers.
+- `frontend/src/core/` holds provider-neutral code;
+  `authz-service/authz/v1/gateway/` holds the provider-neutral policy helpers.
 - `frontend/src/providers/{entra,okta,google}/` and the matching
-  `gateway/opa/<id>.rego` hold one provider each.
+  `authz-service/authz/v1/gateway/<id>.rego` hold one provider each; the
+  `gateway/opa/<id>.rego` shim delegates to that wrapper.
 - `frontend/src/providers/index.ts` is the single frontend registry that
   composes the providers; `shared/providers.ts` remains the provider-neutral
   wire contract; `shared/app-config.ts` is the shared public-config schema.
@@ -21,10 +22,11 @@ its own:
   `shared/providers.ts`, `shared/app-config.ts`, the per-provider folders and
   `gateway/apisix/apisix.yaml` name more than one provider.
 
-Adding a provider touches its folder, its `policy/authz/providers/<id>.rego` and
-`role_map` entry, its `gateway/opa/<id>.rego` and its route in
-`gateway/apisix/apisix.yaml`, adds its id to `shared/providers.ts` and adds one
-registry entry; removing one deletes those.
+Adding a provider touches its folder, its `authz-service/authz/providers/<id>.rego`
+and `role_map` entry, its `authz-service/authz/v1/gateway/<id>.rego` wrapper and
+its `gateway/opa/<id>.rego` shim, and its route in `gateway/apisix/apisix.yaml`,
+adds its id to `shared/providers.ts` and adds one registry entry; removing one
+deletes those.
 
 ## Architecture
 
@@ -49,9 +51,9 @@ scope, claim and method rules, then sets `X-User-Issuer`, `X-User-Subject` and
 `X-User-Provider` from the validated token. The gateway itself serves the
 `/v1/me` and `/v1/projects` demo bodies; the golden bodies captured from the
 backend before deletion are kept in `gateway/fixtures/` as the A17 reference.
-The claim rules live once in `policy/authz/`: the gateway wrappers import them
-and the browser compiles the same package to WASM to hide or disable controls.
-UI authorization is advisory; the gateway enforces.
+The claim rules live once in `authz-service/authz/`: the gateway wrappers import
+them and the browser compiles the same package to WASM to hide or disable
+controls. UI authorization is advisory; the gateway enforces.
 
 ## Local setup
 
@@ -131,16 +133,18 @@ a courtesy; the security bound is the token lifetime checked at the gateway.
 
 ## Advisory UI authorization
 
-The claim rules live once, in `policy/authz/` (Rego v1). The capability
+The claim rules live once, in `authz-service/authz/` (Rego v1). The capability
 catalogue, role hierarchy, claim-to-role map and route table are non-secret
-static data in `policy/authz/{catalogue,roles,role_map,routes}.json`; the engine
-derives every capability set, the effective roles and the per-capability deny
-set from them, and names no capability, role or provider. Each provider file in
-`policy/authz/providers/` supplies only its own claim logic: the roles it grants
-through the shared map, the gate failures it raises, and whether scopes apply.
-Each gateway wrapper in `gateway/opa/` imports the shared package, keeps only
-the audience and issuer checks, and translates the shared reason codes to the
-`X-Auth-Reason` strings the access log has always carried.
+static data in `authz-service/authz/{catalogue,roles,role_map,routes}.json`; the
+engine derives every capability set, the effective roles and the per-capability
+deny set from them, and names no capability, role or provider. Each provider
+file in `authz-service/authz/providers/` supplies only its own claim logic: the
+roles it grants through the shared map, the gate failures it raises, and whether
+scopes apply. Each gateway wrapper in `authz-service/authz/v1/gateway/` imports
+the shared package, keeps only the audience and issuer checks, and translates
+the shared reason codes to the `X-Auth-Reason` strings the access log has always
+carried; the `gateway/opa/*.rego` shims keep the historical APISIX package names
+and delegate to those wrappers.
 
 The browser compiles the same package with `opa build -t wasm` to
 `frontend/public/policy/authz.<hash>.wasm` (about 180 KB, under a 1 MB budget)
@@ -157,32 +161,33 @@ without touching the gateway.
 The bundle pins `@open-policy-agent/opa-wasm` `1.10.0`; the build and CI use OPA
 `1.4.2`. `bun run build:policy` compiles and validates the wasm (rejecting a
 built-in the WASM target cannot execute) before the Vite build copies it from
-`public/policy/`, which is git-ignored. `policy/fixtures/matrix.snapshot.json`
+`public/policy/`, which is git-ignored. `authz-service/fixtures/matrix.snapshot.json`
 is the committed decision grid for the personas in
-`policy/fixtures/personas.json`; a frontend test loads the compiled wasm and
+`authz-service/fixtures/personas.json`; a frontend test loads the compiled wasm and
 asserts it matches, and CI fails when the policy changes without regenerating
 either artifact.
 
 ### How to add a capability, a role or a route
 
-- **Capability.** Add one entry to `policy/authz/catalogue.json`
+- **Capability.** Add one entry to `authz-service/authz/catalogue.json`
   (`{"kind": "read" | "write" | "baseline", "role": <role or null>, "scope":
   "workspace:read" | "workspace:write" | null}`), a route entry to
-  `policy/authz/routes.json` when it is API-backed, and copy only if it
+  `authz-service/authz/routes.json` when it is API-backed, and copy only if it
   introduces a new reason code. No Rego change.
-- **Role.** Add one entry to `policy/authz/roles.json` with its flattened
-  `includes`, map the provider claim values in `policy/authz/role_map.json`, and
+- **Role.** Add one entry to `authz-service/authz/roles.json` with its flattened
+  `includes`, map the provider claim values in `authz-service/authz/role_map.json`, and
   use it in catalogue entries. No Rego change.
 - **Route.** Add `{"suffix": ..., "capability": ...}` to `routes.json`; the
   longest matching suffix wins, and the `safe`/`unsafe` fallbacks cover the
   rest.
-- **Provider.** Add `policy/authz/providers/<id>.rego` honouring the provider
-  contract, role-map and config data, a `gateway/opa/<id>.rego` wrapper and a
-  frontend `claims.ts`.
+- **Provider.** Add `authz-service/authz/providers/<id>.rego` honouring the
+  provider contract, role-map and config data, an
+  `authz-service/authz/v1/gateway/<id>.rego` wrapper, a `gateway/opa/<id>.rego`
+  shim and a frontend `claims.ts`.
 
 After any policy change run `bun run gen:authz`, which regenerates
 `frontend/src/core/authz/generated.ts` (the `CapabilityId` and reason unions)
-and `policy/fixtures/matrix.snapshot.json`; review the snapshot diff, then
+and `authz-service/fixtures/matrix.snapshot.json`; review the snapshot diff, then
 commit both. CI runs `bun run check:authz` and fails when either is stale.
 
 A frontend test evaluates a generated 150-capability catalogue through the
@@ -208,9 +213,9 @@ fresh clone:
 cd gateway && bun install --frozen-lockfile
 cd ..
 bun test gateway                 # parses and asserts the APISIX route config
-opa fmt --fail --list policy gateway/opa
-opa check --strict policy gateway/opa
-opa test policy gateway/opa      # shared policy, gateway wrappers and the golden table
+opa fmt --fail --list authz-service gateway/opa
+opa check --strict authz-service gateway/opa
+opa test authz-service gateway/opa      # shared policy, gateway wrappers and the golden table
 ```
 
 The existing gateway negative tests still deny out-of-role, out-of-group,

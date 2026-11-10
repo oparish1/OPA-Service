@@ -213,7 +213,7 @@ describe('golden fixtures (A17)', () => {
 describe('fixture body routing (R1)', () => {
   test('the admin-only projects body is served only for a path ending with the policy route suffix', () => {
     const routes = JSON.parse(
-      readFileSync(join(GATEWAY_DIR, '..', 'policy', 'authz', 'routes.json'), 'utf8')
+      readFileSync(join(GATEWAY_DIR, '..', 'authz-service', 'authz', 'routes.json'), 'utf8')
     ) as { routes: { suffixes: Array<{ suffix: string; capability: string }> } };
     const projects = routes.routes.suffixes.find(route => route.capability === 'nav.api.projects');
     if (!projects) throw new Error('the policy route table has no nav.api.projects suffix');
@@ -233,7 +233,7 @@ describe('OPA deployment', () => {
       services: { opa: { command: string[]; volumes: string[] } };
     };
     const { command, volumes } = compose.services.opa;
-    const sharedMount = volumes.find(entry => entry.startsWith('../policy/authz'));
+    const sharedMount = volumes.find(entry => entry.startsWith('../authz-service/authz'));
     expect(sharedMount).toBeDefined();
     expect(sharedMount).toContain('/policies/authz');
     // The runtime root must cover the mount so the wrappers can compile.
