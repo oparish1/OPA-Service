@@ -12,10 +12,10 @@ import { locateOpa } from './build-policy';
 
 const MODULE_DIR = (import.meta as unknown as { dir?: string }).dir ?? process.cwd();
 const REPO_ROOT = join(MODULE_DIR, '..', '..');
-const POLICY_DIR = join(REPO_ROOT, 'policy');
-const PERSONAS_PATH = join(POLICY_DIR, 'fixtures', 'personas.json');
+const POLICY_DIR = join(REPO_ROOT, 'authz-service');
+const PERSONAS_PATH = join(REPO_ROOT, 'authz-service', 'fixtures', 'personas.json');
 const TYPES_PATH = join(MODULE_DIR, '..', 'src', 'core', 'authz', 'generated.ts');
-const SNAPSHOT_PATH = join(POLICY_DIR, 'fixtures', 'matrix.snapshot.json');
+const SNAPSHOT_PATH = join(REPO_ROOT, 'authz-service', 'fixtures', 'matrix.snapshot.json');
 
 interface Persona {
   id: string;

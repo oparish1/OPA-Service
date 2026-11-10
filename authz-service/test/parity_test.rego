@@ -46,17 +46,17 @@ parity_mismatches contains mismatch if {
 
 provider_allow(provider, token) := result if {
 	provider == "entra"
-	result := data.entra.allow with input as token
+	result := data.authz.v1.gateway.entra.allow with input as token
 }
 
 provider_allow(provider, token) := result if {
 	provider == "okta"
-	result := data.okta.allow with input as token
+	result := data.authz.v1.gateway.okta.allow with input as token
 }
 
 provider_allow(provider, token) := result if {
 	provider == "google"
-	result := data.google.allow with input as token
+	result := data.authz.v1.gateway.google.allow with input as token
 }
 
 token_input(persona, request) := testutil.input_for_path(request.method, request.path, token_payload(persona), provider_labels(persona.provider))

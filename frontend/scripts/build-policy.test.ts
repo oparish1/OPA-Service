@@ -17,7 +17,7 @@ describe('policy build', () => {
       async () => {
         const dir = mkdtempSync(join(tmpdir(), 'authz-planted-'));
         try {
-          cpSync(join(REPO_ROOT, 'policy', 'authz'), join(dir, 'authz'), { recursive: true });
+          cpSync(join(REPO_ROOT, 'authz-service', 'authz'), join(dir, 'authz'), { recursive: true });
           writeFileSync(
             join(dir, 'authz', 'providers', `${provider}.rego`),
             readFileSync(join(FIXTURES, `unsupported-built-in-${provider}.rego`))

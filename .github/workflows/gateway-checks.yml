@@ -5,13 +5,13 @@ on:
     paths:
       - 'gateway/**'
       - 'shared/**'
-      - 'policy/**'
+      - 'authz-service/**'
       - '.github/workflows/gateway-checks.yml'
   pull_request:
     paths:
       - 'gateway/**'
       - 'shared/**'
-      - 'policy/**'
+      - 'authz-service/**'
       - '.github/workflows/gateway-checks.yml'
 
 jobs:
@@ -32,8 +32,8 @@ jobs:
           curl -fsSL -o /usr/local/bin/opa https://openpolicyagent.org/downloads/v1.4.2/opa_linux_amd64_static
           chmod +x /usr/local/bin/opa
       - name: Rego formatting
-        run: opa fmt --fail --list policy gateway/opa
+        run: opa fmt --fail --list authz-service gateway/opa
       - name: Rego strict check
-        run: opa check --strict policy gateway/opa
+        run: opa check --strict authz-service gateway/opa
       - name: Rego policy tests
-        run: opa test policy gateway/opa --timeout 60s
+        run: opa test authz-service gateway/opa --timeout 60s

@@ -1,4 +1,4 @@
-package common
+package authz.v1.gateway.common
 
 # Provider-neutral helpers for the APISIX OPA policies. The APISIX
 # `openid-connect` plugin has already verified the token signature, issuer,

@@ -20,11 +20,12 @@ references environment variables by name only.
   route runs `openid-connect` (bearer-only, JWKS, pinned issuer) then `opa`
   (per-provider policy, `with_route`), then `serverless-post-function` builds
   the `/v1` fixture body after authorization.
-- `opa/*.rego` — provider wrappers that import the shared `policy/authz/`
-  claim rules and keep only the gateway-only audience/issuer checks, with unit
-  tests (`opa test policy gateway/opa`).
-- `../policy/authz/` — the one shared Rego source the wrappers enforce and the
-  browser compiles to WASM for advisory UI decisions. The capability
+- `opa/*.rego` — provider shims that keep the historical APISIX package names
+  and delegate to the wrappers in `../authz-service/authz/v1/gateway/`, which
+  import the shared `authz-service/authz/` claim rules and keep only the
+  gateway-only audience/issuer checks (`opa test authz-service gateway/opa`).
+- `../authz-service/authz/` — the one shared Rego source the wrappers enforce
+  and the browser compiles to WASM for advisory UI decisions. The capability
   catalogue, role hierarchy, claim-to-role map and route table are the static
   tables beside the engine (`catalogue.json`, `roles.json`, `role_map.json`,
   `routes.json`); the provider files under `providers/` supply only claim
@@ -45,7 +46,7 @@ performs the cryptographic validation (signature, `iss`, `exp`/`nbf`, algorithm)
 and the `opa` plugin owns the audience plus the per-provider scope, claim and
 method rules. OPA returns the `X-User-*` headers and, on deny, the `X-Auth-*`
 audit headers the access log reads. The browser compiles the same
-`policy/authz/` package to WASM for advisory nav and button decisions; it never
+`authz-service/authz/` package to WASM for advisory nav and button decisions; it never
 replaces the gateway decision.
 
 ## Secret placeholders
@@ -73,9 +74,9 @@ the repository root:
 cd gateway && bun install --frozen-lockfile
 cd ..
 bun test gateway        # Docker-free route config assertions
-opa fmt --fail --list policy gateway/opa
-opa check --strict policy gateway/opa
-opa test policy gateway/opa    # shared policy, wrappers and the golden table
+opa fmt --fail --list authz-service gateway/opa
+opa check --strict authz-service gateway/opa
+opa test authz-service gateway/opa    # shared policy, wrappers and the golden table
 ```
 
 The Docker integration gate is `bun run gateway/test-issuers/acceptance.ts`; it

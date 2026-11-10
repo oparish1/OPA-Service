@@ -1,4 +1,4 @@
-package okta
+package authz.v1.gateway.okta
 
 import data.testutil
 

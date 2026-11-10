@@ -34,11 +34,12 @@ except where issue #12 explicitly reverses them.
 ## Architecture
 
 - **Rule: each provider stays in its own folder.**
-  - `frontend/src/core/` holds provider-neutral browser code; `gateway/opa/`
-    holds provider-neutral Rego helpers.
+  - `frontend/src/core/` holds provider-neutral browser code;
+    `authz-service/authz/v1/gateway/` holds provider-neutral Rego helpers.
   - `frontend/src/providers/{entra,okta,google}/` hold one provider each;
-    `gateway/opa/{entra,okta,google}.rego` hold one provider's authorization
-    policy each.
+    `authz-service/authz/v1/gateway/{entra,okta,google}.rego` hold one
+    provider's authorization policy each; `gateway/opa/{entra,okta,google}.rego`
+    are shims that delegate to those wrappers.
   - `frontend/src/providers/index.ts` is the single frontend registry;
     `shared/providers.ts` defines `PROVIDER_IDS`; `shared/app-config.ts` defines
     the public-config schema.
@@ -55,7 +56,7 @@ except where issue #12 explicitly reverses them.
     allowlist.
   - `main.tsx` loads and validates `config.json`, installs the registry, handles
     the provider redirect callback and renders the app.
-  - `authz/` evaluates the shared `policy/authz/` Rego compiled to WASM once
+  - `authz/` evaluates the shared `authz-service/authz/` Rego compiled to WASM once
     after sign-in and again after a renewal changes claims, caches one
     capability map and fails closed to a baseline floor. UI authorization is
     advisory; the gateway enforces.
@@ -67,10 +68,12 @@ except where issue #12 explicitly reverses them.
     for cryptographic validation and `opa` for audience, scope, claim and method
     authorization, then `serverless-post-function` builds the `/v1` golden
     fixture body.
-  - `opa/*.rego` import the shared `policy/authz/` claim rules, keep only the
-    gateway-only audience and issuer checks, and return `allow`, the `X-User-*`
-    headers, and on deny the `X-Auth-*` audit headers (provider, subject,
-    decision, reason) the access log reads for GW-8.
+  - `authz-service/authz/v1/gateway/*.rego` import the shared
+    `authz-service/authz/` claim rules, keep only the gateway-only audience and
+    issuer checks, and return `allow`, the `X-User-*` headers, and on deny the
+    `X-Auth-*` audit headers (provider, subject, decision, reason) the access
+    log reads for GW-8. `gateway/opa/*.rego` are shims that keep the historical
+    APISIX package names and delegate to those wrappers.
   - `fixtures/` holds the `/v1` golden bodies captured from the deleted backend.
   - `test-issuers/` is the local OIDC issuer the Docker integration script uses;
     it never calls a real provider.
@@ -105,19 +108,20 @@ except where issue #12 explicitly reverses them.
   `blocked_host`. It fails closed: unknown origins send nothing, an unset link
   is hidden, and a disabled provider route is absent.
 - Tests sit next to each provider (`frontend/src/providers/*/__tests__`) and
-  cover gateway behaviour in `gateway/config.test.ts` and `gateway/opa/*_test.rego`.
+  cover gateway behaviour in `gateway/config.test.ts` and `authz-service/test/*_test.rego`.
 - Commit messages are short and imperative, describing the result.
 - **Checks:** `bun run lint && bun run typecheck && bun run build && bun run test && bun run check:catch && bun run check:authz`
-  in `frontend/`; `bun test gateway` and `opa test policy gateway/opa` from the root.
+  in `frontend/`; `bun test gateway` and `opa test authz-service gateway/opa` from the root.
   The two provider-boundary scripts run from the repository root.
 
 ## Catalogue-driven authorization (issue #24)
 
-The shared policy is data-driven. `policy/authz/` holds the neutral Rego engine
-and the four static tables (`catalogue.json`, `roles.json`, `role_map.json`,
-`routes.json`); the engine derives every capability set, the effective roles and
-the per-capability deny set from them. Each `policy/authz/providers/` file keeps
-only its own claim logic. `frontend/src/core/authz/generated.ts` and
-`policy/fixtures/matrix.snapshot.json` are generated from the policy by
+The shared policy is data-driven. `authz-service/authz/` holds the neutral Rego
+engine and the four static tables (`catalogue.json`, `roles.json`,
+`role_map.json`, `routes.json`); the engine derives every capability set, the
+effective roles and the per-capability deny set from them. Each
+`authz-service/authz/providers/` file keeps only its own claim logic.
+`frontend/src/core/authz/generated.ts` and
+`authz-service/fixtures/matrix.snapshot.json` are generated from the policy by
 `bun run gen:authz` and checked by `bun run check:authz` in CI, so the browser
 types and the decision grid cannot drift from the gateway rules.

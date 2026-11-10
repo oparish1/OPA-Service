@@ -1,4 +1,4 @@
-package google
+package authz.v1.gateway.google
 
 import data.testutil
 
