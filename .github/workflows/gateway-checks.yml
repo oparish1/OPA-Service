@@ -39,13 +39,14 @@ jobs:
         run: opa test authz-service gateway/opa --timeout 60s
       - name: Start gateway stack
         run: docker compose -f gateway/docker-compose.yml up -d
-      - name: Wait for the gateway
+      - name: Wait for the gateway stack
         run: |
           for _ in $(seq 1 60); do
-            if curl -fsS http://localhost:9080/health >/dev/null; then exit 0; fi
+            if curl -fsS http://localhost:9080/health >/dev/null && \
+               curl -fsS http://localhost:8181/health >/dev/null; then exit 0; fi
             sleep 2
           done
-          echo "gateway did not become healthy" >&2
+          echo "gateway stack did not become healthy" >&2
           docker compose -f gateway/docker-compose.yml logs >&2
           exit 1
       - name: Gateway transport smoke
