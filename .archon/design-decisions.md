@@ -161,3 +161,16 @@ Round 3/4 UI decisions remain binding.
 - **No environment value in the policy.** Entra's tenant and Google's hosted
   domain remain `data.authz.config`, supplied from the public config and route
   labels; the static tables carry neither.
+
+## Gateway internal transport (issue #7)
+
+- **Container-to-container traffic in the gateway Compose stack is plaintext
+  HTTP.** APISIX calls OPA at `http://opa:8181` and the test issuers at
+  `http://<name>:80xx`, and the test issuers advertise `http://` origins. The
+  Compose network is private and no service in the stack terminates TLS.
+- **TLS is a browser-edge concern.** HTTPS is terminated in front of APISIX in
+  production; the local browser-to-APISIX edge is out of this decision.
+- **No certificate material or TLS flag is added** to OPA or the test issuers
+  (SD-11). The Docker-free config gate asserts that the APISIX `opa` plugin
+  scheme matches the OPA command's TLS flags and that every test-issuer URL in
+  the Compose stack is plaintext.

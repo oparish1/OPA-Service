@@ -9,12 +9,12 @@
  * after the Docker-free `bun test gateway` / `opa test gateway/opa`.
  */
 
-const GATEWAY = process.env.GATEWAY_URL ?? 'https://localhost:9080';
+const GATEWAY = process.env.GATEWAY_URL ?? 'http://localhost:9080';
 const APP_ORIGIN = process.env.APP_ORIGIN ?? 'https://localhost:5173';
 const ISSUERS = {
-  entra: process.env.ENTRA_ISSUER_URL ?? 'https://localhost:8090',
-  okta: process.env.OKTA_ISSUER_URL ?? 'https://localhost:8091',
-  google: process.env.GOOGLE_ISSUER_URL ?? 'https://localhost:8092',
+  entra: process.env.ENTRA_ISSUER_URL ?? 'http://localhost:8090',
+  okta: process.env.OKTA_ISSUER_URL ?? 'http://localhost:8091',
+  google: process.env.GOOGLE_ISSUER_URL ?? 'http://localhost:8092',
 } as const;
 
 type Provider = keyof typeof ISSUERS;

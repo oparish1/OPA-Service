@@ -37,3 +37,19 @@ jobs:
         run: opa check --strict authz-service gateway/opa
       - name: Rego policy tests
         run: opa test authz-service gateway/opa --timeout 60s
+      - name: Start gateway stack
+        run: docker compose -f gateway/docker-compose.yml up -d
+      - name: Wait for the gateway
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -fsS http://localhost:9080/health >/dev/null; then exit 0; fi
+            sleep 2
+          done
+          echo "gateway did not become healthy" >&2
+          docker compose -f gateway/docker-compose.yml logs >&2
+          exit 1
+      - name: Gateway acceptance
+        run: bun run gateway/test-issuers/acceptance.ts
+      - name: Tear down gateway stack
+        if: always()
+        run: docker compose -f gateway/docker-compose.yml down -v

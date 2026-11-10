@@ -63,7 +63,9 @@ values, and **no secret value is stored in this repository**.
 docker compose -f gateway/docker-compose.yml up
 ```
 
-The gateway listens on `https://localhost:9080`; OPA on `:8181`.
+The gateway listens on `http://localhost:9080`; OPA on `:8181`. The Compose
+network is plaintext on the private network — APISIX reaches OPA and the test
+issuers over `http://` — with TLS terminated in front of APISIX in production.
 
 ## Checks
 

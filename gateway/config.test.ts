@@ -7,7 +7,7 @@ import { findProviderIsolationViolations } from '../shared/provider-isolation';
 /**
  * Docker-free gateway gate. Parses the declarative APISIX route file and
  * asserts the security invariants the acceptance criteria depend on. The
- * Compose integration script is the second gate (gateway/test-issuers/run-acceptance.sh).
+ * Compose integration script is the second gate (gateway/test-issuers/acceptance.ts).
  */
 
 const GATEWAY_DIR = import.meta.dir;
@@ -101,7 +101,7 @@ describe('token validation (GW-3, A9, A10)', () => {
 
     test(`${provider}: opa decodes the verified token with route config`, () => {
       const opa = route.plugins?.opa as Record<string, unknown> | undefined;
-      expect(opa?.host).toBe('https://opa:8181');
+      expect(opa?.host).toBe('http://opa:8181');
       // Package-only: a `pkg/allow` path returns a bare boolean, discarding the
       // `headers`/`reason` custom response the audit log depends on.
       expect(opa?.policy).toBe(provider);
@@ -228,16 +228,47 @@ describe('fixture body routing (R1)', () => {
 });
 
 describe('OPA deployment', () => {
+  const compose = parse(readFileSync(join(GATEWAY_DIR, 'docker-compose.yml'), 'utf8')) as {
+    services: Record<
+      string,
+      { command?: string[]; volumes?: string[]; environment?: Record<string, string> }
+    >;
+  };
+
   test('the opa service loads the shared authz package, not just the wrappers', () => {
-    const compose = parse(readFileSync(join(GATEWAY_DIR, 'docker-compose.yml'), 'utf8')) as {
-      services: { opa: { command: string[]; volumes: string[] } };
-    };
     const { command, volumes } = compose.services.opa;
-    const sharedMount = volumes.find(entry => entry.startsWith('../authz-service/authz'));
+    const sharedMount = volumes?.find(entry => entry.startsWith('../authz-service/authz'));
     expect(sharedMount).toBeDefined();
     expect(sharedMount).toContain('/policies/authz');
     // The runtime root must cover the mount so the wrappers can compile.
-    expect(command.some(arg => arg === '/policies' || arg.startsWith('/policies'))).toBe(true);
+    expect(command?.some(arg => arg === '/policies' || arg.startsWith('/policies'))).toBe(true);
+  });
+
+  test('the opa plugin scheme matches the transport the opa service serves (A15, GW-7)', () => {
+    const command = compose.services.opa.command ?? [];
+    const tlsEnabled = command.some(arg => arg.startsWith('--tls'));
+    const expected = tlsEnabled ? 'https://opa:8181' : 'http://opa:8181';
+    for (const provider of PROVIDERS) {
+      const opa = routeFor(provider).plugins?.opa as Record<string, unknown> | undefined;
+      expect(opa?.host, provider).toBe(expected);
+    }
+  });
+
+  test('container-to-container discovery and issuer URLs match the plaintext test issuers', () => {
+    const apisixEnv = compose.services.apisix.environment ?? {};
+    const issuerHosts = new Set(['entra-issuer', 'okta-issuer', 'google-issuer']);
+    for (const [name, value] of Object.entries(apisixEnv)) {
+      if (!/_DISCOVERY$|_ISSUER$/.test(name)) continue;
+      if (!issuerHosts.has(new URL(value).hostname)) continue;
+      expect(value.startsWith('http://'), name).toBe(true);
+    }
+    // The test issuers publish discovery through a plain Bun.serve with no tls
+    // option, so their advertised origin must be plaintext too.
+    for (const service of ['entra-issuer', 'okta-issuer', 'google-issuer']) {
+      const origin = compose.services[service].environment?.ISSUER_ORIGIN;
+      expect(origin, service).toBeDefined();
+      expect(origin?.startsWith('http://'), service).toBe(true);
+    }
   });
 });
 
