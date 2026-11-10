@@ -9,7 +9,8 @@ services:
   apisix:
     image: apache/apisix:3.13.0-debian
     depends_on:
-      - opa
+      opa:
+        condition: service_healthy
     ports:
       - "9080:9080"
     volumes:
@@ -34,15 +35,50 @@ services:
       GOOGLE_HOSTED_DOMAIN: "agentic-advantage.com"
       GOOGLE_ISSUER: "https://accounts.google.com"
 
-  opa:
-    image: openpolicyagent/opa:1.4.2-static
-    command: ["run", "--server", "--addr=0.0.0.0:8181", "--log-level=error", "/policies", "/shared"]
+  # One-shot: resolves the published, signed bundle into a named volume before
+  # OPA starts. OPA verifies the signature; this only moves bytes.
+  bundle-fetch:
+    image: oven/bun:1
+    working_dir: /scripts
+    command: ["run", "/scripts/fetch-bundle.ts"]
+    user: "0:0"
+    restart: "no"
     volumes:
-      - ./opa:/policies:ro
-      # The shims import the shared policy, so it is a second OPA root. A nested
-      # mount under the read-only /policies root cannot be created at container
-      # start, so the shared package is mounted at its own root.
-      - ../authz-service/authz:/shared/authz:ro
+      - ./scripts/fetch-bundle.ts:/scripts/fetch-bundle.ts:ro
+      - bundle-data:/bundles
+    environment:
+      AUTHZ_BUNDLE_REF: "ghcr.io/oparish1/opa-service/authz-bundle:0.1.0"
+      AUTHZ_BUNDLE_OUT: "/bundles/authz-bundle.tar.gz"
+
+  opa:
+    # The debug image carries a shell and curl/wget; the static image is
+    # scratch-based and cannot run a container healthcheck. This stack is local.
+    image: openpolicyagent/opa:1.4.2-debug
+    command:
+      - run
+      - --server
+      - --addr=0.0.0.0:8181
+      - --log-level=error
+      - --config-file=/config/config.yaml
+      - --bundle
+      - --verification-key=/keys/bundle-signing.pub
+      - --signing-alg=ES256
+      - /bundles/authz-bundle.tar.gz
+    # OPA exits non-zero when the bundle fails verification, so a running
+    # container is itself proof the signature was accepted.
+    depends_on:
+      bundle-fetch:
+        condition: service_completed_successfully
+    volumes:
+      - bundle-data:/bundles:ro
+      - ./opa/config.yaml:/config/config.yaml:ro
+      - ../authz-service/keys/bundle-signing.pub:/keys/bundle-signing.pub:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8181/health?bundles=true"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
     ports:
       - "8181:8181"
 
@@ -84,3 +120,6 @@ services:
       PROVIDER: "google"
     ports:
       - "8092:8092"
+
+volumes:
+  bundle-data: {}

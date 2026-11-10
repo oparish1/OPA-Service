@@ -6,7 +6,7 @@
  *   bun run gateway/test-issuers/acceptance.ts
  *
  * It never calls a real identity provider, and it is the second gateway gate
- * after the Docker-free `bun test gateway` / `opa test gateway/opa`.
+ * after the Docker-free `bun test gateway` / `opa test authz-service`.
  */
 
 import { PROVIDER_IDS, type ProviderId } from '../../shared/providers';

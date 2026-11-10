@@ -110,7 +110,7 @@ describe('repository acceptance', () => {
       if (tenant) sensitive.add(tenant[1]);
     }
 
-    const policies = filesUnder(['authz-service', 'gateway/opa']).filter(
+    const policies = filesUnder(['authz-service']).filter(
       file => file.endsWith('.rego') && !file.endsWith('_test.rego')
     );
     expect(policies.length).toBeGreaterThan(0);

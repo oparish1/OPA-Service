@@ -103,9 +103,9 @@ Round 3/4 UI decisions remain binding.
   same shared Rego policy as OPA-WASM to decide what to show or enable; a
   browser decision is advisory and can never grant what the gateway refuses.
 - **One shared policy source.** `policy/authz/` holds the claim rules in Rego
-  v1; the gateway wrappers in `gateway/opa/` import it for enforcement and
-  `frontend/src/core/authz/` evaluates the compiled WASM copy for the UI. The
-  two sides never carry separate copies of the claim rules.
+  v1; the gateway wrappers in `authz-service/authz/v1/gateway/` import it for
+  enforcement and `frontend/src/core/authz/` evaluates the compiled WASM copy
+  for the UI. The two sides never carry separate copies of the claim rules.
 - **Fail closed.** If the WASM policy cannot load or evaluate, the UI keeps a
   baseline capability floor (Overview and Account) and enables nothing else.
 - **No environment value in Rego.** Tenant, domain and group values arrive as

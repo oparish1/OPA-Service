@@ -2,8 +2,8 @@
 
 The standalone authorization policy. It owns the shared Rego engine, the
 capability/role/route data tables and the versioned `authz.v1` API. The gateway
-and the browser still consume the same `authz` package during this extraction
-issue; repointing them to the published bundle is child `#2`/`#3`/`#4`.
+now pulls the signed bundle published from this service; the browser still
+compiles the same package to WASM, and repointing the backend OPA is child `#4`.
 
 ## Layout
 
@@ -17,8 +17,8 @@ issue; repointing them to the published bundle is child `#2`/`#3`/`#4`.
 - `authz/v1/gateway/` — the gateway wrapper logic, one package per provider
   (`authz.v1.gateway.<provider>`) plus the shared `authz.v1.gateway.common`
   helpers. Each wrapper keeps the gateway-only audience/issuer checks and the
-  audit vocabulary. The `gateway/opa/*.rego` files are compatibility shims that
-  keep the historical APISIX package names and delegate here.
+  audit vocabulary. The gateway consumes these packages from the published
+  bundle; the APISIX `opa` plugin queries `authz/v1/gateway/<provider>`.
 - `fixtures/` — the personas, gate cases, must-deny list and generated decision
   snapshot used by the tests and the frontend codegen.
 - `test/` — the shared engine suite, the provider wrapper suites, the
@@ -109,13 +109,12 @@ oras push --artifact-type application/vnd.opa.bundle.v1+json \
 From the repository root:
 
 ```sh
-opa fmt --fail --list authz-service gateway/opa
-opa check --strict authz-service gateway/opa
+opa fmt --fail --list authz-service
+opa check --strict authz-service
 opa test authz-service -v --timeout 60s
-opa test authz-service gateway/opa --timeout 60s
 bun run frontend/scripts/authz-codegen.ts check
 ```
 
-The first `opa test` is the acceptance command for the folder. The second adds
-the `gateway/opa` compatibility shims. The codegen check regenerates the
-frontend types and persona snapshot in memory and fails when either is stale.
+The `opa test` command is the acceptance command for the folder. The codegen
+check regenerates the frontend types and persona snapshot in memory and fails
+when either is stale.

@@ -38,8 +38,8 @@ except where issue #12 explicitly reverses them.
     `authz-service/authz/v1/gateway/` holds provider-neutral Rego helpers.
   - `frontend/src/providers/{entra,okta,google}/` hold one provider each;
     `authz-service/authz/v1/gateway/{entra,okta,google}.rego` hold one
-    provider's authorization policy each; `gateway/opa/{entra,okta,google}.rego`
-    are shims that delegate to those wrappers.
+    provider's authorization policy each; the published bundle exposes them at
+    `authz/v1/gateway/{entra,okta,google}`.
   - `frontend/src/providers/index.ts` is the single frontend registry;
     `shared/providers.ts` defines `PROVIDER_IDS`; `shared/app-config.ts` defines
     the public-config schema.
@@ -72,8 +72,8 @@ except where issue #12 explicitly reverses them.
     `authz-service/authz/` claim rules, keep only the gateway-only audience and
     issuer checks, and return `allow`, the `X-User-*` headers, and on deny the
     `X-Auth-*` audit headers (provider, subject, decision, reason) the access
-    log reads for GW-8. `gateway/opa/*.rego` are shims that keep the historical
-    APISIX package names and delegate to those wrappers.
+    log reads for GW-8. The published bundle carries those wrappers and the
+    `opa` service loads it in signed bundle mode with signature verification.
   - `fixtures/` holds the `/v1` golden bodies captured from the deleted backend.
   - `test-issuers/` is the local OIDC issuer the Docker integration script uses;
     it never calls a real provider.
@@ -111,7 +111,7 @@ except where issue #12 explicitly reverses them.
   cover gateway behaviour in `gateway/config.test.ts` and `authz-service/test/*_test.rego`.
 - Commit messages are short and imperative, describing the result.
 - **Checks:** `bun run lint && bun run typecheck && bun run build && bun run test && bun run check:catch && bun run check:authz`
-  in `frontend/`; `bun test gateway` and `opa test authz-service gateway/opa` from the root.
+  in `frontend/`; `bun test gateway` and `opa test authz-service` from the root.
   The two provider-boundary scripts run from the repository root.
 
 ## Catalogue-driven authorization (issue #24)

@@ -102,9 +102,10 @@ describe('token validation (GW-3, A9, A10)', () => {
 
     test(`${provider}: opa decodes the verified token with route config`, () => {
       const opa = route.plugins?.opa as Record<string, unknown> | undefined;
-      // Package-only: a `pkg/allow` path returns a bare boolean, discarding the
-      // `headers`/`reason` custom response the audit log depends on.
-      expect(opa?.policy).toBe(provider);
+      // The package path returns the full document — `allow`, `headers` and
+      // `reason` — which the plugin copies into the request/response. A
+      // `pkg/allow` path would return a bare boolean and discard them.
+      expect(opa?.policy).toBe(`authz/v1/gateway/${provider}`);
       expect(opa?.with_route).toBe(true);
       const headers = opa?.send_headers_upstream as string[];
       expect(headers).toContain('X-User-Issuer');
@@ -227,24 +228,67 @@ describe('fixture body routing (R1)', () => {
   });
 });
 
+interface ComposeService {
+  image?: string;
+  command?: string[];
+  volumes?: string[];
+  environment?: Record<string, string>;
+  depends_on?: Record<string, { condition?: string }>;
+  healthcheck?: { test?: string[] };
+}
+
 describe('OPA deployment', () => {
   const compose = parse(readFileSync(join(GATEWAY_DIR, 'docker-compose.yml'), 'utf8')) as {
-    services: Record<
-      string,
-      { command?: string[]; volumes?: string[]; environment?: Record<string, string> }
-    >;
+    services: Record<string, ComposeService>;
   };
+  const version = readFileSync(join(GATEWAY_DIR, '..', 'authz-service', 'VERSION'), 'utf8').trim();
 
-  test('the opa service loads the shared authz package, not just the wrappers', () => {
-    const { command, volumes } = compose.services.opa;
-    const sharedMount = volumes?.find(entry => entry.startsWith('../authz-service/authz'));
-    expect(sharedMount).toBeDefined();
-    expect(sharedMount).toContain('/shared/authz');
-    // The shared package mounts at its own root because a nested mount under the
-    // read-only /policies root cannot be created at container start.
-    expect(command?.includes('/shared')).toBe(true);
-    // The runtime root must cover the mount so the wrappers can compile.
-    expect(command?.some(arg => arg === '/policies' || arg.startsWith('/policies'))).toBe(true);
+  test('the opa container mounts no repository Rego', () => {
+    const { command, volumes = [] } = compose.services.opa;
+    expect(volumes.some(entry => entry.startsWith('./opa:'))).toBe(false);
+    expect(volumes.some(entry => entry.startsWith('../authz-service/authz'))).toBe(false);
+    expect(command ?? []).not.toContain('/policies');
+    expect(command?.some(arg => arg === '/shared' || arg.startsWith('/shared'))).toBe(false);
+  });
+
+  test('the opa service runs in signed bundle mode', () => {
+    const service = compose.services.opa;
+    expect(service.image).toBe('openpolicyagent/opa:1.4.2-debug');
+    const command = service.command ?? [];
+    expect(command).toContain('--config-file=/config/config.yaml');
+    expect(command).toContain('--bundle');
+    expect(command).toContain('/bundles/authz-bundle.tar.gz');
+    expect(command).toContain('--verification-key=/keys/bundle-signing.pub');
+    expect(command).toContain('--signing-alg=ES256');
+    expect(service.volumes).toContain('bundle-data:/bundles:ro');
+    expect(service.volumes).toContain('./opa/config.yaml:/config/config.yaml:ro');
+    expect(service.volumes).toContain(
+      '../authz-service/keys/bundle-signing.pub:/keys/bundle-signing.pub:ro'
+    );
+    expect(service.depends_on?.['bundle-fetch']?.condition).toBe('service_completed_successfully');
+  });
+
+  test('the bundle fetch pulls the version the repository publishes', () => {
+    const service = compose.services['bundle-fetch'];
+    expect(service).toBeDefined();
+    expect(service.image).toBe('oven/bun:1');
+    expect(service.environment?.AUTHZ_BUNDLE_OUT).toBe('/bundles/authz-bundle.tar.gz');
+    expect(service.environment?.AUTHZ_BUNDLE_REF).toBe(
+      `ghcr.io/oparish1/opa-service/authz-bundle:${version}`
+    );
+  });
+
+  test('the opa healthcheck gates the stack on bundle activation', () => {
+    const test = compose.services.opa.healthcheck?.test ?? [];
+    expect(test.some(argument => argument.includes('/health?bundles=true'))).toBe(true);
+    expect(compose.services.apisix.depends_on?.opa?.condition).toBe('service_healthy');
+  });
+
+  test('decision logs are enabled to the console', () => {
+    const deployed = parse(readFileSync(join(GATEWAY_DIR, 'opa', 'config.yaml'), 'utf8')) as {
+      decision_logs?: { console?: boolean };
+    };
+    expect(deployed.decision_logs?.console).toBe(true);
   });
 
   test('the opa plugin scheme matches the transport the opa service serves (A15, GW-7)', () => {

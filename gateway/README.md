@@ -10,7 +10,8 @@ references environment variables by name only.
 ## Pinned versions
 
 - APISIX `apache/apisix:3.13.0-debian` (SD-7).
-- OPA `openpolicyagent/opa:1.4.2-static`.
+- OPA `openpolicyagent/opa:1.4.2-debug` (the static image is scratch-based and
+  cannot run the container healthcheck).
 
 ## Layout
 
@@ -20,12 +21,16 @@ references environment variables by name only.
   route runs `openid-connect` (bearer-only, JWKS, pinned issuer) then `opa`
   (per-provider policy, `with_route`), then `serverless-post-function` builds
   the `/v1` fixture body after authorization.
-- `opa/*.rego` — provider shims that keep the historical APISIX package names
-  and delegate to the wrappers in `../authz-service/authz/v1/gateway/`, which
-  import the shared `authz-service/authz/` claim rules and keep only the
-  gateway-only audience/issuer checks (`opa test authz-service gateway/opa`).
-- `../authz-service/authz/` — the one shared Rego source the wrappers enforce
-  and the browser compiles to WASM for advisory UI decisions. The capability
+- `opa/config.yaml` — the OPA runtime config; it enables the console decision
+  log. OPA runs in signed bundle mode: the one-shot `bundle-fetch` service
+  anonymously pulls the signed artifact
+  `ghcr.io/oparish1/opa-service/authz-bundle:<version>` into a named volume and
+  `opa` loads it with `--bundle` + `--verification-key`. A bundle that fails
+  verification stops OPA before it serves, so no Rego is mounted from this repo.
+- `scripts/fetch-bundle.ts` — resolves the published bundle and writes its gzip
+  layer to the volume; OPA verifies the signature.
+- `../authz-service/authz/` — the one shared Rego source the published bundle
+  carries and the browser compiles to WASM for advisory UI decisions. The capability
   catalogue, role hierarchy, claim-to-role map and route table are the static
   tables beside the engine (`catalogue.json`, `roles.json`, `role_map.json`,
   `routes.json`); the provider files under `providers/` supply only claim
@@ -63,9 +68,13 @@ values, and **no secret value is stored in this repository**.
 docker compose -f gateway/docker-compose.yml up
 ```
 
-The gateway listens on `http://localhost:9080`; OPA on `:8181`. The Compose
-network is plaintext on the private network — APISIX reaches OPA and the test
-issuers over `http://` — with TLS terminated in front of APISIX in production.
+The gateway listens on `http://localhost:9080`; OPA on `:8181`. `bundle-fetch`
+runs once before OPA starts and pulls the published bundle from GHCR. The
+Compose network is plaintext on the private network — APISIX reaches OPA and the
+test issuers over `http://` — with TLS terminated in front of APISIX in
+production. OPA decision logs go to its console (`docker compose logs opa`);
+`/health` is liveness and `/health?bundles=true` is readiness, and the APISIX
+container waits for the OPA healthcheck.
 
 ## Checks
 
@@ -76,9 +85,9 @@ the repository root:
 cd gateway && bun install --frozen-lockfile
 cd ..
 bun test gateway        # Docker-free route config assertions
-opa fmt --fail --list authz-service gateway/opa
-opa check --strict authz-service gateway/opa
-opa test authz-service gateway/opa    # shared policy, wrappers and the golden table
+opa fmt --fail --list authz-service
+opa check --strict authz-service
+opa test authz-service    # shared policy, wrappers and the golden table
 ```
 
 The Docker integration gate is `bun run gateway/test-issuers/transport-smoke.ts`
