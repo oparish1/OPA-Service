@@ -10,7 +10,8 @@ issue; repointing them to the published bundle is child `#2`/`#3`/`#4`.
 - `authz/` — the shared engine (`authz.rego`), the provider claim files under
   `providers/`, and the four static tables (`catalogue.json`, `roles.json`,
   `role_map.json`, `routes.json`). `data.json` and `input.json` are local dev
-  samples; the bundle build merges `data.json` with the tables.
+  samples; the bundle build merges only the four tables, and consumers supply
+  `data.authz.config` at runtime.
 - `authz/v1/` — the stable `authz.v1` entry points: `capabilities.rego` and
   `check.rego`.
 - `authz/v1/gateway/` — the gateway wrapper logic, one package per provider
@@ -70,11 +71,12 @@ bun run authz-service/scripts/build-bundle.ts \
   --out /tmp/authz-bundle.tar.gz
 ```
 
-The script stages `authz-service/authz`, merges `data.json` and the four table
-files into the staged `authz/data.json`, builds and signs the bundle with
-OPA-native ES256, verifies the signature against the supplied public key and
-asserts that `data.authz.catalogue` is non-empty. A successful run prints the
-bundle path, revision and capability count.
+The script stages `authz-service/authz`, merges the four table files into the
+staged `authz/data.json`, builds and signs the bundle with OPA-native ES256,
+verifies the signature against the supplied public key and asserts that every
+shared table is present and no environment config (`data.authz.config`) was
+baked in. A successful run prints the bundle path, revision and capability
+count.
 
 To publish locally against a registry:
 
@@ -88,18 +90,19 @@ oras push --artifact-type application/vnd.opa.bundle.v1+json \
 ## Signing-key management
 
 - **Generation.** The production key is an EC P-256 key pair:
-  `openssl ecparam -name prime256v1 -genkey -noout -out private.pem` and
-  `openssl ec -in private.pem -pubout -out authz-service/keys/bundle-signing.pub`.
+  `openssl ecparam -name prime256v1 -genkey -noout -out /tmp/private.pem` and
+  `openssl ec -in /tmp/private.pem -pubout -out authz-service/keys/bundle-signing.pub`.
   The private PEM is never committed; the matching public PEM is.
 - **Storage.** The private PEM lives in the GitHub Actions secret
   `AUTHZ_BUNDLE_SIGNING_KEY`. The publish workflow writes it to a temporary file,
   builds the bundle, and deletes the file in an `always()` step. The committed
   public key is what consumers and CI verify against.
-- **Rotation.** Generate a new P-256 pair. Add its public key under a new key id
-  alongside the current `bundle-signing.pub`, publish a bundle signed with the
-  new private key, ship the updated verification key to consumers, then retire
-  the old key id. Replace the `AUTHZ_BUNDLE_SIGNING_KEY` secret only when the
-  new key is ready to sign.
+- **Rotation.** Generate a new P-256 pair. Replace the public key at
+  `authz-service/keys/bundle-signing.pub` (or point the workflow's
+  `--verification-key` at the new key file), publish a bundle signed with the
+  new private key, ship the updated verification key to consumers, then remove
+  the old key from consumers. Replace the `AUTHZ_BUNDLE_SIGNING_KEY` secret only
+  when the new key is ready to sign.
 
 ## Checks
 

@@ -2,6 +2,8 @@ name: Authz service checks
 
 on:
   push:
+    branches:
+      - '**'
     paths:
       - 'authz-service/**'
       - 'gateway/opa/**'
@@ -32,6 +34,8 @@ jobs:
         run: opa check --strict authz-service
       - name: Rego policy tests
         run: opa test authz-service -v --timeout 60s
+      - name: Bundle table drift
+        run: bun test authz-service/scripts/build-bundle.test.ts
       - name: Generated authz artifacts
         run: bun run frontend/scripts/authz-codegen.ts check
 

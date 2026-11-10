@@ -38,7 +38,7 @@ test_v1_check_allows_a_read if {
 }
 
 test_v1_check_denies_a_write_missing_its_scope if {
-	allowed := data.authz.v1.check.allowed with input as {
+	request_input := {
 		"subject": {
 			"provider": "entra",
 			"claims": {
@@ -54,25 +54,9 @@ test_v1_check_denies_a_write_missing_its_scope if {
 		"action": "POST",
 		"resource": "/entra/v1/projects",
 	}
-		with data.authz.config as data.fixtures.config
+	allowed := data.authz.v1.check.allowed with input as request_input with data.authz.config as data.fixtures.config
 	not allowed
-	reason := data.authz.v1.check.reason with input as {
-		"subject": {
-			"provider": "entra",
-			"claims": {
-				"has_subject": true,
-				"roles": ["Workspace.User"],
-				"groups": [],
-				"scopes": ["workspace:read"],
-				"tenant": "tenant-1",
-				"hd": "",
-				"email_verified": false,
-			},
-		},
-		"action": "POST",
-		"resource": "/entra/v1/projects",
-	}
-		with data.authz.config as data.fixtures.config
+	reason := data.authz.v1.check.reason with input as request_input with data.authz.config as data.fixtures.config
 	reason == "missing_scope"
 }
 
