@@ -73,6 +73,9 @@ cd frontend && bun run dev
 Copy `frontend/public/config.example.json` to `frontend/public/config.json`
 and fill in the provider client IDs, issuers, the gateway URL and the O-20
 account destinations. The example file is committed with placeholders only.
+The local Compose gateway serves plaintext HTTP on `http://localhost:9080` and
+terminates no TLS, so the example's `https://localhost:9080` assumes a TLS
+terminator in front of APISIX, as in production.
 
 ### Gateway configuration
 

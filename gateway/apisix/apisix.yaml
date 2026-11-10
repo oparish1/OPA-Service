@@ -47,7 +47,7 @@ routes:
             valid_issuers:
               - "${{ENTRA_ISSUER}}"
       opa:
-        host: "https://opa:8181"
+        host: "http://opa:8181"
         policy: "entra"
         with_route: true
         send_headers_upstream:
@@ -126,7 +126,7 @@ routes:
             valid_issuers:
               - "${{OKTA_ISSUER}}"
       opa:
-        host: "https://opa:8181"
+        host: "http://opa:8181"
         policy: "okta"
         with_route: true
         send_headers_upstream:
@@ -206,7 +206,7 @@ routes:
             valid_issuers:
               - "${{GOOGLE_ISSUER}}"
       opa:
-        host: "https://opa:8181"
+        host: "http://opa:8181"
         policy: "google"
         with_route: true
         send_headers_upstream:

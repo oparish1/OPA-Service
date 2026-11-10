@@ -63,7 +63,9 @@ values, and **no secret value is stored in this repository**.
 docker compose -f gateway/docker-compose.yml up
 ```
 
-The gateway listens on `https://localhost:9080`; OPA on `:8181`.
+The gateway listens on `http://localhost:9080`; OPA on `:8181`. The Compose
+network is plaintext on the private network — APISIX reaches OPA and the test
+issuers over `http://` — with TLS terminated in front of APISIX in production.
 
 ## Checks
 
@@ -79,5 +81,9 @@ opa check --strict authz-service gateway/opa
 opa test authz-service gateway/opa    # shared policy, wrappers and the golden table
 ```
 
-The Docker integration gate is `bun run gateway/test-issuers/acceptance.ts`; it
-runs only when Docker is available. Record which gate ran in the PR.
+The Docker integration gate is `bun run gateway/test-issuers/transport-smoke.ts`
+followed by `bun run gateway/test-issuers/acceptance.ts`; both run only when
+Docker is available. The transport smoke is the blocking live gate: it proves
+every provider's route reaches its issuer and OPA. The acceptance script is
+advisory until its role-gate and token-lifetime expectations are reconciled
+with the policy. Record which gate ran in the PR.

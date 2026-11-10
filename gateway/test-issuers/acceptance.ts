@@ -9,15 +9,12 @@
  * after the Docker-free `bun test gateway` / `opa test gateway/opa`.
  */
 
-const GATEWAY = process.env.GATEWAY_URL ?? 'https://localhost:9080';
-const APP_ORIGIN = process.env.APP_ORIGIN ?? 'https://localhost:5173';
-const ISSUERS = {
-  entra: process.env.ENTRA_ISSUER_URL ?? 'https://localhost:8090',
-  okta: process.env.OKTA_ISSUER_URL ?? 'https://localhost:8091',
-  google: process.env.GOOGLE_ISSUER_URL ?? 'https://localhost:8092',
-} as const;
+import { PROVIDER_IDS, type ProviderId } from '../../shared/providers';
+import { GATEWAY, ISSUERS } from './issuers';
 
-type Provider = keyof typeof ISSUERS;
+const APP_ORIGIN = process.env.APP_ORIGIN ?? 'https://localhost:5173';
+
+type Provider = ProviderId;
 type Claims = Record<string, unknown>;
 
 let failures = 0;
@@ -63,7 +60,7 @@ const neutralMe = {
 };
 
 async function main(): Promise<void> {
-  for (const provider of Object.keys(ISSUERS) as Provider[]) {
+  for (const provider of PROVIDER_IDS) {
     const valid = await mint(provider, { claims: neutralMe });
 
     console.log(`A9 ${provider}: valid and invalid tokens`);
