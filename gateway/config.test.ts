@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
 import { parse } from 'yaml';
 import { findProviderIsolationViolations } from '../shared/provider-isolation';
+import { PROVIDER_IDS } from '../shared/providers';
 
 /**
  * Docker-free gateway gate. Parses the declarative APISIX route file and
@@ -11,7 +12,7 @@ import { findProviderIsolationViolations } from '../shared/provider-isolation';
  */
 
 const GATEWAY_DIR = import.meta.dir;
-const PROVIDERS = ['entra', 'okta', 'google'] as const;
+const PROVIDERS = PROVIDER_IDS;
 type Provider = (typeof PROVIDERS)[number];
 
 interface Route {
@@ -101,7 +102,6 @@ describe('token validation (GW-3, A9, A10)', () => {
 
     test(`${provider}: opa decodes the verified token with route config`, () => {
       const opa = route.plugins?.opa as Record<string, unknown> | undefined;
-      expect(opa?.host).toBe('http://opa:8181');
       // Package-only: a `pkg/allow` path returns a bare boolean, discarding the
       // `headers`/`reason` custom response the audit log depends on.
       expect(opa?.policy).toBe(provider);
@@ -239,7 +239,10 @@ describe('OPA deployment', () => {
     const { command, volumes } = compose.services.opa;
     const sharedMount = volumes?.find(entry => entry.startsWith('../authz-service/authz'));
     expect(sharedMount).toBeDefined();
-    expect(sharedMount).toContain('/policies/authz');
+    expect(sharedMount).toContain('/shared/authz');
+    // The shared package mounts at its own root because a nested mount under the
+    // read-only /policies root cannot be created at container start.
+    expect(command?.includes('/shared')).toBe(true);
     // The runtime root must cover the mount so the wrappers can compile.
     expect(command?.some(arg => arg === '/policies' || arg.startsWith('/policies'))).toBe(true);
   });

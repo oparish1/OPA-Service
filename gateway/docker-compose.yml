@@ -36,11 +36,13 @@ services:
 
   opa:
     image: openpolicyagent/opa:1.4.2-static
-    command: ["run", "--server", "--addr=0.0.0.0:8181", "--log-level=error", "/policies"]
+    command: ["run", "--server", "--addr=0.0.0.0:8181", "--log-level=error", "/policies", "/shared"]
     volumes:
       - ./opa:/policies:ro
-      # The shims import the shared policy, so authz-service is a second OPA root.
-      - ../authz-service/authz:/policies/authz:ro
+      # The shims import the shared policy, so it is a second OPA root. A nested
+      # mount under the read-only /policies root cannot be created at container
+      # start, so the shared package is mounted at its own root.
+      - ../authz-service/authz:/shared/authz:ro
     ports:
       - "8181:8181"
 
