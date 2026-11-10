@@ -10,24 +10,20 @@ default allowed := false
 
 default reason := ""
 
-allowed if {
+decision := result if {
 	capability := data.authz.capability_for(input.action, input.resource)
 	subject_input := {
 		"provider": input.subject.provider,
 		"claims": input.subject.claims,
 		"request": {"method": input.action, "path": input.resource},
 	}
-	decision := data.authz.decision(capability) with input as subject_input
+	result := data.authz.decision(capability) with input as subject_input
+}
+
+allowed if {
 	decision.allowed
 }
 
 reason := decision.reason if {
-	capability := data.authz.capability_for(input.action, input.resource)
-	subject_input := {
-		"provider": input.subject.provider,
-		"claims": input.subject.claims,
-		"request": {"method": input.action, "path": input.resource},
-	}
-	decision := data.authz.decision(capability) with input as subject_input
 	not decision.allowed
 }

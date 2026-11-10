@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { AUTHZ_TABLE_NAMES } from '../../shared/authz-tables';
 
 /**
  * Builds and signs the authz bundle. `opa build -b` only reads a file named
@@ -16,7 +17,9 @@ const SERVICE_DIR = join(import.meta.dir, '..');
 const AUTHZ_DIR = join(SERVICE_DIR, 'authz');
 const DEFAULT_OUT = join(SERVICE_DIR, 'dist', 'authz-bundle.tar.gz');
 const DEFAULT_REVISION = readFileSync(join(SERVICE_DIR, 'VERSION'), 'utf8').trim();
-const DATA_FILES = ['data', 'catalogue', 'roles', 'role_map', 'routes'] as const;
+// `data` is the dev config document, not a shipped table, so it is named here
+// beside the shared table owner rather than being another hand-written list.
+const DATA_FILES = ['data', ...AUTHZ_TABLE_NAMES] as const;
 
 interface Options {
   out: string;

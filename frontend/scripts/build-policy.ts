@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AUTHZ_TABLE_NAMES } from '../src/core/authz/tables';
+import { AUTHZ_TABLE_NAMES } from '../../shared/authz-tables';
 import { PROVIDER_IDS } from '../../shared/providers';
 
 /**
