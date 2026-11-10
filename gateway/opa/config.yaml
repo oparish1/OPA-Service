@@ -1,2 +1,3 @@
 decision_logs:
   console: true
+  mask_decision: /system/log/mask

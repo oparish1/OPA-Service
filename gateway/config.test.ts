@@ -257,15 +257,37 @@ describe('OPA deployment', () => {
     const command = service.command ?? [];
     expect(command).toContain('--config-file=/config/config.yaml');
     expect(command).toContain('--bundle');
-    expect(command).toContain('/bundles/authz-service/dist/authz-bundle.tar.gz');
-    expect(command).toContain('--verification-key=/keys/bundle-signing.pub');
+    expect(command).toContain('/bundles/combined.tar.gz');
+    expect(command).toContain('--verification-key=/ephemeral/ephemeral.pub');
     expect(command).toContain('--signing-alg=ES256');
     expect(service.volumes).toContain('bundle-data:/bundles:ro');
+    expect(service.volumes).toContain('bundle-key-data:/ephemeral:ro');
     expect(service.volumes).toContain('./opa/config.yaml:/config/config.yaml:ro');
+    expect(service.depends_on?.['bundle-merge']?.condition).toBe('service_completed_successfully');
+  });
+
+  test('the bundle merge verifies the published bundle and adds the decision-log mask', () => {
+    const service = compose.services['bundle-merge'];
+    expect(service).toBeDefined();
+    expect(service.image).toBe('openpolicyagent/opa:1.4.2-debug');
+    const command = service.command ?? [];
+    expect(command).toContain('/bundles/authz-service/dist/authz-bundle.tar.gz');
+    expect(command).toContain('/keys/bundle-signing.pub');
+    expect(command).toContain('/mask/mask.rego');
     expect(service.volumes).toContain(
       '../authz-service/keys/bundle-signing.pub:/keys/bundle-signing.pub:ro'
     );
+    expect(service.volumes).toContain('./opa/mask.rego:/mask/mask.rego:ro');
     expect(service.depends_on?.['bundle-fetch']?.condition).toBe('service_completed_successfully');
+    expect(service.depends_on?.['bundle-key']?.condition).toBe('service_completed_successfully');
+  });
+
+  test('the re-signing key is generated, never committed', () => {
+    const service = compose.services['bundle-key'];
+    expect(service).toBeDefined();
+    expect(service.image).toBe('oven/bun:1');
+    expect(service.volumes).toContain('bundle-key-data:/ephemeral');
+    expect(service.volumes?.some(volume => volume.includes('ephemeral.pem'))).toBe(false);
   });
 
   test('the bundle fetch pulls the version the repository publishes', () => {
@@ -282,11 +304,18 @@ describe('OPA deployment', () => {
     expect(compose.services.apisix.depends_on?.opa?.condition).toBe('service_healthy');
   });
 
-  test('decision logs are enabled to the console', () => {
+  test('decision logs are enabled to the console and masked', () => {
     const deployed = parse(readFileSync(join(GATEWAY_DIR, 'opa', 'config.yaml'), 'utf8')) as {
-      decision_logs?: { console?: boolean };
+      decision_logs?: { console?: boolean; mask_decision?: string };
     };
     expect(deployed.decision_logs?.console).toBe(true);
+    expect(deployed.decision_logs?.mask_decision).toBe('/system/log/mask');
+  });
+
+  test('the decision-log mask erases the token and the matched route config', () => {
+    const mask = readFileSync(join(GATEWAY_DIR, 'opa', 'mask.rego'), 'utf8');
+    expect(mask).toContain('/input/request/headers/authorization');
+    expect(mask).toContain('/input/route/plugins');
   });
 
   test('the opa plugin scheme matches the transport the opa service serves (A15, GW-7)', () => {

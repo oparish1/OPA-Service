@@ -32,11 +32,11 @@ jobs:
           curl -fsSL -o /usr/local/bin/opa https://openpolicyagent.org/downloads/v1.4.2/opa_linux_amd64_static
           chmod +x /usr/local/bin/opa
       - name: Rego formatting
-        run: opa fmt --fail --list authz-service
+        run: opa fmt --fail --list authz-service gateway/opa
       - name: Rego strict check
-        run: opa check --strict authz-service
+        run: opa check --strict authz-service gateway/opa
       - name: Rego policy tests
-        run: opa test authz-service --timeout 60s
+        run: opa test authz-service gateway/opa --timeout 60s
       - name: Start gateway stack
         run: docker compose -f gateway/docker-compose.yml up -d
       - name: Wait for the gateway stack
@@ -52,7 +52,18 @@ jobs:
       - name: Gateway transport smoke
         run: bun run gateway/test-issuers/transport-smoke.ts
       - name: Gateway decision logs
-        run: docker compose -f gateway/docker-compose.yml logs opa | grep -q '"decision_id"'
+        run: |
+          logs=$(docker compose -f gateway/docker-compose.yml logs opa)
+          echo "$logs" | grep -q '"decision_id"'
+          echo "$logs" | grep -q '"erased"'
+          if echo "$logs" | grep -q 'Bearer '; then
+            echo "the decision log leaked the bearer token" >&2
+            exit 1
+          fi
+          if echo "$logs" | grep -q 'test-entra-secret'; then
+            echo "the decision log leaked the provider client secret" >&2
+            exit 1
+          fi
       # Advisory until the full acceptance script's role-gate and token-lifetime
       # expectations are reconciled with the policy; see gateway/README.md.
       - name: Gateway acceptance

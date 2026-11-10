@@ -45,6 +45,42 @@ services:
     volumes:
       - bundle-data:/bundles
 
+  # One-shot: the production signing key is not available to the stack, so the
+  # merge step below signs its combined bundle with a throwaway key.
+  bundle-key:
+    image: oven/bun:1
+    command: ["run", "/scripts/generate-bundle-key.ts"]
+    user: "0:0"
+    restart: "no"
+    volumes:
+      - ./scripts/generate-bundle-key.ts:/scripts/generate-bundle-key.ts:ro
+      - bundle-key-data:/ephemeral
+
+  # One-shot: verifies the published bundle against the committed key, adds the
+  # decision-log mask, and re-signs. OPA then loads only the combined bundle.
+  bundle-merge:
+    image: openpolicyagent/opa:1.4.2-debug
+    entrypoint: ["/bin/sh", "/scripts/merge-bundle.sh"]
+    command:
+      - /bundles/authz-service/dist/authz-bundle.tar.gz
+      - /keys/bundle-signing.pub
+      - /mask/mask.rego
+      - /ephemeral/ephemeral.pem
+      - /bundles/combined.tar.gz
+    user: "0:0"
+    restart: "no"
+    depends_on:
+      bundle-fetch:
+        condition: service_completed_successfully
+      bundle-key:
+        condition: service_completed_successfully
+    volumes:
+      - bundle-data:/bundles
+      - bundle-key-data:/ephemeral
+      - ./scripts/merge-bundle.sh:/scripts/merge-bundle.sh:ro
+      - ./opa/mask.rego:/mask/mask.rego:ro
+      - ../authz-service/keys/bundle-signing.pub:/keys/bundle-signing.pub:ro
+
   opa:
     # The debug image carries a shell and curl/wget; the static image is
     # scratch-based and cannot run a container healthcheck. This stack is local.
@@ -56,18 +92,19 @@ services:
       - --log-level=error
       - --config-file=/config/config.yaml
       - --bundle
-      - --verification-key=/keys/bundle-signing.pub
+      - --verification-key=/ephemeral/ephemeral.pub
       - --signing-alg=ES256
-      - /bundles/authz-service/dist/authz-bundle.tar.gz
-    # OPA exits non-zero when the bundle fails verification, so a running
-    # container is itself proof the signature was accepted.
+      - /bundles/combined.tar.gz
+    # The merge step re-signs the verified published bundle; OPA exits non-zero
+    # when that signature fails, so a running container is itself proof it was
+    # accepted.
     depends_on:
-      bundle-fetch:
+      bundle-merge:
         condition: service_completed_successfully
     volumes:
       - bundle-data:/bundles:ro
+      - bundle-key-data:/ephemeral:ro
       - ./opa/config.yaml:/config/config.yaml:ro
-      - ../authz-service/keys/bundle-signing.pub:/keys/bundle-signing.pub:ro
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8181/health?bundles=true"]
       interval: 5s
@@ -118,3 +155,4 @@ services:
 
 volumes:
   bundle-data: {}
+  bundle-key-data: {}
