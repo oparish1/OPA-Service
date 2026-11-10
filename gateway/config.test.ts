@@ -257,7 +257,7 @@ describe('OPA deployment', () => {
     const command = service.command ?? [];
     expect(command).toContain('--config-file=/config/config.yaml');
     expect(command).toContain('--bundle');
-    expect(command).toContain('/bundles/authz-bundle.tar.gz');
+    expect(command).toContain('/bundles/authz-service/dist/authz-bundle.tar.gz');
     expect(command).toContain('--verification-key=/keys/bundle-signing.pub');
     expect(command).toContain('--signing-alg=ES256');
     expect(service.volumes).toContain('bundle-data:/bundles:ro');
@@ -271,11 +271,9 @@ describe('OPA deployment', () => {
   test('the bundle fetch pulls the version the repository publishes', () => {
     const service = compose.services['bundle-fetch'];
     expect(service).toBeDefined();
-    expect(service.image).toBe('oven/bun:1');
-    expect(service.environment?.AUTHZ_BUNDLE_OUT).toBe('/bundles/authz-bundle.tar.gz');
-    expect(service.environment?.AUTHZ_BUNDLE_REF).toBe(
-      `ghcr.io/oparish1/opa-service/authz-bundle:${version}`
-    );
+    expect(service.image).toBe('ghcr.io/oras-project/oras:v1.2.0');
+    const ref = (service.command ?? []).find(argument => argument.startsWith('ghcr.io/'));
+    expect(ref).toBe(`ghcr.io/oparish1/opa-service/authz-bundle:${version}`);
   });
 
   test('the opa healthcheck gates the stack on bundle activation', () => {

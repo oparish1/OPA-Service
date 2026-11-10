@@ -27,8 +27,6 @@ references environment variables by name only.
   `ghcr.io/oparish1/opa-service/authz-bundle:<version>` into a named volume and
   `opa` loads it with `--bundle` + `--verification-key`. A bundle that fails
   verification stops OPA before it serves, so no Rego is mounted from this repo.
-- `scripts/fetch-bundle.ts` — resolves the published bundle and writes its gzip
-  layer to the volume; OPA verifies the signature.
 - `../authz-service/authz/` — the one shared Rego source the published bundle
   carries and the browser compiles to WASM for advisory UI decisions. The capability
   catalogue, role hierarchy, claim-to-role map and route table are the static

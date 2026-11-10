@@ -35,20 +35,15 @@ services:
       GOOGLE_HOSTED_DOMAIN: "agentic-advantage.com"
       GOOGLE_ISSUER: "https://accounts.google.com"
 
-  # One-shot: resolves the published, signed bundle into a named volume before
+  # One-shot: pulls the published, signed bundle into a named volume before
   # OPA starts. OPA verifies the signature; this only moves bytes.
   bundle-fetch:
-    image: oven/bun:1
-    working_dir: /scripts
-    command: ["run", "/scripts/fetch-bundle.ts"]
+    image: ghcr.io/oras-project/oras:v1.2.0
+    command: ["pull", "-o", "/bundles", "ghcr.io/oparish1/opa-service/authz-bundle:0.1.0"]
     user: "0:0"
     restart: "no"
     volumes:
-      - ./scripts/fetch-bundle.ts:/scripts/fetch-bundle.ts:ro
       - bundle-data:/bundles
-    environment:
-      AUTHZ_BUNDLE_REF: "ghcr.io/oparish1/opa-service/authz-bundle:0.1.0"
-      AUTHZ_BUNDLE_OUT: "/bundles/authz-bundle.tar.gz"
 
   opa:
     # The debug image carries a shell and curl/wget; the static image is
@@ -63,7 +58,7 @@ services:
       - --bundle
       - --verification-key=/keys/bundle-signing.pub
       - --signing-alg=ES256
-      - /bundles/authz-bundle.tar.gz
+      - /bundles/authz-service/dist/authz-bundle.tar.gz
     # OPA exits non-zero when the bundle fails verification, so a running
     # container is itself proof the signature was accepted.
     depends_on:
