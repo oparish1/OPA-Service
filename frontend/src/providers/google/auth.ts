@@ -135,7 +135,6 @@ function assertCredential(token: string): ProviderSession {
       accountId: stringClaim(claims, 'sub'),
       createdAt: '—',
     },
-    rawClaims: claims,
     accessToken: {
       value: token,
       expiresAt: formatTimestamp(new Date(exp * 1000)),

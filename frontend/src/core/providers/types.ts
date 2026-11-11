@@ -8,8 +8,6 @@ export interface ProviderSession {
   providerName: string;
   issuer: string;
   account: AccountSummary | null;
-  /** The verified claims the provider library exposed, normalized by the authz module. */
-  rawClaims: Record<string, unknown>;
   accessToken: {
     value: string;
     expiresAt: string;
