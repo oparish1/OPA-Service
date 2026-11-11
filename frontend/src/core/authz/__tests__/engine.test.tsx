@@ -81,6 +81,7 @@ describe('capability engine', () => {
     await refreshCapabilities();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://localhost:9080/entra/authz/capabilities');
     expect(getSnapshot().status).toBe('ready');
     expect(getSnapshot().capabilities['nav.api.profile']).toEqual({
       allowed: false,

@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { capabilitiesWith } from '../authz/testing';
+import { setAppConfig } from '../config';
 import { setProviderRegistry } from '../providers/active';
 import type { FrontendProviderModule, ProviderAuth, ProviderSession } from '../providers/types';
 import {
@@ -23,7 +25,6 @@ const PROVIDER_SESSION: ProviderSession = {
     accountId: 'subject-1',
     createdAt: '—',
   },
-  rawClaims: {},
   accessToken: { value: 'access-initial', expiresAt: 'soon', scopes: 'workspace:read' },
 };
 
@@ -90,6 +91,16 @@ afterEach(() => {
   setOnExpire(null);
   setSessionLimits({ idleMs: IDLE_LIMIT_MS, absoluteMs: ABSOLUTE_LIMIT_MS });
   vi.useRealTimers();
+  vi.unstubAllGlobals();
+  // The config store is process-wide; leave it disabled so no other test in this
+  // file reaches the network through the capability refresh.
+  setAppConfig({
+    gatewayUrl: 'https://localhost:9080',
+    authz: { enabled: false },
+    providers: [
+      { id: 'entra', name: 'Entra', clientId: 'client-id', issuer: 'https://issuer.example' },
+    ],
+  });
 });
 
 describe('real API seam', () => {
@@ -113,6 +124,36 @@ describe('real API seam', () => {
     expect(getSession()).not.toBeNull();
     vi.advanceTimersByTime(1);
     expect(getSession()).toBeNull();
+  });
+
+  it('refetches capabilities with the renewed token after a renewal (I1)', async () => {
+    setAppConfig({
+      gatewayUrl: 'https://localhost:9080',
+      authz: { enabled: true },
+      providers: [
+        { id: 'entra', name: 'Entra', clientId: 'client-id', issuer: 'https://issuer.example' },
+      ],
+    });
+    const calls: Array<{ url: string; authorization?: string }> = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+        calls.push({
+          url: String(url),
+          authorization: (init?.headers as Record<string, string> | undefined)?.authorization,
+        });
+        return { ok: true, status: 200, json: async () => capabilitiesWith({}) } as Response;
+      })
+    );
+
+    await signIn('test');
+    await refreshToken();
+
+    expect(calls.map(call => call.authorization)).toEqual([
+      'Bearer access-initial',
+      'Bearer access-renewed',
+    ]);
+    expect(calls[1]?.url).toBe('https://localhost:9080/test/authz/capabilities');
   });
 
   it('signs the provider out and clears the store on expiry (A7, SD-5)', async () => {
