@@ -10,7 +10,9 @@ import type { AuthzReason, Capabilities, Decision } from './types';
 
 export const AUTHZ_CAPABILITIES_PATH = '/authz/capabilities';
 
-const REASONS = new Set<string>(AUTHZ_REASONS);
+function isAuthzReason(value: unknown): value is AuthzReason {
+  return typeof value === 'string' && (AUTHZ_REASONS as readonly string[]).includes(value);
+}
 
 /** A stable failure code an operator can look up; never carries body content. */
 export class CapabilitiesError extends Error {
@@ -32,10 +34,8 @@ function parseDecision(value: unknown): Decision {
     throw new CapabilitiesError('capabilities_body_invalid');
   }
   if (record.allowed) return { allowed: true, reason: '' };
-  if (typeof record.reason !== 'string' || !REASONS.has(record.reason)) {
-    throw new CapabilitiesError('capabilities_body_invalid');
-  }
-  return { allowed: false, reason: record.reason as AuthzReason };
+  if (!isAuthzReason(record.reason)) throw new CapabilitiesError('capabilities_body_invalid');
+  return { allowed: false, reason: record.reason };
 }
 
 /** Requires every capability with a boolean decision and an allowed deny reason. */
