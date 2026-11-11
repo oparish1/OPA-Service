@@ -69,7 +69,7 @@ openssl ec -in /tmp/authz-signing.pem -pubout -out /tmp/authz-signing.pub
 bun run authz-service/scripts/build-bundle.ts \
   --signing-key /tmp/authz-signing.pem \
   --verification-key /tmp/authz-signing.pub \
-  --revision 0.2.0 \
+  --revision 0.2.1 \
   --out /tmp/authz-bundle.tar.gz
 ```
 
@@ -85,7 +85,7 @@ To publish locally against a registry:
 ```sh
 oras login ghcr.io -u <user>
 oras push --artifact-type application/vnd.opa.bundle.v1+json \
-  ghcr.io/<owner>/opa-service/authz-bundle:0.2.0 \
+  ghcr.io/<owner>/opa-service/authz-bundle:0.2.1 \
   /tmp/authz-bundle.tar.gz:application/vnd.opa.bundle.layer.v1+gzip
 ```
 
