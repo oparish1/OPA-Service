@@ -266,4 +266,258 @@ routes:
       type: roundrobin
       nodes:
         "127.0.0.1:1980": 1
+  # Capability retrieval is an authenticated read of the caller's own decisions,
+  # not a resource authorization, so each route runs openid-connect but not the
+  # `opa` plugin; the serverless function queries OPA and returns the map.
+  - id: entra-authz-capabilities
+    uri: /entra/authz/capabilities
+    priority: 10
+    labels:
+      provider: entra
+      audience: "${{ENTRA_API_RESOURCE}}"
+      tenant: "${{ENTRA_TENANT_ID}}"
+    plugins:
+      openid-connect:
+        client_id: "${{ENTRA_CLIENT_ID}}"
+        client_secret: "${{ENTRA_CLIENT_SECRET}}"
+        discovery: "${{ENTRA_DISCOVERY}}"
+        bearer_only: true
+        use_jwks: true
+        realm: entra
+        claim_validator:
+          issuer:
+            valid_issuers:
+              - "${{ENTRA_ISSUER}}"
+      limit-count:
+        count: 20
+        time_window: 60
+        key_type: var
+        key: remote_addr
+        rejected_code: 429
+        policy: local
+      cors:
+        allow_origins: "${{APP_ORIGIN}}"
+        allow_methods: "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS"
+        allow_headers: "Authorization,Content-Type,Accept,X-Requested-With"
+        expose_headers: "Content-Type,Content-Length,Date,Cache-Control,ETag,WWW-Authenticate,Retry-After,X-Request-ID"
+        max_age: 3600
+        allow_credential: false
+      response-rewrite:
+        headers:
+          set:
+            X-Content-Type-Options: nosniff
+            Referrer-Policy: strict-origin-when-cross-origin
+            Strict-Transport-Security: "max-age=31536000; includeSubDomains"
+      serverless-post-function:
+        phase: access
+        functions:
+          - |
+            return function(conf, ctx)
+              local core = require("apisix.core")
+              local http = require("resty.http")
+              local helper = require("apisix.plugins.opa.helper")
+              local body = helper.build_opa_input({with_route = true}, ctx, "http")
+              local httpc = http.new()
+              httpc:set_timeout(3000)
+              local res, err = httpc:request_uri("http://opa:8181/v1/data/authz/v1/gateway/entra", {
+                method = "POST",
+                body = core.json.encode(body),
+                headers = {["Content-Type"] = "application/json"},
+              })
+              if not res then
+                core.log.error("capabilities query failed: ", err)
+                core.response.exit(503, {error = "capabilities_unavailable"})
+                return
+              end
+              local data = core.json.decode(res.body)
+              if not data or not data.result or not data.result.capabilities then
+                core.log.error("capabilities query returned no result")
+                core.response.exit(503, {error = "capabilities_unavailable"})
+                return
+              end
+              local result = data.result
+              local subject = ""
+              if result.headers then
+                subject = result.headers["X-User-Subject"] or result.headers["X-Auth-Subject"] or ""
+              end
+              core.response.set_header("Content-Type", "application/json")
+              core.response.set_header("X-Auth-Provider", "entra")
+              core.response.set_header("X-Auth-Subject", subject)
+              core.response.set_header("X-Auth-Decision", "allow")
+              core.response.set_header("X-Auth-Reason", "")
+              core.response.exit(200, result.capabilities)
+              return
+            end
+    upstream:
+      type: roundrobin
+      nodes:
+        "127.0.0.1:1980": 1
+
+  - id: okta-authz-capabilities
+    uri: /okta/authz/capabilities
+    priority: 10
+    labels:
+      provider: okta
+      audience: "${{OKTA_API_AUDIENCE}}"
+    plugins:
+      openid-connect:
+        client_id: "${{OKTA_CLIENT_ID}}"
+        client_secret: "${{OKTA_CLIENT_SECRET}}"
+        discovery: "${{OKTA_DISCOVERY}}"
+        bearer_only: true
+        use_jwks: true
+        realm: okta
+        claim_validator:
+          issuer:
+            valid_issuers:
+              - "${{OKTA_ISSUER}}"
+      limit-count:
+        count: 20
+        time_window: 60
+        key_type: var
+        key: remote_addr
+        rejected_code: 429
+        policy: local
+      cors:
+        allow_origins: "${{APP_ORIGIN}}"
+        allow_methods: "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS"
+        allow_headers: "Authorization,Content-Type,Accept,X-Requested-With"
+        expose_headers: "Content-Type,Content-Length,Date,Cache-Control,ETag,WWW-Authenticate,Retry-After,X-Request-ID"
+        max_age: 3600
+        allow_credential: false
+      response-rewrite:
+        headers:
+          set:
+            X-Content-Type-Options: nosniff
+            Referrer-Policy: strict-origin-when-cross-origin
+            Strict-Transport-Security: "max-age=31536000; includeSubDomains"
+      serverless-post-function:
+        phase: access
+        functions:
+          - |
+            return function(conf, ctx)
+              local core = require("apisix.core")
+              local http = require("resty.http")
+              local helper = require("apisix.plugins.opa.helper")
+              local body = helper.build_opa_input({with_route = true}, ctx, "http")
+              local httpc = http.new()
+              httpc:set_timeout(3000)
+              local res, err = httpc:request_uri("http://opa:8181/v1/data/authz/v1/gateway/okta", {
+                method = "POST",
+                body = core.json.encode(body),
+                headers = {["Content-Type"] = "application/json"},
+              })
+              if not res then
+                core.log.error("capabilities query failed: ", err)
+                core.response.exit(503, {error = "capabilities_unavailable"})
+                return
+              end
+              local data = core.json.decode(res.body)
+              if not data or not data.result or not data.result.capabilities then
+                core.log.error("capabilities query returned no result")
+                core.response.exit(503, {error = "capabilities_unavailable"})
+                return
+              end
+              local result = data.result
+              local subject = ""
+              if result.headers then
+                subject = result.headers["X-User-Subject"] or result.headers["X-Auth-Subject"] or ""
+              end
+              core.response.set_header("Content-Type", "application/json")
+              core.response.set_header("X-Auth-Provider", "okta")
+              core.response.set_header("X-Auth-Subject", subject)
+              core.response.set_header("X-Auth-Decision", "allow")
+              core.response.set_header("X-Auth-Reason", "")
+              core.response.exit(200, result.capabilities)
+              return
+            end
+    upstream:
+      type: roundrobin
+      nodes:
+        "127.0.0.1:1980": 1
+
+  - id: google-authz-capabilities
+    uri: /google/authz/capabilities
+    priority: 10
+    labels:
+      provider: google
+      audience: "${{GOOGLE_CLIENT_ID}}"
+      hosted_domain: "${{GOOGLE_HOSTED_DOMAIN}}"
+    plugins:
+      openid-connect:
+        client_id: "${{GOOGLE_CLIENT_ID}}"
+        client_secret: "${{GOOGLE_CLIENT_SECRET}}"
+        discovery: "${{GOOGLE_DISCOVERY}}"
+        bearer_only: true
+        use_jwks: true
+        realm: google
+        claim_validator:
+          issuer:
+            valid_issuers:
+              - "${{GOOGLE_ISSUER}}"
+      limit-count:
+        count: 20
+        time_window: 60
+        key_type: var
+        key: remote_addr
+        rejected_code: 429
+        policy: local
+      cors:
+        allow_origins: "${{APP_ORIGIN}}"
+        allow_methods: "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS"
+        allow_headers: "Authorization,Content-Type,Accept,X-Requested-With"
+        expose_headers: "Content-Type,Content-Length,Date,Cache-Control,ETag,WWW-Authenticate,Retry-After,X-Request-ID"
+        max_age: 3600
+        allow_credential: false
+      response-rewrite:
+        headers:
+          set:
+            X-Content-Type-Options: nosniff
+            Referrer-Policy: strict-origin-when-cross-origin
+            Strict-Transport-Security: "max-age=31536000; includeSubDomains"
+      serverless-post-function:
+        phase: access
+        functions:
+          - |
+            return function(conf, ctx)
+              local core = require("apisix.core")
+              local http = require("resty.http")
+              local helper = require("apisix.plugins.opa.helper")
+              local body = helper.build_opa_input({with_route = true}, ctx, "http")
+              local httpc = http.new()
+              httpc:set_timeout(3000)
+              local res, err = httpc:request_uri("http://opa:8181/v1/data/authz/v1/gateway/google", {
+                method = "POST",
+                body = core.json.encode(body),
+                headers = {["Content-Type"] = "application/json"},
+              })
+              if not res then
+                core.log.error("capabilities query failed: ", err)
+                core.response.exit(503, {error = "capabilities_unavailable"})
+                return
+              end
+              local data = core.json.decode(res.body)
+              if not data or not data.result or not data.result.capabilities then
+                core.log.error("capabilities query returned no result")
+                core.response.exit(503, {error = "capabilities_unavailable"})
+                return
+              end
+              local result = data.result
+              local subject = ""
+              if result.headers then
+                subject = result.headers["X-User-Subject"] or result.headers["X-Auth-Subject"] or ""
+              end
+              core.response.set_header("Content-Type", "application/json")
+              core.response.set_header("X-Auth-Provider", "google")
+              core.response.set_header("X-Auth-Subject", subject)
+              core.response.set_header("X-Auth-Decision", "allow")
+              core.response.set_header("X-Auth-Reason", "")
+              core.response.exit(200, result.capabilities)
+              return
+            end
+    upstream:
+      type: roundrobin
+      nodes:
+        "127.0.0.1:1980": 1
+
 #END

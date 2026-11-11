@@ -30,6 +30,12 @@ authz_input := {
 # claim-to-role map, not from route labels.
 authz_config := {}
 
+# The full map the capabilities route queries; it shares `authz_input` and
+# `authz_config` with enforcement so the two cannot diverge.
+capabilities := result if {
+	result := data.authz.v1.capabilities with input as authz_input with data.authz.config as authz_config
+}
+
 shared_reasons := reasons if {
 	reasons := data.authz.capability_deny_reasons(capability) with input as authz_input with data.authz.config as authz_config
 }
