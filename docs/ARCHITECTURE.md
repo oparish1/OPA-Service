@@ -63,11 +63,12 @@ except where issue #12 explicitly reverses them.
 - **Gateway** (`gateway/`):
   - `apisix/config.yaml` runs APISIX in declarative mode with JSON access logs,
     no server banner and strict security headers.
-  - `apisix/apisix.yaml` declares one route per provider plus a tokenless health
-    route. Each authenticated route runs `openid-connect` (bearer-only, JWKS)
-    for cryptographic validation and `opa` for audience, scope, claim and method
-    authorization, then `serverless-post-function` builds the `/v1` golden
-    fixture body. Each provider also has a `/{provider}/authz/capabilities`
+  - `apisix/apisix.yaml` declares one v1 route and one capabilities route per
+    provider plus a tokenless health route. Each v1 route runs `openid-connect`
+    (bearer-only, JWKS) for cryptographic validation and `opa` for audience,
+    scope, claim and method authorization, then `serverless-post-function`
+    builds the `/v1` golden fixture body. Each provider also has a
+    `/{provider}/authz/capabilities`
     route: it runs `openid-connect`, skips `opa` (the read is authenticated, not
     a resource authorization) and its `serverless-post-function` queries the
     provider's OPA wrapper for `authz.v1.capabilities` and returns the map.

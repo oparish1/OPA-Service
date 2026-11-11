@@ -113,7 +113,7 @@ Round 3/4 UI decisions remain binding.
 - **Fail closed.** If the capability call fails or returns an incomplete map,
   the UI keeps a baseline capability floor (Overview and Account) and enables
   nothing else.
-- **No environment value in Rego.** Tenant, domain and group values arrive as
+- **No environment value in Rego.** Tenant and domain values arrive as
   data (`data.authz.config`), supplied from the gateway route labels. The
   browser public config carries them only for the provider libraries.
 - **Rollback.** `authz.enabled` (default true) turns the capability call off and
