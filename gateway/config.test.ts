@@ -18,6 +18,7 @@ type Provider = (typeof PROVIDERS)[number];
 interface Route {
   id: string;
   uri?: string;
+  priority?: number;
   labels?: Record<string, string>;
   plugins?: Record<string, unknown>;
   upstream?: unknown;
