@@ -1,10 +1,10 @@
 # The one shared claim policy. The gateway wrappers in
 # `authz-service/authz/v1/gateway/` import this package for enforcement and the
-# browser compiles it to WASM for advisory UI decisions. It names no capability,
-# role, provider secret, tenant, domain or
+# gateway capabilities route evaluates it for advisory UI decisions. It names no
+# capability, role, provider secret, tenant, domain or
 # group: the catalogue, the role hierarchy, the claim-to-role map and the route
 # table live in the data files beside this policy, and the environment values
-# arrive as `data.authz.config`. The browser decision is advisory; the gateway
+# arrive as `data.authz.config`. The returned decision is advisory; the gateway
 # is the only security authority.
 
 package authz
@@ -38,7 +38,7 @@ scope_granted(scopes, required) if {
 	required in split(scopes, " ")
 }
 
-# The neutral reason codes, in the order the browser's single `reason` picks one.
+# The neutral reason codes, in the order the single `reason` picks one.
 # A gateway wrapper translates them to the audit strings the access log carries.
 reason_precedence := [
 	"method_not_allowed",
@@ -144,7 +144,7 @@ primary_reason(reasons) := ordered[0] if {
 	count(ordered) > 0
 }
 
-# One browser evaluation returns the decision for every capability.
+# One evaluation returns the decision for every capability.
 capabilities := {cap: decision(cap) | some cap in capability_ids}
 
 decision(cap) := {"allowed": true, "reason": ""} if {

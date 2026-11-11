@@ -97,22 +97,27 @@ superseded by the static public configuration file; the provider-row ordering
 Entra, Okta, Google and the provider-neutral notice copy remain binding. The
 Round 3/4 UI decisions remain binding.
 
-## Advisory UI authorization (issue #21)
+## Advisory UI authorization (issues #21, #3)
 
-- **The gateway stays the only security authority.** The browser evaluates the
-  same shared Rego policy as OPA-WASM to decide what to show or enable; a
-  browser decision is advisory and can never grant what the gateway refuses.
-- **One shared policy source.** `authz-service/authz/` holds the claim rules in Rego
-  v1; the gateway wrappers in `authz-service/authz/v1/gateway/` import it for
-  enforcement and `frontend/src/core/authz/` evaluates the compiled WASM copy
-  for the UI. The two sides never carry separate copies of the claim rules.
-- **Fail closed.** If the WASM policy cannot load or evaluate, the UI keeps a
-  baseline capability floor (Overview and Account) and enables nothing else.
-- **No environment value in Rego.** Tenant, domain and group values arrive as
-  data (`data.authz.config`), sourced from the public config in the browser and
-  from route labels at the gateway.
-- **Rollback.** `authz.enabled` (default true) turns the browser evaluation off
-  and restores pre-change behavior; the gateway is unaffected.
+- **The gateway stays the only security authority.** The browser fetches
+  `GET /{provider}/authz/capabilities` to decide what to show or enable. The
+  gateway builds the OPA input from the token it has already verified and
+  returns `authz.v1.capabilities`; a browser decision is advisory and can never
+  grant what the gateway refuses.
+- **One shared policy source, one evaluator.** `authz-service/authz/` holds the
+  claim rules in Rego v1; the gateway wrappers in
+  `authz-service/authz/v1/gateway/` import it for enforcement and answer the
+  capabilities route. Issue #3 reversed the earlier decision to compile the
+  same package to WASM in the browser: the browser no longer evaluates Rego and
+  ships no policy data or `opa-wasm` dependency.
+- **Fail closed.** If the capability call fails or returns an incomplete map,
+  the UI keeps a baseline capability floor (Overview and Account) and enables
+  nothing else.
+- **No environment value in Rego.** Tenant and domain values arrive as
+  data (`data.authz.config`), supplied from the gateway route labels. The
+  browser public config carries them only for the provider libraries.
+- **Rollback.** `authz.enabled` (default true) turns the capability call off and
+  restores pre-change behavior; the gateway is unaffected.
 
 ## Logging and configuration failures (issue #16)
 
@@ -153,14 +158,15 @@ Round 3/4 UI decisions remain binding.
 - **One new reason code.** `insufficient_role` is reported only after the
   provider's base gate passes, so existing deny sets and audit reasons are
   unchanged; `missing_admin` does not exist.
-- **One shared source, two consumers.** The browser still compiles the same
-  package to WASM for advisory decisions and supplies the static tables beside
-  its runtime config; the gateway still enforces. `frontend/src/core/authz/generated.ts`
-  and `authz-service/fixtures/matrix.snapshot.json` are generated from the policy and
-  checked for freshness in CI.
+- **One shared source, one evaluator plus generated types.** The gateway is the
+  only evaluator: it imports the package for enforcement and answers the
+  capabilities route. `frontend/src/core/authz/generated.ts` and
+  `authz-service/fixtures/matrix.snapshot.json` are generated from the policy and
+  checked for freshness in CI, so the browser's capability/reason types cannot
+  drift from the gateway rules.
 - **No environment value in the policy.** Entra's tenant and Google's hosted
-  domain remain `data.authz.config`, supplied from the public config and route
-  labels; the static tables carry neither.
+  domain remain `data.authz.config`, supplied from route labels; the static
+  tables carry neither.
 
 ## Gateway internal transport (issue #7)
 

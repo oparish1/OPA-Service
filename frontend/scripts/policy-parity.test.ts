@@ -3,11 +3,11 @@ import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:f
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { locateOpa } from './build-policy';
+import { locateOpa } from './opa';
 
 /**
- * A10: the gateway and the browser read one source. Removing a claim rule from
- * the shared policy must fail both the gateway wrapper tests and the golden
+ * A10: the gateway and the golden table read one source. Removing a claim rule
+ * from the shared policy must fail both the gateway wrapper tests and the golden
  * table in the same `opa test` run.
  */
 

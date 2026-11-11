@@ -2,9 +2,9 @@ package authz.providers.google
 
 # Google uses an ID token and has no scopes. It is read-only: a write capability
 # is always `method_not_allowed`, and a gateway read is accepted only for GET.
-# The browser has no request method, so a read without a request context is
-# treated as a read. The hosted domain arrives as data, never as a literal here;
-# a missing configured value fails closed.
+# A read with no request context is treated as a read for persona snapshot
+# generation. The hosted domain arrives as data, never as a literal here; a
+# missing configured value fails closed.
 
 config := data.authz.config.google
 

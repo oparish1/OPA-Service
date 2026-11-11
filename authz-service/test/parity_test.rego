@@ -87,3 +87,33 @@ provider_labels("okta") := {"audience": "api://test"}
 provider_labels("google") := {"audience": "api://test", "hosted_domain": data.fixtures.config.google.hosted_domain}
 
 authz_input(persona, request) := {"provider": persona.provider, "claims": persona.claims, "request": request}
+
+# TS-9: the capability map the browser fetches must equal the shared policy's
+# map for every persona, so removing the WASM path cannot change a UI decision.
+test_gateway_capabilities_match_the_shared_policy if {
+	count(capability_mismatches) == 0
+}
+
+capability_mismatches contains mismatch if {
+	some persona in data.fixtures.personas
+	request := {"method": "GET", "path": sprintf("/%s/authz/capabilities", [persona.provider])}
+	gateway := provider_capabilities(persona.provider, token_input(persona, request))
+	shared := data.authz.v1.capabilities with input as authz_input(persona, request) with data.authz.config as data.fixtures.config
+	gateway != shared
+	mismatch := {"persona": persona.id, "gateway": gateway, "shared": shared}
+}
+
+provider_capabilities(provider, token) := result if {
+	provider == "entra"
+	result := data.authz.v1.gateway.entra.capabilities with input as token
+}
+
+provider_capabilities(provider, token) := result if {
+	provider == "okta"
+	result := data.authz.v1.gateway.okta.capabilities with input as token
+}
+
+provider_capabilities(provider, token) := result if {
+	provider == "google"
+	result := data.authz.v1.gateway.google.capabilities with input as token
+}

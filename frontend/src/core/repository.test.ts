@@ -193,14 +193,14 @@ describe('repository acceptance', () => {
     }
   });
 
-  it('A21 ships wasm-unsafe-eval and never unsafe-eval in the CSP', () => {
+  it('A21 ships a CSP without unsafe-eval or wasm-unsafe-eval', () => {
     const headers = read(join('frontend', 'public', '_headers'));
     const csp = headers
       .split('\n')
       .find(line => line.trim().startsWith('Content-Security-Policy:'));
     expect(csp).toBeDefined();
-    expect(csp).toContain("script-src 'self' 'wasm-unsafe-eval'");
     expect(csp).not.toContain("'unsafe-eval'");
+    expect(csp).not.toContain("'wasm-unsafe-eval'");
   });
 
   it('A22 direction documents describe the browser-only direction', () => {

@@ -2,8 +2,8 @@
 
 The standalone authorization policy. It owns the shared Rego engine, the
 capability/role/route data tables and the versioned `authz.v1` API. The gateway
-now pulls the signed bundle published from this service; the browser still
-compiles the same package to WASM, and repointing the backend OPA is child `#4`.
+pulls the signed bundle published from this service and answers the browser's
+capability call; repointing the backend OPA is child `#4`.
 
 ## Layout
 
@@ -16,9 +16,11 @@ compiles the same package to WASM, and repointing the backend OPA is child `#4`.
   `check.rego`.
 - `authz/v1/gateway/` — the gateway wrapper logic, one package per provider
   (`authz.v1.gateway.<provider>`) plus the shared `authz.v1.gateway.common`
-  helpers. Each wrapper keeps the gateway-only audience/issuer checks and the
-  audit vocabulary. The gateway consumes these packages from the published
-  bundle; the APISIX `opa` plugin queries `authz/v1/gateway/<provider>`.
+  helpers. Each wrapper keeps the gateway-only audience/issuer checks, the
+  audit vocabulary and the `capabilities` rule. The gateway consumes these
+  packages from the published bundle; the APISIX `opa` plugin enforces with
+  `authz/v1/gateway/<provider>` and the capabilities route queries the same
+  package for `authz.v1.capabilities`.
 - `fixtures/` — the personas, gate cases, must-deny list and generated decision
   snapshot used by the tests and the frontend codegen.
 - `test/` — the shared engine suite, the provider wrapper suites, the
@@ -67,7 +69,7 @@ openssl ec -in /tmp/authz-signing.pem -pubout -out /tmp/authz-signing.pub
 bun run authz-service/scripts/build-bundle.ts \
   --signing-key /tmp/authz-signing.pem \
   --verification-key /tmp/authz-signing.pub \
-  --revision 0.1.0 \
+  --revision 0.2.0 \
   --out /tmp/authz-bundle.tar.gz
 ```
 
@@ -83,7 +85,7 @@ To publish locally against a registry:
 ```sh
 oras login ghcr.io -u <user>
 oras push --artifact-type application/vnd.opa.bundle.v1+json \
-  ghcr.io/<owner>/opa-service/authz-bundle:0.1.0 \
+  ghcr.io/<owner>/opa-service/authz-bundle:0.2.0 \
   /tmp/authz-bundle.tar.gz:application/vnd.opa.bundle.layer.v1+gzip
 ```
 

@@ -105,7 +105,6 @@ function toSession(result: AuthenticationResult): ProviderSession {
       accountId: result.account.localAccountId,
       createdAt: '—',
     },
-    rawClaims: claims,
     accessToken: {
       value: result.accessToken,
       expiresAt: formatTimestamp(result.expiresOn ?? new Date()),

@@ -18,6 +18,7 @@ type Provider = (typeof PROVIDERS)[number];
 interface Route {
   id: string;
   uri?: string;
+  priority?: number;
   labels?: Record<string, string>;
   plugins?: Record<string, unknown>;
   upstream?: unknown;
@@ -32,8 +33,21 @@ function routeFor(provider: Provider): Route {
   return route;
 }
 
+function capabilitiesRouteFor(provider: Provider): Route {
+  const route = config.routes.find(candidate => candidate.id === `${provider}-authz-capabilities`);
+  if (!route) throw new Error(`missing ${provider} capabilities route`);
+  return route;
+}
+
 function serverlessSource(provider: Provider): string {
   const serverless = routeFor(provider).plugins?.['serverless-post-function'] as {
+    functions: string[];
+  };
+  return serverless.functions.join('\n');
+}
+
+function capabilitiesServerlessSource(provider: Provider): string {
+  const serverless = capabilitiesRouteFor(provider).plugins?.['serverless-post-function'] as {
     functions: string[];
   };
   return serverless.functions.join('\n');
@@ -226,6 +240,63 @@ describe('fixture body routing (R1)', () => {
       expect(source, provider).not.toContain(`string.find(path, "${projects.suffix}", 1, true)`);
     }
   });
+});
+
+describe('capability retrieval routes (issue #3)', () => {
+  for (const provider of PROVIDERS) {
+    const route = capabilitiesRouteFor(provider);
+
+    test(`${provider}: one exact capabilities route wins over the wildcard route`, () => {
+      const matches = config.routes.filter(
+        candidate => candidate.id === `${provider}-authz-capabilities`
+      );
+      expect(matches).toHaveLength(1);
+      expect(route.uri).toBe(`/${provider}/authz/capabilities`);
+      expect(route.priority).toBeGreaterThan(0);
+    });
+
+    test(`${provider}: the capabilities route authenticates the bearer`, () => {
+      const oidc = route.plugins?.['openid-connect'] as Record<string, unknown> | undefined;
+      expect(oidc?.bearer_only).toBe(true);
+      expect(oidc?.use_jwks).toBe(true);
+      const validator = oidc?.claim_validator as Record<string, unknown>;
+      const issuers = validator.issuer as { valid_issuers: string[] };
+      expect(issuers.valid_issuers).toHaveLength(1);
+    });
+
+    test(`${provider}: capability retrieval is not a resource authorization`, () => {
+      expect(route.plugins?.opa).toBeUndefined();
+    });
+
+    test(`${provider}: transport plugins match the provider's v1 route`, () => {
+      const v1 = routeFor(provider);
+      for (const plugin of ['cors', 'limit-count', 'response-rewrite']) {
+        expect(route.plugins?.[plugin], plugin).toEqual(v1.plugins?.[plugin]);
+      }
+    });
+
+    test(`${provider}: the serverless function queries the provider's OPA wrapper`, () => {
+      const source = capabilitiesServerlessSource(provider);
+      expect(source).toContain(`/v1/data/authz/v1/gateway/${provider}`);
+      expect(source).toContain('http://opa:8181');
+      expect(source).toContain('result.capabilities');
+    });
+
+    test(`${provider}: the capabilities route rejects a wrong-audience token`, () => {
+      const source = capabilitiesServerlessSource(provider);
+      expect(source).toContain('result.reasons');
+      expect(source).toContain('wrong_audience');
+      expect(source).toContain('core.response.exit(401');
+    });
+
+    test(`${provider}: the route labels carry the same environment values`, () => {
+      const v1 = routeFor(provider);
+      expect(route.labels?.provider).toBe(provider);
+      expect(route.labels?.audience).toBe(v1.labels?.audience);
+      expect(route.labels?.tenant).toBe(v1.labels?.tenant);
+      expect(route.labels?.hosted_domain).toBe(v1.labels?.hosted_domain);
+    });
+  }
 });
 
 interface ComposeService {

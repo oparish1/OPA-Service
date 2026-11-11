@@ -17,10 +17,15 @@ references environment variables by name only.
 
 - `apisix/config.yaml` — standalone (file-driven) mode, JSON access logs, no
   server banner.
-- `apisix/apisix.yaml` — one route per provider plus `/health`. Each provider
-  route runs `openid-connect` (bearer-only, JWKS, pinned issuer) then `opa`
-  (per-provider policy, `with_route`), then `serverless-post-function` builds
-  the `/v1` fixture body after authorization.
+- `apisix/apisix.yaml` — one v1 route and one capabilities route per provider
+  plus `/health`. Each provider's v1 route runs `openid-connect` (bearer-only,
+  JWKS, pinned issuer) then `opa` (per-provider policy, `with_route`), then
+  `serverless-post-function` builds the `/v1` fixture body after authorization.
+  Each provider also has a `/{provider}/authz/capabilities` route:
+  `openid-connect` authenticates the caller and its `serverless-post-function`
+  queries the provider's OPA wrapper for `authz.v1.capabilities`, rejects a
+  wrong-audience token, and returns the map; it runs no `opa` plugin because
+  the read is not a resource authorization.
 - `opa/config.yaml` — the OPA runtime config; it enables the console decision
   log and points `mask_decision` at `/system/log/mask`.
 - `opa/mask.rego` — the decision-log mask. The console log erases the bearer
@@ -34,13 +39,13 @@ references environment variables by name only.
   bundle with `--bundle` + `--verification-key`. A bundle that fails verification
   stops OPA before it serves, so no Rego is mounted from this repo.
 - `../authz-service/authz/` — the one shared Rego source the published bundle
-  carries and the browser compiles to WASM for advisory UI decisions. The capability
-  catalogue, role hierarchy, claim-to-role map and route table are the static
-  tables beside the engine (`catalogue.json`, `roles.json`, `role_map.json`,
-  `routes.json`); the provider files under `providers/` supply only claim
-  logic. The route labels carry environment values only — role and group
-  labels are gone, because the role names come from the shared map. UI
-  authorization is advisory; the gateway enforces.
+  carries, the gateway enforces with and the capabilities route queries. The
+  capability catalogue, role hierarchy, claim-to-role map and route table are
+  the static tables beside the engine (`catalogue.json`, `roles.json`,
+  `role_map.json`, `routes.json`); the provider files under `providers/` supply
+  only claim logic. The route labels carry environment values only — role and
+  group labels are gone, because the role names come from the shared map. UI
+  authorization stays advisory; the gateway enforces.
 - `fixtures/*.json` — the golden `/v1/me` and `/v1/projects` bodies captured
   from the backend before deletion (A17).
 - `test-issuers/` — local OIDC issuers used by the Docker integration script.
@@ -54,9 +59,10 @@ and introspection is excluded because it would require a client secret
 performs the cryptographic validation (signature, `iss`, `exp`/`nbf`, algorithm)
 and the `opa` plugin owns the audience plus the per-provider scope, claim and
 method rules. OPA returns the `X-User-*` headers and, on deny, the `X-Auth-*`
-audit headers the access log reads. The browser compiles the same
-`authz-service/authz/` package to WASM for advisory nav and button decisions; it never
-replaces the gateway decision.
+audit headers the access log reads. The browser's advisory nav and button
+decisions come from the per-provider `/{provider}/authz/capabilities` route:
+`openid-connect` authenticates the caller and the route returns
+`authz.v1.capabilities` from OPA. That decision never replaces the gateway's.
 
 ## Secret placeholders
 
