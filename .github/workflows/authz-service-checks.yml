@@ -6,14 +6,12 @@ on:
       - '**'
     paths:
       - 'authz-service/**'
-      - 'gateway/opa/**'
       - '.github/workflows/authz-service-checks.yml'
     tags:
       - 'authz-service/v*'
   pull_request:
     paths:
       - 'authz-service/**'
-      - 'gateway/opa/**'
       - '.github/workflows/authz-service-checks.yml'
 
 jobs:

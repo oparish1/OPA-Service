@@ -43,7 +43,7 @@ jobs:
         run: |
           for _ in $(seq 1 60); do
             if curl -fsS http://localhost:9080/health >/dev/null && \
-               curl -fsS http://localhost:8181/health >/dev/null; then exit 0; fi
+               curl -fsS "http://localhost:8181/health?bundles=true" >/dev/null; then exit 0; fi
             sleep 2
           done
           echo "gateway stack did not become healthy" >&2
@@ -51,6 +51,19 @@ jobs:
           exit 1
       - name: Gateway transport smoke
         run: bun run gateway/test-issuers/transport-smoke.ts
+      - name: Gateway decision logs
+        run: |
+          logs=$(docker compose -f gateway/docker-compose.yml logs opa)
+          echo "$logs" | grep -q '"decision_id"'
+          echo "$logs" | grep -q '"erased"'
+          if echo "$logs" | grep -q 'Bearer '; then
+            echo "the decision log leaked the bearer token" >&2
+            exit 1
+          fi
+          if echo "$logs" | grep -q 'test-entra-secret'; then
+            echo "the decision log leaked the provider client secret" >&2
+            exit 1
+          fi
       # Advisory until the full acceptance script's role-gate and token-lifetime
       # expectations are reconciled with the policy; see gateway/README.md.
       - name: Gateway acceptance

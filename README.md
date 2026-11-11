@@ -14,7 +14,7 @@ its own:
   `authz-service/authz/v1/gateway/` holds the provider-neutral policy helpers.
 - `frontend/src/providers/{entra,okta,google}/` and the matching
   `authz-service/authz/v1/gateway/<id>.rego` hold one provider each; the
-  `gateway/opa/<id>.rego` shim delegates to that wrapper.
+  published bundle exposes that wrapper at `authz/v1/gateway/<id>`.
 - `frontend/src/providers/index.ts` is the single frontend registry that
   composes the providers; `shared/providers.ts` remains the provider-neutral
   wire contract; `shared/app-config.ts` is the shared public-config schema.
@@ -23,10 +23,9 @@ its own:
   `gateway/apisix/apisix.yaml` name more than one provider.
 
 Adding a provider touches its folder, its `authz-service/authz/providers/<id>.rego`
-and `role_map` entry, its `authz-service/authz/v1/gateway/<id>.rego` wrapper and
-its `gateway/opa/<id>.rego` shim, and its route in `gateway/apisix/apisix.yaml`,
-adds its id to `shared/providers.ts` and adds one registry entry; removing one
-deletes those.
+and `role_map` entry, its `authz-service/authz/v1/gateway/<id>.rego` wrapper, and
+its route in `gateway/apisix/apisix.yaml`, adds its id to `shared/providers.ts`
+and adds one registry entry; removing one deletes those.
 
 ## Architecture
 
@@ -146,8 +145,8 @@ roles it grants through the shared map, the gate failures it raises, and whether
 scopes apply. Each gateway wrapper in `authz-service/authz/v1/gateway/` imports
 the shared package, keeps only the audience and issuer checks, and translates
 the shared reason codes to the `X-Auth-Reason` strings the access log has always
-carried; the `gateway/opa/*.rego` shims keep the historical APISIX package names
-and delegate to those wrappers.
+carried. The published bundle carries those wrappers and the gateway loads it in
+signed bundle mode; the APISIX `opa` plugin queries `authz/v1/gateway/<provider>`.
 
 The browser compiles the same package with `opa build -t wasm` to
 `frontend/public/policy/authz.<hash>.wasm` (about 180 KB, under a 1 MB budget)
@@ -185,8 +184,8 @@ either artifact.
   rest.
 - **Provider.** Add `authz-service/authz/providers/<id>.rego` honouring the
   provider contract, role-map and config data, an
-  `authz-service/authz/v1/gateway/<id>.rego` wrapper, a `gateway/opa/<id>.rego`
-  shim and a frontend `claims.ts`.
+  `authz-service/authz/v1/gateway/<id>.rego` wrapper, and a frontend
+  `claims.ts`.
 
 After any policy change run `bun run gen:authz`, which regenerates
 `frontend/src/core/authz/generated.ts` (the `CapabilityId` and reason unions)
@@ -218,7 +217,7 @@ cd ..
 bun test gateway                 # parses and asserts the APISIX route config
 opa fmt --fail --list authz-service gateway/opa
 opa check --strict authz-service gateway/opa
-opa test authz-service gateway/opa      # shared policy, gateway wrappers and the golden table
+opa test authz-service gateway/opa   # shared policy, gateway wrappers, golden table and mask
 ```
 
 The existing gateway negative tests still deny out-of-role, out-of-group,

@@ -48,7 +48,7 @@ routes:
               - "${{ENTRA_ISSUER}}"
       opa:
         host: "http://opa:8181"
-        policy: "entra"
+        policy: "authz/v1/gateway/entra"
         with_route: true
         send_headers_upstream:
           - X-User-Issuer
@@ -127,7 +127,7 @@ routes:
               - "${{OKTA_ISSUER}}"
       opa:
         host: "http://opa:8181"
-        policy: "okta"
+        policy: "authz/v1/gateway/okta"
         with_route: true
         send_headers_upstream:
           - X-User-Issuer
@@ -207,7 +207,7 @@ routes:
               - "${{GOOGLE_ISSUER}}"
       opa:
         host: "http://opa:8181"
-        policy: "google"
+        policy: "authz/v1/gateway/google"
         with_route: true
         send_headers_upstream:
           - X-User-Issuer

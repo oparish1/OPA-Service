@@ -19,7 +19,6 @@ describe('single policy source (A10)', () => {
     const dir = mkdtempSync(join(tmpdir(), 'authz-parity-'));
     try {
       cpSync(join(REPO_ROOT, 'authz-service'), join(dir, 'authz-service'), { recursive: true });
-      cpSync(join(REPO_ROOT, 'gateway', 'opa'), join(dir, 'gateway', 'opa'), { recursive: true });
 
       const entra = join(dir, 'authz-service', 'authz', 'providers', 'entra.rego');
       const original = readFileSync(entra, 'utf8');
@@ -27,7 +26,7 @@ describe('single policy source (A10)', () => {
       expect(mutated).not.toBe(original);
       writeFileSync(entra, mutated);
 
-      const result = spawnSync(OPA as string, ['test', join(dir, 'authz-service'), join(dir, 'gateway', 'opa')], {
+      const result = spawnSync(OPA as string, ['test', join(dir, 'authz-service')], {
         encoding: 'utf8',
       });
       const output = `${result.stdout}\n${result.stderr}`;

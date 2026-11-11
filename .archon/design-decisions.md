@@ -102,10 +102,10 @@ Round 3/4 UI decisions remain binding.
 - **The gateway stays the only security authority.** The browser evaluates the
   same shared Rego policy as OPA-WASM to decide what to show or enable; a
   browser decision is advisory and can never grant what the gateway refuses.
-- **One shared policy source.** `policy/authz/` holds the claim rules in Rego
-  v1; the gateway wrappers in `gateway/opa/` import it for enforcement and
-  `frontend/src/core/authz/` evaluates the compiled WASM copy for the UI. The
-  two sides never carry separate copies of the claim rules.
+- **One shared policy source.** `authz-service/authz/` holds the claim rules in Rego
+  v1; the gateway wrappers in `authz-service/authz/v1/gateway/` import it for
+  enforcement and `frontend/src/core/authz/` evaluates the compiled WASM copy
+  for the UI. The two sides never carry separate copies of the claim rules.
 - **Fail closed.** If the WASM policy cannot load or evaluate, the UI keeps a
   baseline capability floor (Overview and Account) and enables nothing else.
 - **No environment value in Rego.** Tenant, domain and group values arrive as
@@ -141,12 +141,12 @@ Round 3/4 UI decisions remain binding.
 
 ## Catalogue-driven policy (issue #24)
 
-- **Capabilities, roles and routes are data.** `policy/authz/` keeps the Rego
+- **Capabilities, roles and routes are data.** `authz-service/authz/` keeps the Rego
   engine; the capability catalogue, the flattened role hierarchy, the
   claim-to-role map and the route table live in
-  `policy/authz/{catalogue,roles,role_map,routes}.json`. Adding a capability or
+  `authz-service/authz/{catalogue,roles,role_map,routes}.json`. Adding a capability or
   a role is a data edit with no Rego change.
-- **Provider files hold provider logic only.** Each `policy/authz/providers/`
+- **Provider files hold provider logic only.** Each `authz-service/authz/providers/`
   file exposes the roles it grants (through the shared map), its gate failures
   and whether scopes apply. It names no capability and no role. The neutral
   engine builds the per-capability deny set once for all providers.
@@ -156,7 +156,7 @@ Round 3/4 UI decisions remain binding.
 - **One shared source, two consumers.** The browser still compiles the same
   package to WASM for advisory decisions and supplies the static tables beside
   its runtime config; the gateway still enforces. `frontend/src/core/authz/generated.ts`
-  and `policy/fixtures/matrix.snapshot.json` are generated from the policy and
+  and `authz-service/fixtures/matrix.snapshot.json` are generated from the policy and
   checked for freshness in CI.
 - **No environment value in the policy.** Entra's tenant and Google's hosted
   domain remain `data.authz.config`, supplied from the public config and route
