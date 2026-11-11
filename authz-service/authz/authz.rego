@@ -38,7 +38,7 @@ scope_granted(scopes, required) if {
 	required in split(scopes, " ")
 }
 
-# The neutral reason codes, in the order the browser's single `reason` picks one.
+# The neutral reason codes, in the order the single `reason` picks one.
 # A gateway wrapper translates them to the audit strings the access log carries.
 reason_precedence := [
 	"method_not_allowed",
@@ -144,7 +144,7 @@ primary_reason(reasons) := ordered[0] if {
 	count(ordered) > 0
 }
 
-# One browser evaluation returns the decision for every capability.
+# One evaluation returns the decision for every capability.
 capabilities := {cap: decision(cap) | some cap in capability_ids}
 
 decision(cap) := {"allowed": true, "reason": ""} if {
