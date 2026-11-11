@@ -345,8 +345,8 @@ test_unmatched_safe_uses_fallback if {
 # --- route coverage --------------------------------------------------------
 
 # The gateway serves these paths behind its per-provider wildcard route, so this
-# explicit inventory is the coverage contract. An entry whose request resolves
-# to another capability, or whose capability has no route entry, fails here.
+# explicit inventory is the coverage contract. An entry must resolve to its
+# declared capability and its method and path must match a routes.suffixes entry.
 endpoint_inventory := [
 	{"method": "GET", "path": "/v1/me", "capability": "nav.api.profile"},
 	{"method": "HEAD", "path": "/v1/me", "capability": "nav.api.profile"},
@@ -354,6 +354,7 @@ endpoint_inventory := [
 	{"method": "GET", "path": "/v1/projects", "capability": "nav.api.projects"},
 	{"method": "POST", "path": "/v1/projects/42/delete", "capability": "action.projects.delete"},
 	{"method": "POST", "path": "/v1/send", "capability": "action.api.send.write"},
+	{"method": "POST", "path": "/v1/send/42", "capability": "action.api.send.write"},
 	{"method": "GET", "path": "/get_actor_list", "capability": "data.actor.list"},
 	{"method": "GET", "path": "/get_customer_list", "capability": "data.customer.list"},
 	{"method": "GET", "path": "/get_customer_details_by_params", "capability": "data.customer.details"},
@@ -372,11 +373,14 @@ test_route_inventory_coverage if {
 	}) == 0
 }
 
+# Match the route table itself rather than the total `capability_for`: an
+# inventory entry whose capability is the method-kind fallback still resolves to
+# its declared capability when its suffix is misspelled, so only route_matches
+# proves the entry exists.
 test_route_inventory_has_route_entries if {
-	route_capabilities := {route.capability | some route in data.authz.routes.suffixes}
-	count({[entry.path] |
+	count({[entry.method, entry.path] |
 		some entry in endpoint_inventory
-		not entry.capability in route_capabilities
+		count(data.authz.route_matches(entry.method, sprintf("/entra%s", [entry.path]))) == 0
 	}) == 0
 }
 
