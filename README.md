@@ -176,8 +176,9 @@ policy changes without regenerating either artifact.
   `includes`, map the provider claim values in `authz-service/authz/role_map.json`, and
   use it in catalogue entries. No Rego change.
 - **Route.** Add `{"suffix": ..., "capability": ...}` to `routes.json`; the
-  longest matching suffix wins, and the `safe`/`unsafe` fallbacks cover the
-  rest.
+  longest matching suffix wins, and an unmatched request falls back to the
+  admin-only `data.unmapped` (safe method) or `action.unmapped.write` (unsafe
+  method) capability, so a forgotten route fails closed.
 - **Provider.** Add `authz-service/authz/providers/<id>.rego` honouring the
   provider contract, role-map and config data, an
   `authz-service/authz/v1/gateway/<id>.rego` wrapper (with its `capabilities`
