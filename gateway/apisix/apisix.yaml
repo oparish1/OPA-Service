@@ -268,7 +268,8 @@ routes:
         "127.0.0.1:1980": 1
   # Capability retrieval is an authenticated read of the caller's own decisions,
   # not a resource authorization, so each route runs openid-connect but not the
-  # `opa` plugin; the serverless function queries OPA and returns the map.
+  # `opa` plugin; the serverless function queries OPA, rejects a wrong-audience
+  # token (openid-connect checks no `aud` on the JWKS path) and returns the map.
   - id: entra-authz-capabilities
     uri: /entra/authz/capabilities
     priority: 10
@@ -339,6 +340,17 @@ routes:
               local subject = ""
               if result.headers then
                 subject = result.headers["X-User-Subject"] or result.headers["X-Auth-Subject"] or ""
+              end
+              for _, reason in ipairs(result.reasons or {}) do
+                if reason == "wrong_audience" then
+                  core.response.set_header("Content-Type", "application/json")
+                  core.response.set_header("X-Auth-Provider", "entra")
+                  core.response.set_header("X-Auth-Subject", subject)
+                  core.response.set_header("X-Auth-Decision", "deny")
+                  core.response.set_header("X-Auth-Reason", "wrong_audience")
+                  core.response.exit(401, {error = "unauthorized"})
+                  return
+                end
               end
               core.response.set_header("Content-Type", "application/json")
               core.response.set_header("X-Auth-Provider", "entra")
@@ -423,6 +435,17 @@ routes:
               if result.headers then
                 subject = result.headers["X-User-Subject"] or result.headers["X-Auth-Subject"] or ""
               end
+              for _, reason in ipairs(result.reasons or {}) do
+                if reason == "wrong_audience" then
+                  core.response.set_header("Content-Type", "application/json")
+                  core.response.set_header("X-Auth-Provider", "okta")
+                  core.response.set_header("X-Auth-Subject", subject)
+                  core.response.set_header("X-Auth-Decision", "deny")
+                  core.response.set_header("X-Auth-Reason", "wrong_audience")
+                  core.response.exit(401, {error = "unauthorized"})
+                  return
+                end
+              end
               core.response.set_header("Content-Type", "application/json")
               core.response.set_header("X-Auth-Provider", "okta")
               core.response.set_header("X-Auth-Subject", subject)
@@ -506,6 +529,17 @@ routes:
               local subject = ""
               if result.headers then
                 subject = result.headers["X-User-Subject"] or result.headers["X-Auth-Subject"] or ""
+              end
+              for _, reason in ipairs(result.reasons or {}) do
+                if reason == "wrong_audience" then
+                  core.response.set_header("Content-Type", "application/json")
+                  core.response.set_header("X-Auth-Provider", "google")
+                  core.response.set_header("X-Auth-Subject", subject)
+                  core.response.set_header("X-Auth-Decision", "deny")
+                  core.response.set_header("X-Auth-Reason", "wrong_audience")
+                  core.response.exit(401, {error = "unauthorized"})
+                  return
+                end
               end
               core.response.set_header("Content-Type", "application/json")
               core.response.set_header("X-Auth-Provider", "google")

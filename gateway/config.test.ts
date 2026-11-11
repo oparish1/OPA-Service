@@ -282,6 +282,13 @@ describe('capability retrieval routes (issue #3)', () => {
       expect(source).toContain('result.capabilities');
     });
 
+    test(`${provider}: the capabilities route rejects a wrong-audience token`, () => {
+      const source = capabilitiesServerlessSource(provider);
+      expect(source).toContain('result.reasons');
+      expect(source).toContain('wrong_audience');
+      expect(source).toContain('core.response.exit(401');
+    });
+
     test(`${provider}: the route labels carry the same environment values`, () => {
       const v1 = routeFor(provider);
       expect(route.labels?.provider).toBe(provider);

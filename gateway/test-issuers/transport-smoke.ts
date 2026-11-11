@@ -22,11 +22,14 @@ const snapshot = (
   ) as { snapshot: Record<string, AuthzSnapshotEntry> }
 ).snapshot;
 
-async function mint(provider: (typeof PROVIDER_IDS)[number]): Promise<string> {
+async function mint(
+  provider: (typeof PROVIDER_IDS)[number],
+  claims?: Record<string, unknown>
+): Promise<string> {
   const response = await fetch(`${ISSUERS[provider]}/mint`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({}),
+    body: JSON.stringify(claims ? { claims } : {}),
   });
   const payload = (await response.json()) as { token: string };
   return payload.token;
@@ -63,6 +66,22 @@ for (const provider of PROVIDER_IDS) {
     failures += 1;
     console.error(
       `  FAIL ${provider} capabilities differ from the ${provider}-user snapshot: ${JSON.stringify({ expected, actual })}`
+    );
+  }
+
+  // openid-connect does not check `aud` on the JWKS path, so the capabilities
+  // route must reject a token minted for another audience rather than return
+  // the map the provider's enforcement route denies.
+  const wrongAudience = await mint(provider, { aud: 'https://wrong.example/audience' });
+  const rejected = await fetch(`${GATEWAY}/${provider}/authz/capabilities`, {
+    headers: { authorization: `Bearer ${wrongAudience}` },
+  });
+  if (rejected.status === 401 && rejected.headers.get('x-auth-reason') === 'wrong_audience') {
+    console.log(`  ok   ${provider} capabilities rejects a wrong-audience token`);
+  } else {
+    failures += 1;
+    console.error(
+      `  FAIL ${provider} capabilities accepted a wrong-audience token: status ${rejected.status}, reason ${rejected.headers.get('x-auth-reason')}`
     );
   }
 }
