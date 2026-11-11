@@ -39,7 +39,7 @@ services:
   # OPA starts. OPA verifies the signature; this only moves bytes.
   bundle-fetch:
     image: ghcr.io/oras-project/oras:v1.2.0
-    command: ["pull", "-o", "/bundles", "ghcr.io/oparish1/opa-service/authz-bundle:0.1.0"]
+    command: ["pull", "-o", "/bundles", "ghcr.io/oparish1/opa-service/authz-bundle:0.2.0"]
     user: "0:0"
     restart: "no"
     volumes:
