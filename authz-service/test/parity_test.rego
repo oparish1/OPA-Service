@@ -20,10 +20,10 @@ route_requests(cap, provider) := ({req |
 	req := {"method": route_method(cap), "path": sprintf("/%s%s", [provider, route.suffix])}
 } | {req |
 	cap == data.authz.routes.fallback.safe
-	req := {"method": "GET", "path": sprintf("/%s/v1/me", [provider])}
+	req := {"method": "GET", "path": sprintf("/%s/v1/unmapped", [provider])}
 }) | {req |
 	cap == data.authz.routes.fallback.unsafe
-	req := {"method": "POST", "path": sprintf("/%s/v1/me", [provider])}
+	req := {"method": "POST", "path": sprintf("/%s/v1/unmapped", [provider])}
 }
 
 route_method(cap) := "GET" if data.authz.catalogue[cap].kind == "read"
