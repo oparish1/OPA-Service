@@ -137,8 +137,16 @@ async function main(): Promise<void> {
     (await call('entra', '/v1/test', await mint('entra', { claims: { ...neutralMe, scp: 'workspace:read' } }), { method: 'POST' })).status === 403
   );
   check(
-    'entra write can POST',
-    (await call('entra', '/v1/test', await mint('entra', { claims: { ...neutralMe, scp: 'workspace:write' } }), { method: 'POST' })).status === 200
+    'entra write can POST a mapped route',
+    (await call('entra', '/v1/send', await mint('entra', { claims: { ...neutralMe, scp: 'workspace:write' } }), { method: 'POST' })).status === 200
+  );
+  check(
+    'entra write cannot POST an unmatched route',
+    (await call('entra', '/v1/test', await mint('entra', { claims: { ...neutralMe, scp: 'workspace:write' } }), { method: 'POST' })).status === 403
+  );
+  check(
+    'entra admin can POST an unmatched route',
+    (await call('entra', '/v1/test', await mint('entra', { claims: { ...neutralMe, roles: ['Workspace.Admin'] } }), { method: 'POST' })).status === 200
   );
   check(
     'entra no scope is rejected',

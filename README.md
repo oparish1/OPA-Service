@@ -170,14 +170,18 @@ policy changes without regenerating either artifact.
 - **Capability.** Add one entry to `authz-service/authz/catalogue.json`
   (`{"kind": "read" | "write" | "baseline", "role": <role or null>, "scope":
   "workspace:read" | "workspace:write" | null}`), a route entry to
-  `authz-service/authz/routes.json` when it is API-backed, and copy only if it
-  introduces a new reason code. No Rego change.
+  `authz-service/authz/routes.json` when it is API-backed (and its served path
+  to the `endpoint_inventory` below), and copy only if it introduces a new
+  reason code.
 - **Role.** Add one entry to `authz-service/authz/roles.json` with its flattened
   `includes`, map the provider claim values in `authz-service/authz/role_map.json`, and
   use it in catalogue entries. No Rego change.
 - **Route.** Add `{"suffix": ..., "capability": ...}` to `routes.json`; the
-  longest matching suffix wins, and the `safe`/`unsafe` fallbacks cover the
-  rest.
+  longest matching suffix wins, and an unmatched request falls back to the
+  admin-only `data.unmapped` (safe method) or `action.unmapped.write` (unsafe
+  method) capability, so a forgotten route fails closed. Add the served path to
+  `endpoint_inventory` in `authz-service/test/authz_test.rego`; the coverage
+  test fails when an inventory path has no route entry.
 - **Provider.** Add `authz-service/authz/providers/<id>.rego` honouring the
   provider contract, role-map and config data, an
   `authz-service/authz/v1/gateway/<id>.rego` wrapper (with its `capabilities`

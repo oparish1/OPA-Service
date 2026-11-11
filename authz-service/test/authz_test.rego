@@ -281,8 +281,8 @@ test_route_table if {
 	data.authz.capability_for("HEAD", "/entra/v1/projects") == "nav.api.projects"
 	data.authz.capability_for("GET", "/entra/v1/me") == "nav.api.profile"
 	data.authz.capability_for("OPTIONS", "/okta/v1/me") == "nav.api.profile"
-	data.authz.capability_for("POST", "/entra/v1/me") == "action.api.send.write"
-	data.authz.capability_for("DELETE", "/google/v1/projects") == "action.api.send.write"
+	data.authz.capability_for("POST", "/entra/v1/me") == "action.unmapped.write"
+	data.authz.capability_for("DELETE", "/google/v1/projects") == "action.unmapped.write"
 }
 
 # --- scale -----------------------------------------------------------------
@@ -325,19 +325,127 @@ test_wildcard_route_matches if {
 }
 
 test_write_method_never_matches_read_route if {
-	capability_for("DELETE", "/entra/v1/projects/42") == "action.api.send.write"
-	capability_for("POST", "/entra/v1/projects") == "action.api.send.write"
+	capability_for("DELETE", "/entra/v1/projects/42") == "action.unmapped.write"
+	capability_for("POST", "/entra/v1/projects") == "action.unmapped.write"
 }
 
 test_safe_method_never_matches_write_route if {
-	capability_for("GET", "/entra/v1/projects/42/delete") == "nav.api.profile"
-	capability_for("GET", "/entra/add_customer") == "nav.api.profile"
+	capability_for("GET", "/entra/v1/projects/42/delete") == "data.unmapped"
+	capability_for("GET", "/entra/add_customer") == "data.unmapped"
 }
 
 test_unmatched_unsafe_uses_fallback if {
-	capability_for("POST", "/entra/v1/me") == "action.api.send.write"
+	capability_for("POST", "/entra/v1/unmapped") == "action.unmapped.write"
 }
 
 test_unmatched_safe_uses_fallback if {
-	capability_for("GET", "/entra/v1/me") == "nav.api.profile"
+	capability_for("GET", "/entra/v1/unmapped") == "data.unmapped"
+}
+
+# --- route coverage --------------------------------------------------------
+
+# The gateway serves these paths behind its per-provider wildcard route, so this
+# explicit inventory is the coverage contract. An entry must resolve to its
+# declared capability and its method and path must match a routes.suffixes entry.
+endpoint_inventory := [
+	{"method": "GET", "path": "/v1/me", "capability": "nav.api.profile"},
+	{"method": "HEAD", "path": "/v1/me", "capability": "nav.api.profile"},
+	{"method": "OPTIONS", "path": "/v1/me", "capability": "nav.api.profile"},
+	{"method": "GET", "path": "/v1/projects", "capability": "nav.api.projects"},
+	{"method": "POST", "path": "/v1/projects/42/delete", "capability": "action.projects.delete"},
+	{"method": "POST", "path": "/v1/send", "capability": "action.api.send.write"},
+	{"method": "POST", "path": "/v1/send/42", "capability": "action.api.send.write"},
+	{"method": "GET", "path": "/get_actor_list", "capability": "data.actor.list"},
+	{"method": "GET", "path": "/get_customer_list", "capability": "data.customer.list"},
+	{"method": "GET", "path": "/get_customer_details_by_params", "capability": "data.customer.details"},
+	{"method": "GET", "path": "/get_film_list", "capability": "data.film.list"},
+	{"method": "GET", "path": "/get_staff_list", "capability": "data.staff.list"},
+	{"method": "POST", "path": "/add_customer", "capability": "data.customer.write"},
+	{"method": "GET", "path": "/get_unmapped", "capability": "data.unmapped"},
+	{"method": "POST", "path": "/add_unmapped", "capability": "action.unmapped.write"},
+]
+
+test_route_inventory_coverage if {
+	count({[entry.method, entry.path] |
+		some entry in endpoint_inventory
+		actual := data.authz.capability_for(entry.method, sprintf("/entra%s", [entry.path]))
+		actual != entry.capability
+	}) == 0
+}
+
+# Match the route table itself rather than the total `capability_for`: an
+# inventory entry whose capability is the method-kind fallback still resolves to
+# its declared capability when its suffix is misspelled, so only route_matches
+# proves the entry exists.
+test_route_inventory_has_route_entries if {
+	count({[entry.method, entry.path] |
+		some entry in endpoint_inventory
+		count(data.authz.route_matches(entry.method, sprintf("/entra%s", [entry.path]))) == 0
+	}) == 0
+}
+
+# `/v1/me` is an explicit read route for every provider, so its decisions stay
+# exactly the profile capability's decisions instead of the unmapped fallback.
+test_me_route_matches_profile_for_every_provider if {
+	count({[provider, method] |
+		some provider in {"entra", "okta", "google"}
+		some method in safe_methods
+		data.authz.capability_for(method, sprintf("/%s/v1/me", [provider])) != "nav.api.profile"
+	}) == 0
+}
+
+# --- fail-closed fallback cases --------------------------------------------
+
+non_admin_request_personas := {
+	"entra-viewer",
+	"entra-user",
+	"entra-auditor",
+	"okta-viewer",
+	"okta-user",
+	"okta-auditor",
+	"google-user",
+}
+
+admin_request_personas := {"entra-admin", "okta-admin"}
+
+# An unknown path resolves to the fallback for its method kind, and only an
+# admin reaches either fallback capability.
+test_unmapped_requests_denied_below_admin if {
+	count({[persona.id, method] |
+		some persona in data.fixtures.personas
+		persona.id in non_admin_request_personas
+		some method in {"GET", "POST"}
+		capability := data.authz.capability_for(method, sprintf("/%s/v1/unmapped", [persona.provider]))
+		decision := data.authz.decision(capability) with input as persona_input(persona.id) with data.authz.config as fixture_config
+		decision.allowed
+	}) == 0
+}
+
+test_unmapped_requests_allowed_for_admin if {
+	count({[persona.id, method] |
+		some persona in data.fixtures.personas
+		persona.id in admin_request_personas
+		some method in {"GET", "POST"}
+		capability := data.authz.capability_for(method, sprintf("/%s/v1/unmapped", [persona.provider]))
+		decision := data.authz.decision(capability) with input as persona_input(persona.id) with data.authz.config as fixture_config
+		not decision.allowed
+	}) == 0
+}
+
+# A POST to a GET-only path never matches the read route; it falls back to the
+# admin-only unsafe capability and is denied below admin.
+test_write_to_read_only_path_denied_below_admin if {
+	count({[persona.id] |
+		some persona in data.fixtures.personas
+		persona.id in non_admin_request_personas
+		capability := data.authz.capability_for("POST", sprintf("/%s/v1/projects", [persona.provider]))
+		capability != data.authz.routes.fallback.unsafe
+	}) == 0
+	count({[persona.id] |
+		some persona in data.fixtures.personas
+		persona.id in non_admin_request_personas
+		capability := data.authz.capability_for("POST", sprintf("/%s/v1/projects", [persona.provider]))
+		decision := data.authz.decision(capability) with input as persona_input(persona.id) with data.authz.config as fixture_config
+		decision.allowed
+	}) == 0
 }
