@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { locateOpa } from './opa';
+import { snapshotEntry, type AuthzDecision, type AuthzSnapshotEntry } from '../../shared/authz-snapshot';
 
 /**
  * Generates the two committed artifacts derived from the shared policy: the
@@ -26,11 +27,6 @@ interface Persona {
 interface PersonasFile {
   config: unknown;
   personas: Persona[];
-}
-
-interface Decision {
-  allowed: boolean;
-  reason: string;
 }
 
 function opaJson(query: string, input?: unknown): unknown {
@@ -78,20 +74,14 @@ export function typesContent(): string {
 
 export function snapshotContent(): string {
   const file = JSON.parse(readFileSync(PERSONAS_PATH, 'utf8')) as PersonasFile;
-  const snapshot: Record<string, { allowed: string[]; denied: Record<string, string> }> = {};
+  const snapshot: Record<string, AuthzSnapshotEntry> = {};
   for (const persona of file.personas) {
     const query = `data.authz.capabilities with data.authz.config as ${JSON.stringify(file.config)}`;
     const decisions = opaJson(query, {
       provider: persona.provider,
       claims: persona.claims,
-    }) as Record<string, Decision>;
-    const allowed: string[] = [];
-    const denied: Record<string, string> = {};
-    for (const capability of Object.keys(decisions).sort()) {
-      if (decisions[capability].allowed) allowed.push(capability);
-      else denied[capability] = decisions[capability].reason;
-    }
-    snapshot[persona.id] = { allowed, denied };
+    }) as Record<string, AuthzDecision>;
+    snapshot[persona.id] = snapshotEntry(decisions);
   }
   return `${JSON.stringify({ snapshot }, null, 2)}\n`;
 }

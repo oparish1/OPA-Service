@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { snapshotEntry, type AuthzDecision, type AuthzSnapshotEntry } from '../../shared/authz-snapshot';
 import { PROVIDER_IDS } from '../../shared/providers';
 import { GATEWAY, ISSUERS } from './issuers';
 
@@ -12,30 +13,14 @@ import { GATEWAY, ISSUERS } from './issuers';
  * `docker compose -f gateway/docker-compose.yml up -d`.
  */
 
-interface Decision {
-  allowed: boolean;
-  reason: string;
-}
-
 const snapshot = (
   JSON.parse(
     readFileSync(
       join(import.meta.dir, '..', '..', 'authz-service', 'fixtures', 'matrix.snapshot.json'),
       'utf8'
     )
-  ) as { snapshot: Record<string, { allowed: string[]; denied: Record<string, string> }> }
+  ) as { snapshot: Record<string, AuthzSnapshotEntry> }
 ).snapshot;
-
-/** The allowed/denied shape `matrix.snapshot.json` stores, so the two are comparable. */
-function normalized(decisions: Record<string, Decision>): { allowed: string[]; denied: Record<string, string> } {
-  const allowed: string[] = [];
-  const denied: Record<string, string> = {};
-  for (const capability of Object.keys(decisions).sort()) {
-    if (decisions[capability].allowed) allowed.push(capability);
-    else denied[capability] = decisions[capability].reason;
-  }
-  return { allowed, denied };
-}
 
 async function mint(provider: (typeof PROVIDER_IDS)[number]): Promise<string> {
   const response = await fetch(`${ISSUERS[provider]}/mint`, {
@@ -70,7 +55,7 @@ for (const provider of PROVIDER_IDS) {
     console.error(`  FAIL ${provider} capabilities route: status ${capabilitiesResponse.status}`);
     continue;
   }
-  const actual = normalized((await capabilitiesResponse.json()) as Record<string, Decision>);
+  const actual = snapshotEntry((await capabilitiesResponse.json()) as Record<string, AuthzDecision>);
   const expected = snapshot[`${provider}-user`];
   if (JSON.stringify(actual) === JSON.stringify(expected)) {
     console.log(`  ok   ${provider} capabilities match the ${provider}-user snapshot`);
