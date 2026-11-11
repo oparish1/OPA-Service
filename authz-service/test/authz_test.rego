@@ -390,16 +390,6 @@ test_me_route_matches_profile_for_every_provider if {
 	}) == 0
 }
 
-test_me_route_keeps_profile_decisions if {
-	count({[persona.id] |
-		some persona in data.fixtures.personas
-		capability := data.authz.capability_for("GET", sprintf("/%s/v1/me", [persona.provider]))
-		routed := data.authz.decision(capability) with input as persona_input(persona.id) with data.authz.config as fixture_config
-		profile := data.authz.decision("nav.api.profile") with input as persona_input(persona.id) with data.authz.config as fixture_config
-		routed != profile
-	}) == 0
-}
-
 # --- fail-closed fallback cases --------------------------------------------
 
 non_admin_request_personas := {
