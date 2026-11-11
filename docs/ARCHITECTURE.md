@@ -71,7 +71,8 @@ except where issue #12 explicitly reverses them.
     `/{provider}/authz/capabilities`
     route: it runs `openid-connect`, skips `opa` (the read is authenticated, not
     a resource authorization) and its `serverless-post-function` queries the
-    provider's OPA wrapper for `authz.v1.capabilities` and returns the map.
+    provider's OPA wrapper for `authz.v1.capabilities`, rejects a wrong-audience
+    token, and returns the map.
   - `authz-service/authz/v1/gateway/*.rego` import the shared
     `authz-service/authz/` claim rules, keep only the gateway-only audience and
     issuer checks, and return `allow`, the `X-User-*` headers, and on deny the

@@ -17,14 +17,15 @@ references environment variables by name only.
 
 - `apisix/config.yaml` — standalone (file-driven) mode, JSON access logs, no
   server banner.
-- `apisix/apisix.yaml` — one route per provider plus `/health`. Each provider
-  route runs `openid-connect` (bearer-only, JWKS, pinned issuer) then `opa`
-  (per-provider policy, `with_route`), then `serverless-post-function` builds
-  the `/v1` fixture body after authorization. Each provider also has a
-  `/{provider}/authz/capabilities` route: `openid-connect` authenticates the
-  caller and its `serverless-post-function` queries the provider's OPA wrapper
-  for `authz.v1.capabilities` and returns the map; it runs no `opa` plugin
-  because the read is not a resource authorization.
+- `apisix/apisix.yaml` — one v1 route and one capabilities route per provider
+  plus `/health`. Each provider's v1 route runs `openid-connect` (bearer-only,
+  JWKS, pinned issuer) then `opa` (per-provider policy, `with_route`), then
+  `serverless-post-function` builds the `/v1` fixture body after authorization.
+  Each provider also has a `/{provider}/authz/capabilities` route:
+  `openid-connect` authenticates the caller and its `serverless-post-function`
+  queries the provider's OPA wrapper for `authz.v1.capabilities`, rejects a
+  wrong-audience token, and returns the map; it runs no `opa` plugin because
+  the read is not a resource authorization.
 - `opa/config.yaml` — the OPA runtime config; it enables the console decision
   log and points `mask_decision` at `/system/log/mask`.
 - `opa/mask.rego` — the decision-log mask. The console log erases the bearer
