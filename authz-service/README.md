@@ -2,8 +2,8 @@
 
 The standalone authorization policy. It owns the shared Rego engine, the
 capability/role/route data tables and the versioned `authz.v1` API. The gateway
-now pulls the signed bundle published from this service; the browser still
-compiles the same package to WASM, and repointing the backend OPA is child `#4`.
+pulls the signed bundle published from this service and answers the browser's
+capability call; repointing the backend OPA is child `#4`.
 
 ## Layout
 
@@ -16,9 +16,11 @@ compiles the same package to WASM, and repointing the backend OPA is child `#4`.
   `check.rego`.
 - `authz/v1/gateway/` — the gateway wrapper logic, one package per provider
   (`authz.v1.gateway.<provider>`) plus the shared `authz.v1.gateway.common`
-  helpers. Each wrapper keeps the gateway-only audience/issuer checks and the
-  audit vocabulary. The gateway consumes these packages from the published
-  bundle; the APISIX `opa` plugin queries `authz/v1/gateway/<provider>`.
+  helpers. Each wrapper keeps the gateway-only audience/issuer checks, the
+  audit vocabulary and the `capabilities` rule. The gateway consumes these
+  packages from the published bundle; the APISIX `opa` plugin enforces with
+  `authz/v1/gateway/<provider>` and the capabilities route queries the same
+  package for `authz.v1.capabilities`.
 - `fixtures/` — the personas, gate cases, must-deny list and generated decision
   snapshot used by the tests and the frontend codegen.
 - `test/` — the shared engine suite, the provider wrapper suites, the

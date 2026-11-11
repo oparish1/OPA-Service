@@ -1,10 +1,10 @@
 # The one shared claim policy. The gateway wrappers in
 # `authz-service/authz/v1/gateway/` import this package for enforcement and the
-# browser compiles it to WASM for advisory UI decisions. It names no capability,
-# role, provider secret, tenant, domain or
+# gateway capabilities route evaluates it for advisory UI decisions. It names no
+# capability, role, provider secret, tenant, domain or
 # group: the catalogue, the role hierarchy, the claim-to-role map and the route
 # table live in the data files beside this policy, and the environment values
-# arrive as `data.authz.config`. The browser decision is advisory; the gateway
+# arrive as `data.authz.config`. The returned decision is advisory; the gateway
 # is the only security authority.
 
 package authz

@@ -56,10 +56,10 @@ except where issue #12 explicitly reverses them.
     allowlist.
   - `main.tsx` loads and validates `config.json`, installs the registry, handles
     the provider redirect callback and renders the app.
-  - `authz/` evaluates the shared `authz-service/authz/` Rego compiled to WASM once
-    after sign-in and again after a renewal changes claims, caches one
-    capability map and fails closed to a baseline floor. UI authorization is
-    advisory; the gateway enforces.
+  - `authz/` fetches the capability map from the gateway's
+    `GET /{provider}/authz/capabilities` once after sign-in and again after a
+    renewal changes claims, caches one map and fails closed to a baseline floor.
+    UI authorization is advisory; the gateway enforces.
 - **Gateway** (`gateway/`):
   - `apisix/config.yaml` runs APISIX in declarative mode with JSON access logs,
     no server banner and strict security headers.
@@ -67,7 +67,10 @@ except where issue #12 explicitly reverses them.
     route. Each authenticated route runs `openid-connect` (bearer-only, JWKS)
     for cryptographic validation and `opa` for audience, scope, claim and method
     authorization, then `serverless-post-function` builds the `/v1` golden
-    fixture body.
+    fixture body. Each provider also has a `/{provider}/authz/capabilities`
+    route: it runs `openid-connect`, skips `opa` (the read is authenticated, not
+    a resource authorization) and its `serverless-post-function` queries the
+    provider's OPA wrapper for `authz.v1.capabilities` and returns the map.
   - `authz-service/authz/v1/gateway/*.rego` import the shared
     `authz-service/authz/` claim rules, keep only the gateway-only audience and
     issuer checks, and return `allow`, the `X-User-*` headers, and on deny the

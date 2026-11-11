@@ -51,8 +51,8 @@ scope, claim and method rules, then sets `X-User-Issuer`, `X-User-Subject` and
 `/v1/me` and `/v1/projects` demo bodies; the golden bodies captured from the
 backend before deletion are kept in `gateway/fixtures/` as the A17 reference.
 The claim rules live once in `authz-service/authz/`: the gateway wrappers import
-them and the browser compiles the same package to WASM to hide or disable
-controls. UI authorization is advisory; the gateway enforces.
+them, enforce every request and answer the browser's capability call. UI
+authorization is advisory; the gateway enforces.
 
 ## Local setup
 
@@ -148,26 +148,22 @@ the shared reason codes to the `X-Auth-Reason` strings the access log has always
 carried. The published bundle carries those wrappers and the gateway loads it in
 signed bundle mode; the APISIX `opa` plugin queries `authz/v1/gateway/<provider>`.
 
-The browser compiles the same package with `opa build -t wasm` to
-`frontend/public/policy/authz.<hash>.wasm` (about 180 KB, under a 1 MB budget)
-and evaluates it once after sign-in and again when a renewal changes the claims
-to hide menu items and disable buttons with an accessible reason. `setData`
-replaces the whole document, so the build also writes the static tables to
-`frontend/public/policy/authz.data.json` and the browser supplies them beside
-the provider's runtime config. The browser fails closed to Overview and Account
-if the wasm cannot load or evaluate. **UI authorization is advisory; the gateway
-enforces every request.** Setting `authz.enabled` to `false` in the public
-config (default `true`) skips the wasm load and restores the pre-change behavior
-without touching the gateway.
+The browser fetches that map from the gateway's per-provider
+`GET /{provider}/authz/capabilities` route once after sign-in and again when a
+renewal changes the claims, to hide menu items and disable buttons with an
+accessible reason. The gateway builds the OPA input from the token it already
+verified, so the browser sends only its bearer token and never claims or a
+policy query. A failed or incomplete call leaves the UI at the baseline floor
+(Overview and Account) with `permissions_unavailable`. **UI authorization is
+advisory; the gateway enforces every request.** Setting `authz.enabled` to
+`false` in the public config (default `true`) skips the call and restores the
+pre-change behavior without touching the gateway.
 
-The bundle pins `@open-policy-agent/opa-wasm` `1.10.0`; the build and CI use OPA
-`1.4.2`. `bun run build:policy` compiles and validates the wasm (rejecting a
-built-in the WASM target cannot execute) before the Vite build copies it from
-`public/policy/`, which is git-ignored. `authz-service/fixtures/matrix.snapshot.json`
+The build and CI use OPA `1.4.2`. `authz-service/fixtures/matrix.snapshot.json`
 is the committed decision grid for the personas in
-`authz-service/fixtures/personas.json`; a frontend test loads the compiled wasm and
-asserts it matches, and CI fails when the policy changes without regenerating
-either artifact.
+`authz-service/fixtures/personas.json`; a Rego test asserts a provider wrapper's
+capability map equals the shared policy for every persona, and CI fails when the
+policy changes without regenerating either artifact.
 
 ### How to add a capability, a role or a route
 
@@ -184,17 +180,14 @@ either artifact.
   rest.
 - **Provider.** Add `authz-service/authz/providers/<id>.rego` honouring the
   provider contract, role-map and config data, an
-  `authz-service/authz/v1/gateway/<id>.rego` wrapper, and a frontend
-  `claims.ts`.
+  `authz-service/authz/v1/gateway/<id>.rego` wrapper (with its `capabilities`
+  rule) and a `/{provider}/authz/capabilities` route in
+  `gateway/apisix/apisix.yaml`.
 
 After any policy change run `bun run gen:authz`, which regenerates
 `frontend/src/core/authz/generated.ts` (the `CapabilityId` and reason unions)
 and `authz-service/fixtures/matrix.snapshot.json`; review the snapshot diff, then
 commit both. CI runs `bun run check:authz` and fails when either is stale.
-
-A frontend test evaluates a generated 150-capability catalogue through the
-compiled wasm and logs the time; it fails above 250 ms. The last local run
-recorded 8 ms, and the wasm stays under the 1 MB budget (about 180 KB).
 
 ## Checks
 
