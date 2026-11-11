@@ -29,7 +29,7 @@ export type AppLogLevel = 'debug' | 'info' | 'warn' | 'error';
 const LOG_LEVELS: readonly AppLogLevel[] = ['debug', 'info', 'warn', 'error'];
 
 export interface AuthzConfig {
-  /** When false the browser skips the WASM policy and keeps pre-change behavior. */
+  /** When false the browser skips the capability call and keeps pre-change behavior. */
   enabled: boolean;
 }
 

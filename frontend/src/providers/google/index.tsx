@@ -1,7 +1,6 @@
 import type { ProviderId } from '../../../../shared/providers';
 import type { FrontendProviderModule } from '../../core/providers/types';
 import { createGoogleAuth } from './auth';
-import { googleAuthzConfig, googleClaims } from './claims';
 import { GoogleIcon } from './icon';
 
 export const googleModule: FrontendProviderModule = {
@@ -9,7 +8,6 @@ export const googleModule: FrontendProviderModule = {
   name: 'Google Workspace / Cloud Identity',
   ssoDomain: 'agentic-advantage.example',
   auth: createGoogleAuth(),
-  authz: { claims: googleClaims, config: googleAuthzConfig },
   links: {
     forgotPasswordUrl: 'https://example.com/reset',
     changePasswordUrl: 'https://example.com/change',
