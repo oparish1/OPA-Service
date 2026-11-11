@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { RUNNER_TIMEOUT_MS } from '../../../../../shared/request-runner';
 import { CapabilitiesError, fetchCapabilities, parseCapabilities } from '../service';
 import { capabilitiesWith } from '../testing';
 
@@ -101,5 +102,31 @@ describe('fetchCapabilities', () => {
     await expect(
       fetchCapabilities('/entra/authz/capabilities', token, fetchImpl as typeof fetch)
     ).rejects.toMatchObject({ code: 'capabilities_body_invalid' });
+  });
+
+  it('times out when the response body stalls past the deadline', async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchImpl = (async (_url: RequestInfo | URL, init?: RequestInit) =>
+        ({
+          ok: true,
+          status: 200,
+          json: () =>
+            new Promise((_resolve, reject) => {
+              init?.signal?.addEventListener('abort', () =>
+                reject(new DOMException('aborted', 'AbortError'))
+              );
+            }),
+        }) as unknown as Response) as typeof fetch;
+
+      const pending = fetchCapabilities('/entra/authz/capabilities', token, fetchImpl);
+      const assertion = expect(pending).rejects.toMatchObject({
+        code: 'capabilities_timeout',
+      });
+      await vi.advanceTimersByTimeAsync(RUNNER_TIMEOUT_MS);
+      await assertion;
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

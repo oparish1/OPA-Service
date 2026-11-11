@@ -59,28 +59,32 @@ export async function fetchCapabilities(
 ): Promise<Capabilities> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), RUNNER_TIMEOUT_MS);
-  let response: Response;
   try {
-    response = await fetchImpl(url, {
-      headers: { authorization: `Bearer ${token}`, accept: 'application/json' },
-      redirect: 'manual',
-      signal: controller.signal,
-    });
-  } catch {
-    throw new CapabilitiesError(
-      controller.signal.aborted ? 'capabilities_timeout' : 'capabilities_fetch_failed'
-    );
+    let response: Response;
+    try {
+      response = await fetchImpl(url, {
+        headers: { authorization: `Bearer ${token}`, accept: 'application/json' },
+        redirect: 'manual',
+        signal: controller.signal,
+      });
+    } catch {
+      throw new CapabilitiesError(
+        controller.signal.aborted ? 'capabilities_timeout' : 'capabilities_fetch_failed'
+      );
+    }
+
+    if (!response.ok) throw new CapabilitiesError(`capabilities_http_${response.status}`);
+
+    let raw: unknown;
+    try {
+      raw = await response.json();
+    } catch {
+      throw new CapabilitiesError(
+        controller.signal.aborted ? 'capabilities_timeout' : 'capabilities_body_invalid'
+      );
+    }
+    return parseCapabilities(raw);
   } finally {
     clearTimeout(timeout);
   }
-
-  if (!response.ok) throw new CapabilitiesError(`capabilities_http_${response.status}`);
-
-  let raw: unknown;
-  try {
-    raw = await response.json();
-  } catch {
-    throw new CapabilitiesError('capabilities_body_invalid');
-  }
-  return parseCapabilities(raw);
 }
