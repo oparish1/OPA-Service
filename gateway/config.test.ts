@@ -366,7 +366,7 @@ describe('OPA deployment', () => {
     expect(service).toBeDefined();
     expect(service.image).toBe('ghcr.io/oras-project/oras:v1.2.0');
     const ref = (service.command ?? []).find(argument => argument.startsWith('ghcr.io/'));
-    expect(ref).toBe(`ghcr.io/oparish1/opa-service/authz-bundle:${version}`);
+    expect(ref).toBe(`ghcr.io/oparish1/authz-policy/authz-bundle:${version}`);
   });
 
   test('the opa healthcheck gates the stack on bundle activation', () => {
