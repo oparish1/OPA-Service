@@ -33,7 +33,7 @@ references environment variables by name only.
   so no credential reaches `docker compose logs opa`.
 - OPA runs in signed bundle mode: the one-shot `bundle-fetch` service anonymously
   pulls the signed artifact
-  `ghcr.io/oparish1/opa-service/authz-bundle:<version>` into a named volume;
+  `ghcr.io/oparish1/authz-policy/authz-bundle:<version>` into a named volume;
   `bundle-merge` verifies it against the committed public key, adds the mask and
   re-signs it with a throwaway key from `bundle-key`; `opa` loads the combined
   bundle with `--bundle` + `--verification-key`. A bundle that fails verification

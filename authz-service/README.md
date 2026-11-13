@@ -55,7 +55,7 @@ contract can be tested and published.
 - Publish on a Git tag matching `authz-service/v*`. The tag suffix is the
   version and is written to the bundle revision.
 - The bundle is an OCI artifact pushed to
-  `ghcr.io/<owner>/opa-service/authz-bundle:<version>` by the
+  `ghcr.io/<owner>/authz-policy/authz-bundle:<version>` by the
   `.github/workflows/authz-service-checks.yml` publish job. It runs only for
   `authz-service/v*` tags after the checks job passes.
 
@@ -85,7 +85,7 @@ To publish locally against a registry:
 ```sh
 oras login ghcr.io -u <user>
 oras push --artifact-type application/vnd.opa.bundle.v1+json \
-  ghcr.io/<owner>/opa-service/authz-bundle:0.2.1 \
+  ghcr.io/<owner>/authz-policy/authz-bundle:0.2.1 \
   /tmp/authz-bundle.tar.gz:application/vnd.opa.bundle.layer.v1+gzip
 ```
 
