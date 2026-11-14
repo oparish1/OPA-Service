@@ -214,17 +214,14 @@ describe('verifyCatalogue', () => {
 });
 
 describe('verifyContract', () => {
-  it('returns the capability ids and reason precedence', () => {
+  it('returns the capability ids', () => {
     const dir = scratch();
     try {
       writeContract(dir, {
         capabilityIds: ['nav.overview', 'nav.account'],
         reasonPrecedence: ['not_signed_in'],
       });
-      expect(verifyContract(dir)).toEqual({
-        capabilityIds: ['nav.overview', 'nav.account'],
-        reasonPrecedence: ['not_signed_in'],
-      });
+      expect(verifyContract(dir)).toEqual(['nav.overview', 'nav.account']);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

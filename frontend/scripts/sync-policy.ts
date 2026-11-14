@@ -44,11 +44,6 @@ export interface VerifiedArtifacts {
   dataHash: string;
 }
 
-export interface VerifiedContract {
-  capabilityIds: string[];
-  reasonPrecedence: string[];
-}
-
 /** Reads the pinned version from `policy/VERSION` (or a test directory). */
 export function readVersion(versionDir = DEFAULT_VERSION_DIR): string {
   const file = join(versionDir, 'VERSION');
@@ -183,16 +178,16 @@ function requireStringArray(value: unknown, name: string): string[] {
 }
 
 /** Verifies the extracted contract carries the vocabulary and parity fixtures. */
-export function verifyContract(dir: string): VerifiedContract {
+export function verifyContract(dir: string): string[] {
   const file = join(dir, 'fixtures', 'capability-ids.json');
   const raw = parseArtifactJson(dir, join('fixtures', 'capability-ids.json'));
   if (!isRecord(raw)) throw new Error(`${file} is not an object`);
   const capabilityIds = requireStringArray(raw.capability_ids, `${file} capability_ids`);
-  const reasonPrecedence = requireStringArray(raw.reason_precedence, `${file} reason_precedence`);
+  requireStringArray(raw.reason_precedence, `${file} reason_precedence`);
   for (const name of ['personas.json', 'matrix.snapshot.json']) {
     parseArtifactJson(dir, join('fixtures', name));
   }
-  return { capabilityIds, reasonPrecedence };
+  return capabilityIds;
 }
 
 /** Fails when the release catalogue omits a capability the contract publishes. */
@@ -238,7 +233,7 @@ export async function main(
   downloadRelease(version, DEFAULT_OUT_DIR, run);
   const { policyHash, dataHash } = verifyArtifacts(DEFAULT_OUT_DIR, version);
   downloadContract(version, DEFAULT_CONTRACT_DIR, run);
-  const { capabilityIds } = verifyContract(DEFAULT_CONTRACT_DIR);
+  const capabilityIds = verifyContract(DEFAULT_CONTRACT_DIR);
   verifyCatalogue(DEFAULT_OUT_DIR, version, capabilityIds);
   console.log(`synced authz-policy v${version} policy.wasm ${policyHash} data.json ${dataHash}`);
 }
