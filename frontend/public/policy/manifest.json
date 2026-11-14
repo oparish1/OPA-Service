@@ -1,7 +1,0 @@
-{
-  "entrypoint": "authz/capabilities",
-  "wasm": "authz.aad68825.wasm",
-  "data": "authz.data.json",
-  "sha256": "aad68825186137645b7227ce515df1f3fab28acc0ecbf8a58ecb2dbff4e06576",
-  "bytes": 179816
-}

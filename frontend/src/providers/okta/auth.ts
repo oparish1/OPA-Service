@@ -1,6 +1,7 @@
 import { OktaAuth, isAccessToken, isIDToken, isRefreshToken } from '@okta/okta-auth-js';
 import type { ProviderConfig } from '../../../../shared/app-config';
 import { getProviderConfig } from '../../core/config';
+import { claimString } from '../../core/lib/claims';
 import { describeError, log } from '../../core/lib/log';
 import { formatTimestamp } from '../../core/lib/response-format';
 import type { ProviderAuth, ProviderSession } from '../../core/providers/types';
@@ -47,11 +48,6 @@ function getClient(): OktaAuth {
   return client;
 }
 
-function stringClaim(claims: Record<string, unknown>, key: string): string {
-  const value = claims[key];
-  return typeof value === 'string' ? value : '';
-}
-
 function groupClaim(claims: Record<string, unknown>): string {
   const groups = claims.groups;
   if (Array.isArray(groups)) return groups.filter(group => typeof group === 'string').join(', ');
@@ -71,17 +67,18 @@ async function toSession(oktaAuth: OktaAuth): Promise<ProviderSession | null> {
   const refreshResult = await oktaAuth.tokenManager.get('refreshToken');
   const refreshToken = refreshResult && isRefreshToken(refreshResult) ? refreshResult : undefined;
   const claims = { ...(accessToken.claims ?? {}), ...(idToken?.claims ?? {}) } as Record<string, unknown>;
-  const username = stringClaim(claims, 'email') || stringClaim(claims, 'preferred_username');
+  const username = claimString(claims.email) || claimString(claims.preferred_username);
   return {
     providerId: PROVIDER_ID,
     providerName: PROVIDER_NAME,
-    issuer: stringClaim(claims, 'iss') || config().issuer,
+    issuer: claimString(claims.iss) || config().issuer,
+    rawClaims: claims,
     account: {
-      displayName: stringClaim(claims, 'name') || username,
+      displayName: claimString(claims.name) || username,
       email: username,
-      organisation: stringClaim(claims, 'org'),
+      organisation: claimString(claims.org),
       role: groupClaim(claims),
-      accountId: stringClaim(claims, 'uid') || stringClaim(claims, 'sub'),
+      accountId: claimString(claims.uid) || claimString(claims.sub),
       createdAt: '—',
     },
     accessToken: {

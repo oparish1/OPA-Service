@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "predev": "bun run sync:policy",
     "build": "tsc -b && vite build",
+    "prebuild": "bun run sync:policy",
+    "sync:policy": "bun run scripts/sync-policy.ts",
     "gen:authz": "bun run scripts/authz-codegen.ts generate",
     "check:authz": "bun run scripts/authz-codegen.ts check",
     "preview": "vite preview",
@@ -19,6 +22,7 @@
   "dependencies": {
     "@azure/msal-browser": "3.30.0",
     "@okta/okta-auth-js": "7.14.5",
+    "@open-policy-agent/opa-wasm": "1.10.0",
     "lucide-react": "^0.460.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

@@ -41,8 +41,11 @@ jobs:
           curl -fsSL -o /usr/local/bin/opa https://openpolicyagent.org/downloads/v1.4.2/opa_linux_amd64_static
           chmod +x /usr/local/bin/opa
       # Build before the tests so the A18 bundle scan sees `dist/`; the authz
-      # freshness check below still needs OPA.
+      # freshness check below still needs OPA. The build's `prebuild` hook runs
+      # `sync:policy`, which reads the private authz-policy release.
       - run: bun run build
+        env:
+          GH_TOKEN: ${{ secrets.AUTHZ_POLICY_READ_TOKEN }}
       - run: bun run test
       - run: bun run check:catch
       # The generated capability/reason types and persona snapshot must match the

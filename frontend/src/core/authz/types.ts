@@ -1,8 +1,8 @@
 import { AUTHZ_REASONS, CAPABILITY_IDS } from './generated';
-import type { AuthzReason, CapabilityId } from './generated';
+import type { AuthzClaims, AuthzReason, CapabilityId } from './generated';
 
 export { AUTHZ_REASONS, CAPABILITY_IDS };
-export type { AuthzReason, CapabilityId };
+export type { AuthzClaims, AuthzReason, CapabilityId };
 
 /**
  * A reason the UI may render. `permissions_unavailable` is never emitted by the

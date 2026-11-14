@@ -25,6 +25,7 @@ const PROVIDER_SESSION: ProviderSession = {
     accountId: 'subject-1',
     createdAt: '—',
   },
+  rawClaims: {},
   accessToken: { value: 'access-initial', expiresAt: 'soon', scopes: 'workspace:read' },
 };
 
