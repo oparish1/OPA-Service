@@ -1,6 +1,6 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { DEFAULT_CONTRACT_DIR } from './sync-policy';
+import { DEFAULT_CONTRACT_DIR, readContractVocabulary } from './sync-policy';
 
 /**
  * Generates the committed capability/reason types from the published
@@ -12,27 +12,13 @@ import { DEFAULT_CONTRACT_DIR } from './sync-policy';
 const MODULE_DIR = (import.meta as unknown as { dir?: string }).dir ?? process.cwd();
 const TYPES_PATH = join(MODULE_DIR, '..', 'src', 'core', 'authz', 'generated.ts');
 
-interface CapabilityIdsFile {
-  capability_ids: string[];
-  reason_precedence: string[];
-}
-
-function readCapabilityIds(contractDir: string): CapabilityIdsFile {
-  const path = join(contractDir, 'fixtures', 'capability-ids.json');
-  if (!existsSync(path)) {
-    throw new Error(`${path} is missing; run \`bun run sync:policy\` before generating authz types`);
-  }
-  const parsed = JSON.parse(readFileSync(path, 'utf8')) as Partial<CapabilityIdsFile>;
-  if (!Array.isArray(parsed.capability_ids) || !Array.isArray(parsed.reason_precedence)) {
-    throw new Error(`${path} must carry capability_ids and reason_precedence arrays`);
-  }
-  return { capability_ids: parsed.capability_ids, reason_precedence: parsed.reason_precedence };
-}
-
 export function typesContent(contractDir = DEFAULT_CONTRACT_DIR): string {
-  const { capability_ids, reason_precedence } = readCapabilityIds(contractDir);
-  const capabilities = capability_ids.slice().sort();
-  const reasons = reason_precedence.slice();
+  const { capabilityIds, reasonPrecedence } = readContractVocabulary(
+    contractDir,
+    'run `bun run sync:policy` before generating authz types'
+  );
+  const capabilities = capabilityIds.slice().sort();
+  const reasons = reasonPrecedence.slice();
   const lines = [
     '/**',
     ' * Generated from the pinned `authz-policy` contract by',

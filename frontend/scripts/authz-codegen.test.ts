@@ -56,11 +56,16 @@ describe('typesContent', () => {
     }
   });
 
-  it('rejects a contract without the two arrays', () => {
+  it('rejects fields the sync check would reject', () => {
     const dir = scratch();
     try {
-      writeContract(dir, { capability_ids: 'nav.overview', reason_precedence: [] });
-      expect(() => typesContent(dir)).toThrow(/must carry capability_ids and reason_precedence arrays/);
+      for (const body of [
+        { capability_ids: 'nav.overview', reason_precedence: [] },
+        { capability_ids: ['nav.overview'], reason_precedence: [123, ''] },
+      ]) {
+        writeContract(dir, body);
+        expect(() => typesContent(dir)).toThrow(/must be an array of non-empty strings/);
+      }
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

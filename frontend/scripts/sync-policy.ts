@@ -177,13 +177,32 @@ function requireStringArray(value: unknown, name: string): string[] {
   return value;
 }
 
+export interface ContractVocabulary {
+  capabilityIds: string[];
+  reasonPrecedence: string[];
+}
+
+/** The one reader of the contract's capability vocabulary; the sync check and the generator share it. */
+export function readContractVocabulary(
+  dir: string,
+  missingHint?: string
+): ContractVocabulary {
+  const relative = join('fixtures', 'capability-ids.json');
+  const file = join(dir, relative);
+  if (!existsSync(file)) {
+    throw new Error(`${file} is missing${missingHint ? `; ${missingHint}` : ''}`);
+  }
+  const raw = parseArtifactJson(dir, relative);
+  if (!isRecord(raw)) throw new Error(`${file} is not an object`);
+  return {
+    capabilityIds: requireStringArray(raw.capability_ids, `${file} capability_ids`),
+    reasonPrecedence: requireStringArray(raw.reason_precedence, `${file} reason_precedence`),
+  };
+}
+
 /** Verifies the extracted contract carries the vocabulary and parity fixtures. */
 export function verifyContract(dir: string): string[] {
-  const file = join(dir, 'fixtures', 'capability-ids.json');
-  const raw = parseArtifactJson(dir, join('fixtures', 'capability-ids.json'));
-  if (!isRecord(raw)) throw new Error(`${file} is not an object`);
-  const capabilityIds = requireStringArray(raw.capability_ids, `${file} capability_ids`);
-  requireStringArray(raw.reason_precedence, `${file} reason_precedence`);
+  const { capabilityIds } = readContractVocabulary(dir);
   for (const name of ['personas.json', 'matrix.snapshot.json']) {
     parseArtifactJson(dir, join('fixtures', name));
   }
