@@ -1,6 +1,7 @@
 import { loadPolicy } from '@open-policy-agent/opa-wasm';
 import type { LoadedPolicy } from '@open-policy-agent/opa-wasm';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { RUNNER_TIMEOUT_MS } from '../../../../../shared/request-runner';
 import { capabilitiesWith } from '../testing';
 import type { AuthzClaims } from '../types';
 import { CapabilitiesError, evaluateCapabilities, parseCapabilities, resetPolicy } from '../wasm';
@@ -73,6 +74,7 @@ beforeEach(() => {
 
 afterEach(() => {
   resetPolicy();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -124,6 +126,24 @@ describe('evaluateCapabilities', () => {
     });
     expect(policy.evaluate).toHaveBeenCalledWith({ provider: 'entra', claims: CLAIMS }, ENTRYPOINT);
     expect(result).toEqual(capabilitiesWith({}));
+  });
+
+  it('aborts a policy fetch that never responds so the caller fails closed', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        (_input: RequestInfo | URL, init?: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+          })
+      )
+    );
+
+    const pending = evaluateCapabilities('entra', CLAIMS, CONFIG);
+    const expectation = expect(pending).rejects.toThrow('aborted');
+    await vi.advanceTimersByTimeAsync(RUNNER_TIMEOUT_MS);
+    await expectation;
   });
 
   it('drops the cached bundle after a failure so a retry reloads it', async () => {

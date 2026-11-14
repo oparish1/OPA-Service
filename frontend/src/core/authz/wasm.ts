@@ -1,6 +1,7 @@
 import { loadPolicy } from '@open-policy-agent/opa-wasm';
 import type { LoadedPolicy } from '@open-policy-agent/opa-wasm';
 import { AUTHZ_TABLE_NAMES } from '../../../../shared/authz-tables';
+import { RUNNER_TIMEOUT_MS } from '../../../../shared/request-runner';
 import { AUTHZ_REASONS, CAPABILITY_IDS } from './generated';
 import type { AuthzClaims, AuthzReason, Capabilities, Decision } from './types';
 
@@ -33,35 +34,44 @@ export function resetPolicy(): void {
 function getBundle(): Promise<PolicyBundle> {
   if (!bundlePromise) {
     bundlePromise = (async () => {
-      const manifestResponse = await fetch(`${POLICY_BASE}manifest.json`, { cache: 'no-store' });
-      if (!manifestResponse.ok) throw new Error('policy_manifest_unavailable');
-      const manifest = (await manifestResponse.json()) as PolicyManifest;
-      if (typeof manifest.entrypoint !== 'string' || manifest.entrypoint.length === 0) {
-        throw new Error('policy_manifest_invalid');
-      }
-      const [wasmResponse, dataResponse] = await Promise.all([
-        fetch(`${POLICY_BASE}policy.wasm`, { cache: 'no-store' }),
-        fetch(`${POLICY_BASE}data.json`, { cache: 'no-store' }),
-      ]);
-      if (!wasmResponse.ok) throw new Error('policy_wasm_unavailable');
-      if (!dataResponse.ok) throw new Error('policy_data_unavailable');
-      const policy = await loadPolicy(await wasmResponse.arrayBuffer());
-      const data = (await dataResponse.json()) as { authz?: unknown };
-      const tables = data.authz;
-      // A valid-JSON payload that lacks the static tables would otherwise evaluate
-      // to an empty capability map and be cached as a ready policy, skipping the
-      // fail-closed floor; validate the table payload before caching it.
-      if (!tables || typeof tables !== 'object' || Array.isArray(tables)) {
-        throw new Error('policy_data_invalid');
-      }
-      const bundleTables = tables as Record<string, unknown>;
-      for (const name of AUTHZ_TABLE_NAMES) {
-        const table = bundleTables[name];
-        if (!table || typeof table !== 'object' || Array.isArray(table)) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), RUNNER_TIMEOUT_MS);
+      try {
+        const manifestResponse = await fetch(`${POLICY_BASE}manifest.json`, {
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        if (!manifestResponse.ok) throw new Error('policy_manifest_unavailable');
+        const manifest = (await manifestResponse.json()) as PolicyManifest;
+        if (typeof manifest.entrypoint !== 'string' || manifest.entrypoint.length === 0) {
+          throw new Error('policy_manifest_invalid');
+        }
+        const [wasmResponse, dataResponse] = await Promise.all([
+          fetch(`${POLICY_BASE}policy.wasm`, { cache: 'no-store', signal: controller.signal }),
+          fetch(`${POLICY_BASE}data.json`, { cache: 'no-store', signal: controller.signal }),
+        ]);
+        if (!wasmResponse.ok) throw new Error('policy_wasm_unavailable');
+        if (!dataResponse.ok) throw new Error('policy_data_unavailable');
+        const policy = await loadPolicy(await wasmResponse.arrayBuffer());
+        const data = (await dataResponse.json()) as { authz?: unknown };
+        const tables = data.authz;
+        // A valid-JSON payload that lacks the static tables would otherwise evaluate
+        // to an empty capability map and be cached as a ready policy, skipping the
+        // fail-closed floor; validate the table payload before caching it.
+        if (!tables || typeof tables !== 'object' || Array.isArray(tables)) {
           throw new Error('policy_data_invalid');
         }
+        const bundleTables = tables as Record<string, unknown>;
+        for (const name of AUTHZ_TABLE_NAMES) {
+          const table = bundleTables[name];
+          if (!table || typeof table !== 'object' || Array.isArray(table)) {
+            throw new Error('policy_data_invalid');
+          }
+        }
+        return { policy, entrypoint: manifest.entrypoint, tables: bundleTables };
+      } finally {
+        clearTimeout(timeout);
       }
-      return { policy, entrypoint: manifest.entrypoint, tables: bundleTables };
     })().catch(error => {
       bundlePromise = null;
       throw error;
