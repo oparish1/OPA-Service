@@ -1,6 +1,7 @@
 import type { ProviderConfig } from '../../../../shared/app-config';
-import { claimScopes, claimString, claimStringArray } from '../../core/authz/claims';
+import { claimScopes, claimStringArray } from '../../core/authz/claims';
 import type { AuthzClaims } from '../../core/authz/types';
+import { claimString } from '../../core/lib/claims';
 import type { ProviderSession } from '../../core/providers/types';
 
 /**

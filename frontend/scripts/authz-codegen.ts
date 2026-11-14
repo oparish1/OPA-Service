@@ -47,9 +47,27 @@ function opaJson(query: string, input?: unknown): unknown {
   return parsed.result?.[0]?.expressions?.[0]?.value;
 }
 
+interface ClaimField {
+  name: string;
+  kind: string;
+}
+
+const CLAIM_TS_TYPES: Record<string, string> = {
+  string_array: 'string[]',
+  string: 'string',
+  boolean: 'boolean',
+};
+
+function claimType(field: ClaimField): string {
+  const type = CLAIM_TS_TYPES[field.kind];
+  if (!type) throw new Error(`unknown claim kind ${field.kind} for claim ${field.name}`);
+  return type;
+}
+
 export function typesContent(): string {
   const capabilities = (opaJson('data.authz.capability_ids') as string[]).slice().sort();
   const reasons = opaJson('data.authz.reason_precedence') as string[];
+  const claims = opaJson('data.authz.claim_contract') as ClaimField[];
   const lines = [
     '/**',
     ' * Generated from the shared policy by `frontend/scripts/authz-codegen.ts`.',
@@ -67,6 +85,11 @@ export function typesContent(): string {
     '] as const;',
     '',
     'export type AuthzReason = (typeof AUTHZ_REASONS)[number];',
+    '',
+    '/** The normalized claim set every caller supplies to the shared policy. */',
+    'export interface AuthzClaims {',
+    ...claims.map(claim => `  ${claim.name}: ${claimType(claim)};`),
+    '}',
     '',
   ];
   return lines.join('\n');

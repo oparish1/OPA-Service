@@ -1,5 +1,6 @@
 import type { ProviderConfig } from '../../../../shared/app-config';
 import { getProviderConfig } from '../../core/config';
+import { claimString } from '../../core/lib/claims';
 import { describeError, log } from '../../core/lib/log';
 import { formatTimestamp } from '../../core/lib/response-format';
 import type { ProviderAuth, ProviderSession } from '../../core/providers/types';
@@ -102,11 +103,6 @@ function decodePayload(token: string): Record<string, unknown> {
   return JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>;
 }
 
-function stringClaim(claims: Record<string, unknown>, key: string): string {
-  const value = claims[key];
-  return typeof value === 'string' ? value : '';
-}
-
 function assertCredential(token: string): ProviderSession {
   const provider = config();
   const claims = decodePayload(token);
@@ -122,18 +118,18 @@ function assertCredential(token: string): ProviderSession {
     provider.hostedDomain !== undefined &&
     claims.hd === provider.hostedDomain;
   if (!valid) throw new Error(GENERIC_ERROR);
-  const email = stringClaim(claims, 'email');
+  const email = claimString(claims.email);
   return {
     providerId: PROVIDER_ID,
     providerName: PROVIDER_NAME,
     issuer: GOOGLE_ISSUER,
     rawClaims: claims,
     account: {
-      displayName: stringClaim(claims, 'name') || email,
+      displayName: claimString(claims.name) || email,
       email,
-      organisation: stringClaim(claims, 'hd'),
+      organisation: claimString(claims.hd),
       role: '',
-      accountId: stringClaim(claims, 'sub'),
+      accountId: claimString(claims.sub),
       createdAt: '—',
     },
     accessToken: {

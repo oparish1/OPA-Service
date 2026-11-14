@@ -1,6 +1,6 @@
 import type { ProviderConfig } from '../../../../shared/app-config';
-import { claimString } from '../../core/authz/claims';
 import type { AuthzClaims } from '../../core/authz/types';
+import { claimString } from '../../core/lib/claims';
 import type { ProviderSession } from '../../core/providers/types';
 
 /** Google's contribution to the shared policy: hosted domain, verification and subject. */

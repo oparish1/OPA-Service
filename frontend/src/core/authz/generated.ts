@@ -36,3 +36,14 @@ export const AUTHZ_REASONS = [
 ] as const;
 
 export type AuthzReason = (typeof AUTHZ_REASONS)[number];
+
+/** The normalized claim set every caller supplies to the shared policy. */
+export interface AuthzClaims {
+  roles: string[];
+  groups: string[];
+  scopes: string[];
+  tenant: string;
+  hd: string;
+  email_verified: boolean;
+  has_subject: boolean;
+}

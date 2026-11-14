@@ -2,6 +2,7 @@ import { LogLevel, PublicClientApplication } from '@azure/msal-browser';
 import type { AccountInfo, AuthenticationResult, SilentRequest } from '@azure/msal-browser';
 import type { ProviderConfig } from '../../../../shared/app-config';
 import { getProviderConfig } from '../../core/config';
+import { claimString } from '../../core/lib/claims';
 import { describeError, log } from '../../core/lib/log';
 import { formatTimestamp } from '../../core/lib/response-format';
 import type { ProviderAuth, ProviderSession } from '../../core/providers/types';
@@ -80,11 +81,6 @@ function getClient(): Promise<PublicClientApplication> {
   return clientPromise;
 }
 
-function stringClaim(claims: Record<string, unknown>, key: string): string {
-  const value = claims[key];
-  return typeof value === 'string' ? value : '';
-}
-
 function roleClaim(claims: Record<string, unknown>): string {
   const roles = claims.roles;
   if (Array.isArray(roles)) return roles.filter(role => typeof role === 'string').join(', ');
@@ -96,12 +92,12 @@ function toSession(result: AuthenticationResult): ProviderSession {
   return {
     providerId: PROVIDER_ID,
     providerName: PROVIDER_NAME,
-    issuer: stringClaim(claims, 'iss') || config().issuer,
+    issuer: claimString(claims.iss) || config().issuer,
     rawClaims: claims,
     account: {
-      displayName: result.account.name ?? stringClaim(claims, 'name'),
+      displayName: result.account.name ?? claimString(claims.name),
       email: result.account.username,
-      organisation: stringClaim(claims, 'tid'),
+      organisation: claimString(claims.tid),
       role: roleClaim(claims),
       accountId: result.account.localAccountId,
       createdAt: '—',

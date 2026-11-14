@@ -52,6 +52,19 @@ reason_precedence := [
 	"insufficient_role",
 ]
 
+# The normalized claim vocabulary the engine reads. Gateway wrappers and browser
+# provider modules both build `input.claims` from it, and the frontend codegen
+# emits the browser's `AuthzClaims` type from it so that shape cannot drift.
+claim_contract := [
+	{"name": "roles", "kind": "string_array"},
+	{"name": "groups", "kind": "string_array"},
+	{"name": "scopes", "kind": "string_array"},
+	{"name": "tenant", "kind": "string"},
+	{"name": "hd", "kind": "string"},
+	{"name": "email_verified", "kind": "boolean"},
+	{"name": "has_subject", "kind": "boolean"},
+]
+
 signed_in if {
 	input.claims.has_subject == true
 }
