@@ -86,10 +86,11 @@ request.
     contract's capability ids.
 - **Gateway** is outside this repository. APISIX runs in declarative
   (standalone) mode with JSON access logs, no server banner and strict security
-  headers. One v1 route and one capabilities route per provider validate the
-  bearer token with `openid-connect` and enforce the policy with `opa`; the
-  provider wrappers in `oparish1/authz-policy` import the shared claim rules.
-  The browser never reads capabilities from the gateway.
+  headers. The deployment defines one v1 route per provider; its route files
+  live outside this repository. Each route validates the bearer token with
+  `openid-connect` and enforces the policy with `opa`; the provider wrappers in
+  `oparish1/authz-policy` import the shared claim rules. The browser never reads
+  capabilities from the gateway.
 - **Tokens** are held in browser memory only. Per SD-3, a library without an
   in-memory option may use `sessionStorage` for that library only, with the risk
   recorded in the README and an A4 exception test. Tokens are never logged and

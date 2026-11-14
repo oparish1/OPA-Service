@@ -108,8 +108,9 @@ Round 3/4 UI decisions remain binding.
   `oparish1/authz-policy`; the gateway wrappers there import them for
   enforcement. This repository holds no Rego.
 - **WASM is the only capability source.** The browser evaluates the published
-  policy (`oparish1/authz-policy` release) as advisory UI hints. There is no
-  gateway capability route and no `authz.mode`; the WASM path always runs.
+  policy (`oparish1/authz-policy` release) as advisory UI hints. The browser
+  does not call a gateway capability route and there is no `authz.mode`; the
+  WASM path always runs.
 - **Fail closed.** If the policy cannot load or returns an incomplete map, the
   UI keeps a baseline capability floor (Overview and Account) and enables
   nothing else.

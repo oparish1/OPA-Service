@@ -33,6 +33,12 @@ jobs:
       - run: bun run lint
       - run: bun run typecheck
       - uses: oras-project/setup-oras@v2
+      # `gh` and `oras` keep separate credential stores, so the private contract
+      # pull needs its own login with the same read token.
+      - name: Log in to the container registry
+        run: echo "$GH_TOKEN" | oras login ghcr.io --username "${{ github.actor }}" --password-stdin
+        env:
+          GH_TOKEN: ${{ secrets.AUTHZ_POLICY_READ_TOKEN }}
       # Build before the tests so the A18 bundle scan sees `dist/`; the build's
       # `prebuild` hook runs `sync:policy`, which downloads the private
       # authz-policy release and its contract.

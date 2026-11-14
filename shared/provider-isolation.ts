@@ -6,7 +6,7 @@ import { collectSourceFiles, toPosix } from './source-files';
 /**
  * The mechanical isolation rule: outside the wire contract, the two registries
  * and the per-provider folders, no file may name more than one provider id.
- * Both package test suites call this so either package catches a regression.
+ * The frontend test suite calls this so the check runs in CI.
  */
 
 const SCAN_DIRS = ['frontend', 'shared'];

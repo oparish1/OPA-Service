@@ -154,12 +154,20 @@ capability. `prebuild` and `predev` run it automatically, so `bun run build` and
 `bun run dev` always use a verified artifact; a hash mismatch, a missing file or
 a version mismatch fails the build.
 
-The download needs `oras` and `tar` on the path. `oparish1/authz-policy` is
-private. Locally the release download uses `gh`, so sign in with
-`gh auth login` or set `GH_TOKEN` to a PAT with read access to that repository;
-the frontend CI job reads the same PAT from the `AUTHZ_POLICY_READ_TOKEN`
-repository secret. `bun run sync:policy -- --latest` reports the newest published
-tag without changing the pin; to upgrade, edit `frontend/policy/VERSION`, run
+The download needs `oras` and `tar` on the path. `oparish1/authz-policy` and
+its `authz-contract` package are private. Locally the release download uses
+`gh`, so sign in with `gh auth login` or set `GH_TOKEN` to a PAT with read
+access to that repository. The contract download uses `oras`, which keeps its
+own credential store and ignores `GH_TOKEN`, so log in once with the same PAT:
+
+```sh
+oras login ghcr.io --username <github-user> --password-stdin
+```
+
+The frontend CI job reads the PAT from the `AUTHZ_POLICY_READ_TOKEN` repository
+secret and logs both tools in with it. `bun run sync:policy -- --latest` reports
+the newest published tag without changing the pin; to upgrade, edit
+`frontend/policy/VERSION`, run
 `bun run sync:policy`, then run `bun run gen:authz`. The WASM decision is
 advisory UI hints only — APISIX remains the sole enforcer.
 
