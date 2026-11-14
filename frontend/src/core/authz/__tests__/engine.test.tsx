@@ -50,7 +50,7 @@ const WASM_CLAIMS: AuthzClaims = {
 
 const WASM_CONFIG = { tenant: 'tenant-1' };
 
-function providerModule(): FrontendProviderModule {
+function providerModule(claims: () => AuthzClaims = () => WASM_CLAIMS): FrontendProviderModule {
   return {
     id: 'entra',
     name: 'Entra',
@@ -71,7 +71,7 @@ function providerModule(): FrontendProviderModule {
       async signOut() {},
       session: () => PROVIDER_SESSION,
     },
-    authz: { claims: () => WASM_CLAIMS, config: () => WASM_CONFIG },
+    authz: { claims, config: () => WASM_CONFIG },
   };
 }
 
@@ -116,7 +116,10 @@ function wasmPolicy(result: unknown = capabilitiesWith({})): {
   setData: ReturnType<typeof vi.fn>;
   evaluate: ReturnType<typeof vi.fn>;
 } {
-  return { setData: vi.fn(), evaluate: vi.fn(() => [{ result }]) };
+  return {
+    setData: vi.fn(),
+    evaluate: vi.fn((_input: { provider: string; claims: AuthzClaims }) => [{ result }]),
+  };
 }
 
 function expectBaselineFloor(): void {
@@ -234,6 +237,21 @@ describe('capability engine', () => {
       allowed: false,
       reason: 'missing_scope',
     });
+  });
+
+  it('evaluates the current claims on every refresh', async () => {
+    let claims = WASM_CLAIMS;
+    setProviderRegistry([providerModule(() => claims)]);
+    const policy = wasmPolicy();
+    loadPolicyMock.mockResolvedValue(policy as unknown as LoadedPolicy);
+    vi.stubGlobal('fetch', wasmServingFetch());
+
+    await refreshCapabilities();
+    expect(policy.evaluate.mock.calls[0][0].claims).toEqual(WASM_CLAIMS);
+
+    claims = { ...WASM_CLAIMS, roles: ['Workspace.Admin'] };
+    await refreshCapabilities();
+    expect(policy.evaluate.mock.calls[1][0].claims).toEqual(claims);
   });
 
   it('drops the cached policy on sign-out (A16)', async () => {

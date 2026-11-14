@@ -96,7 +96,13 @@ function providerModule(
     },
     renderIcon: () => null,
     auth,
-    authz: { claims: () => AUTHZ_CLAIMS, config: () => ({ tenant: 'tenant-1' }) },
+    authz: {
+      claims: () => ({
+        ...AUTHZ_CLAIMS,
+        roles: [renewed ? 'Workspace.Admin' : 'Workspace.User'],
+      }),
+      config: () => ({ tenant: 'tenant-1' }),
+    },
   };
 }
 
@@ -160,7 +166,9 @@ describe('real API seam', () => {
     });
     const policy = {
       setData: vi.fn(),
-      evaluate: vi.fn(() => [{ result: capabilitiesWith({}) }]),
+      evaluate: vi.fn((_input: { provider: string; claims: AuthzClaims }) => [
+        { result: capabilitiesWith({}) },
+      ]),
     };
     loadPolicyMock.mockResolvedValue(policy as unknown as LoadedPolicy);
     vi.stubGlobal(
@@ -186,9 +194,11 @@ describe('real API seam', () => {
     setProviderRegistry([providerModule(undefined, {}, 'entra')]);
     await signIn('entra');
     await vi.waitFor(() => expect(policy.evaluate).toHaveBeenCalledTimes(1));
+    expect(policy.evaluate.mock.calls[0][0].claims.roles).toEqual(['Workspace.User']);
+
     await refreshToken();
     await vi.waitFor(() => expect(policy.evaluate).toHaveBeenCalledTimes(2));
-
+    expect(policy.evaluate.mock.calls[1][0].claims.roles).toEqual(['Workspace.Admin']);
     expect(loadPolicyMock).toHaveBeenCalledTimes(1);
   });
 
