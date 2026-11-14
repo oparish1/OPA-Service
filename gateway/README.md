@@ -98,7 +98,7 @@ cd ..
 bun test gateway        # Docker-free route config assertions
 opa fmt --fail --list authz-service gateway/opa
 opa check --strict authz-service gateway/opa
-opa test authz-service gateway/opa    # shared policy, wrappers, golden table and mask
+opa test gateway/opa gateway/opa    # shared policy, wrappers, golden table and mask
 ```
 
 The Docker integration gate is `bun run gateway/test-issuers/transport-smoke.ts`

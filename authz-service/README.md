@@ -113,7 +113,7 @@ From the repository root:
 ```sh
 opa fmt --fail --list authz-service
 opa check --strict authz-service
-opa test authz-service -v --timeout 60s
+opa test gateway/opa -v --timeout 60s
 bun run frontend/scripts/authz-codegen.ts check
 ```
 

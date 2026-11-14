@@ -36,7 +36,7 @@ jobs:
       - name: Rego strict check
         run: opa check --strict authz-service gateway/opa
       - name: Rego policy tests
-        run: opa test authz-service gateway/opa --timeout 60s
+        run: opa test gateway/opa gateway/opa --timeout 60s
       - name: Start gateway stack
         run: docker compose -f gateway/docker-compose.yml up -d
       - name: Wait for the gateway stack

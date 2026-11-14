@@ -214,7 +214,7 @@ cd ..
 bun test gateway                 # parses and asserts the APISIX route config
 opa fmt --fail --list authz-service gateway/opa
 opa check --strict authz-service gateway/opa
-opa test authz-service gateway/opa   # shared policy, gateway wrappers, golden table and mask
+opa test gateway/opa gateway/opa   # shared policy, gateway wrappers, golden table and mask
 ```
 
 The existing gateway negative tests still deny out-of-role, out-of-group,

@@ -31,7 +31,7 @@ jobs:
       - name: Rego strict check
         run: opa check --strict authz-service
       - name: Rego policy tests
-        run: opa test authz-service -v --timeout 60s
+        run: opa test gateway/opa -v --timeout 60s
       - name: Bundle table drift
         run: bun test authz-service/scripts/build-bundle.test.ts
       - name: Generated authz artifacts
