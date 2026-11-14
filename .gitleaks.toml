@@ -7,5 +7,4 @@ useDefault = true
 description = "Placeholder credentials in tests and demo fixtures"
 paths = [
   '''frontend/src/core/testing/.*''',
-  '''gateway/test-issuers/.*''',
 ]

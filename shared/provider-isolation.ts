@@ -6,18 +6,14 @@ import { collectSourceFiles, toPosix } from './source-files';
 /**
  * The mechanical isolation rule: outside the wire contract, the two registries
  * and the per-provider folders, no file may name more than one provider id.
- * Both package test suites call this so either package catches a regression.
+ * The frontend test suite calls this so the check runs in CI.
  */
 
-const SCAN_DIRS = ['frontend', 'shared', 'gateway'];
+const SCAN_DIRS = ['frontend', 'shared'];
 
 const EXEMPT_FILES = new Set<string>([
   'shared/providers.ts',
   'frontend/src/providers/index.ts',
-  // The gateway is a central multi-provider composition point, like a registry.
-  'gateway/config.test.ts',
-  'gateway/test-issuers/index.ts',
-  'gateway/test-issuers/acceptance.ts',
 ]);
 
 /** Identifier-boundary matching, so a name like `entrance` is not counted as `entra`. */

@@ -76,8 +76,9 @@ anything above that conflicts:
 - **SD-5** Sign-out is local only for all three providers.
 - **SD-6** The gateway writes structured JSON access logs; existing backend
   audit data is development data and is discarded.
-- **SD-7** Apache APISIX in declarative standalone mode under `gateway/`, run
-  with Docker Compose, pinned to an exact released 3.x image tag.
+- **SD-7** Apache APISIX in declarative standalone mode, deployed outside this
+  repository and pinned to an exact released 3.x image tag. The local `gateway/`
+  stack was removed by issue #30.
 - **SD-8** Entra uses a new Single-page-application registration.
 - **SD-9** 30-minute idle and 8-hour absolute limits are enforced in the
   browser as a courtesy; the security bound is the token lifetime at the
@@ -97,29 +98,27 @@ superseded by the static public configuration file; the provider-row ordering
 Entra, Okta, Google and the provider-neutral notice copy remain binding. The
 Round 3/4 UI decisions remain binding.
 
-## Advisory UI authorization (issues #21, #3)
+## Advisory UI authorization (issues #21, #3, #30)
 
-- **The gateway stays the only security authority.** The browser fetches
-  `GET /{provider}/authz/capabilities` to decide what to show or enable. The
-  gateway builds the OPA input from the token it has already verified and
-  returns `authz.v1.capabilities`; a browser decision is advisory and can never
-  grant what the gateway refuses.
-- **One shared policy source, one evaluator.** `authz-service/authz/` holds the
-  claim rules in Rego v1; the gateway wrappers in
-  `authz-service/authz/v1/gateway/` import it for enforcement and answer the
-  capabilities route.
-- **WASM mode is opt-in and advisory.** Capabilities may also be evaluated in
-  the browser from the published WASM (`oparish1/authz-policy` release) as
-  advisory UI hints only. `authz.mode` selects the source and defaults to
-  `"gateway"`; the gateway is the sole enforcer either way.
-- **Fail closed.** If the capability call fails or returns an incomplete map,
-  the UI keeps a baseline capability floor (Overview and Account) and enables
+- **APISIX stays the only security authority.** The browser evaluates the
+  published WASM to decide what to show or enable; APISIX enforces every real
+  request. A browser decision is advisory and can never grant what APISIX
+  refuses.
+- **One shared policy source.** The claim rules in Rego v1 live in
+  `oparish1/authz-policy`; the gateway wrappers there import them for
+  enforcement. This repository holds no Rego.
+- **WASM is the only capability source.** The browser evaluates the published
+  policy (`oparish1/authz-policy` release) as advisory UI hints. The browser
+  does not call a gateway capability route and there is no `authz.mode`; the
+  WASM path always runs.
+- **Fail closed.** If the policy cannot load or returns an incomplete map, the
+  UI keeps a baseline capability floor (Overview and Account) and enables
   nothing else.
 - **No environment value in Rego.** Tenant and domain values arrive as
-  data (`data.authz.config`), supplied from the gateway route labels. The
-  browser public config carries them only for the provider libraries.
-- **Rollback.** `authz.enabled` (default true) turns the capability call off and
-  restores pre-change behavior; the gateway is unaffected.
+  data (`data.authz.config`), supplied at runtime from the provider libraries'
+  config. The browser public config carries them only for those libraries.
+- **Rollback.** `authz.enabled` (default true) turns the evaluation off and
+  restores pre-change behavior; APISIX is unaffected.
 
 ## Logging and configuration failures (issue #16)
 
@@ -146,31 +145,38 @@ Round 3/4 UI decisions remain binding.
 - **Startup failures.** A throw after config loads shows a generic startup
   notice with a reference; it does not point the operator at `config.json`.
 
-## Catalogue-driven policy (issue #24)
+## Catalogue-driven policy (issue #24, #30)
 
-- **Capabilities, roles and routes are data.** `authz-service/authz/` keeps the Rego
-  engine; the capability catalogue, the flattened role hierarchy, the
-  claim-to-role map and the route table live in
-  `authz-service/authz/{catalogue,roles,role_map,routes}.json`. Adding a capability or
-  a role is a data edit with no Rego change.
-- **Provider files hold provider logic only.** Each `authz-service/authz/providers/`
-  file exposes the roles it grants (through the shared map), its gate failures
-  and whether scopes apply. It names no capability and no role. The neutral
-  engine builds the per-capability deny set once for all providers.
+- **Capabilities, roles and routes are data.** `oparish1/authz-policy` keeps the
+  Rego engine; the capability catalogue, the flattened role hierarchy, the
+  claim-to-role map and the route table live in its
+  `authz/{catalogue,roles,role_map,routes}.json`. Adding a capability or a role
+  is a data edit with no Rego change.
+- **Provider files hold provider logic only.** Each provider file in
+  `oparish1/authz-policy` exposes the roles it grants (through the shared map),
+  its gate failures and whether scopes apply. It names no capability and no
+  role. The neutral engine builds the per-capability deny set once for all
+  providers.
 - **One new reason code.** `insufficient_role` is reported only after the
   provider's base gate passes, so existing deny sets and audit reasons are
   unchanged; `missing_admin` does not exist.
-- **One shared source, one evaluator plus generated types.** The gateway is the
-  only evaluator: it imports the package for enforcement and answers the
-  capabilities route. `frontend/src/core/authz/generated.ts` and
-  `authz-service/fixtures/matrix.snapshot.json` are generated from the policy and
-  checked for freshness in CI, so the browser's capability/reason types cannot
-  drift from the gateway rules.
+- **One shared source, one evaluator plus generated types.** APISIX (outside
+  this repository) enforces the policy; the browser evaluates the same published
+  WASM for advisory hints. `frontend/src/core/authz/generated.ts` is generated
+  from the downloaded `authz-contract`'s `fixtures/capability-ids.json` by
+  `bun run gen:authz`, and `bun run check:authz` fails CI when it is stale. The
+  downloaded `fixtures/personas.json` and `fixtures/matrix.snapshot.json` are the
+  persona decision grid the parity test asserts against. `AuthzClaims` is
+  hand-written in `frontend/src/core/authz/types.ts` because no published
+  artifact carries the claim contract.
 - **No environment value in the policy.** Entra's tenant and Google's hosted
-  domain remain `data.authz.config`, supplied from route labels; the static
-  tables carry neither.
+  domain remain `data.authz.config`, supplied at runtime; the static tables
+  carry neither.
 
 ## Gateway internal transport (issue #7)
+
+Superseded by issue #30: the local gateway stack and its Compose network are no
+longer in this repository. The decision is kept as history.
 
 - **Container-to-container traffic in the gateway Compose stack is plaintext
   HTTP.** APISIX calls OPA at `http://opa:8181` and the test issuers at

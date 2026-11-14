@@ -10,10 +10,10 @@ import { PROVIDER_IDS } from '../../../shared/providers';
 
 // Vite may expose `import.meta.url` under its `/@fs` virtual prefix in tests.
 const REPO_ROOT = new URL('../../../', import.meta.url).pathname.replace(/^\/@fs/, '');
-const SCAN_DIRS = ['frontend/src', 'frontend/public', 'shared', 'gateway', 'scripts', 'docs', 'authz-service'];
-const CODE_DIRS = ['frontend/src', 'frontend/public', 'shared', 'gateway', 'scripts', 'authz-service'];
+const SCAN_DIRS = ['frontend/src', 'frontend/public', 'shared', 'scripts', 'docs'];
+const CODE_DIRS = ['frontend/src', 'frontend/public', 'shared', 'scripts'];
 const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', 'coverage']);
-const TEXT_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.json', '.md', '.yaml', '.yml', '.sh', '.rego'];
+const TEXT_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.json', '.md', '.yaml', '.yml', '.sh'];
 
 function walk(relativeDir: string, files: string[]): void {
   const absolute = join(REPO_ROOT, relativeDir);
@@ -83,81 +83,6 @@ describe('repository acceptance', () => {
       const content = readFileSync(file, 'utf8');
       expect(content, file).not.toMatch(/-----BEGIN [A-Z ]*PRIVATE KEY-----/);
       for (const secret of placeholderSecrets) expect(content, file).not.toContain(secret);
-    }
-  });
-
-  it('A19 names no retired scope anywhere', () => {
-    for (const file of scannedFiles()) {
-      const content = read(file);
-      expect(content, file).not.toMatch(/\bprofile\.read\b/);
-      expect(content, file).not.toMatch(/\bprojects\.read\b/);
-    }
-  });
-
-  it('A5 keeps environment values out of the Rego policies', () => {
-    const config = JSON.parse(read(join('frontend', 'public', 'config.json')));
-    const fixture = JSON.parse(read(join('authz-service', 'fixtures', 'personas.json')));
-    const sensitive = new Set<string>();
-    const collectStrings = (value: unknown): void => {
-      if (typeof value === 'string') sensitive.add(value);
-      else if (Array.isArray(value)) value.forEach(collectStrings);
-      else if (value && typeof value === 'object') Object.values(value).forEach(collectStrings);
-    };
-    collectStrings(fixture.config);
-    for (const provider of config.providers as Array<{ issuer: string; hostedDomain?: string }>) {
-      if (provider.hostedDomain) sensitive.add(provider.hostedDomain);
-      const tenant = provider.issuer.match(/login\.microsoftonline\.com\/([^/]+)\//);
-      if (tenant) sensitive.add(tenant[1]);
-    }
-
-    const policies = filesUnder(['authz-service']).filter(
-      file => file.endsWith('.rego') && !file.endsWith('_test.rego')
-    );
-    expect(policies.length).toBeGreaterThan(0);
-    for (const file of policies) {
-      const content = read(file);
-      for (const value of sensitive) {
-        if (!value) continue;
-        expect(content, `${file} must not contain the environment value ${value}`).not.toContain(value);
-      }
-    }
-  });
-
-  it('A2 keeps capability ids, role names and other providers out of the shared engine', () => {
-    const catalogue = JSON.parse(read(join('authz-service', 'authz', 'catalogue.json'))) as {
-      catalogue: Record<string, unknown>;
-    };
-    const roles = JSON.parse(read(join('authz-service', 'authz', 'roles.json'))) as { roles: Record<string, unknown> };
-    const capabilityIds = Object.keys(catalogue.catalogue);
-    const roleNames = Object.keys(roles.roles);
-
-    const engine = read(join('authz-service', 'authz', 'authz.rego'));
-    for (const capability of capabilityIds) expect(engine, capability).not.toContain(capability);
-    for (const role of roleNames) expect(engine, role).not.toContain(`"${role}"`);
-    for (const provider of PROVIDER_IDS) expect(engine, provider).not.toMatch(new RegExp(`\\b${provider}\\b`));
-
-    // A provider file may name its own provider and its own claim logic, but no
-    // capability id, no role name and no other provider id.
-    for (const provider of PROVIDER_IDS) {
-      const source = read(join('authz-service', 'authz', 'providers', `${provider}.rego`));
-      for (const capability of capabilityIds) expect(source, `${provider}: ${capability}`).not.toContain(capability);
-      for (const role of roleNames) expect(source, `${provider}: ${role}`).not.toContain(`"${role}"`);
-      for (const other of PROVIDER_IDS) {
-        if (other === provider) continue;
-        expect(source, `${provider}.rego names ${other}`).not.toMatch(new RegExp(`\\b${other}\\b`));
-      }
-    }
-  });
-
-  it('A3 reduces each provider file to the provider-gate contract', () => {
-    for (const provider of PROVIDER_IDS) {
-      const source = read(join('authz-service', 'authz', 'providers', `${provider}.rego`));
-      expect(source, `${provider}: deny_by_capability`).not.toContain('deny_by_capability');
-      expect(source, `${provider}: missing_scope`).not.toContain('missing_scope');
-      expect(source, `${provider}: insufficient_role`).not.toContain('insufficient_role');
-      for (const name of ['uses_scopes', 'granted_roles', 'gate_failures']) {
-        expect(source, `${provider}: ${name}`).toContain(name);
-      }
     }
   });
 

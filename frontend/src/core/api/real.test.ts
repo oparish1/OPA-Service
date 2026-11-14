@@ -1,5 +1,9 @@
+import { loadPolicy } from '@open-policy-agent/opa-wasm';
+import type { LoadedPolicy } from '@open-policy-agent/opa-wasm';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { clearPermissions } from '../authz/engine';
 import { capabilitiesWith } from '../authz/testing';
+import type { AuthzClaims } from '../authz/types';
 import { setAppConfig } from '../config';
 import { setProviderRegistry } from '../providers/active';
 import type { FrontendProviderModule, ProviderAuth, ProviderSession } from '../providers/types';
@@ -12,6 +16,20 @@ import {
   setSessionLimits,
 } from '../session/store';
 import { handleRedirect, refreshToken, signIn, signOut } from './real';
+
+vi.mock('@open-policy-agent/opa-wasm', () => ({ loadPolicy: vi.fn() }));
+
+const loadPolicyMock = vi.mocked(loadPolicy);
+
+const AUTHZ_CLAIMS: AuthzClaims = {
+  roles: ['Workspace.User'],
+  groups: [],
+  scopes: ['workspace:read'],
+  tenant: 'tenant-1',
+  hd: '',
+  email_verified: false,
+  has_subject: true,
+};
 
 const PROVIDER_SESSION: ProviderSession = {
   providerId: 'test',
@@ -38,6 +56,7 @@ function providerModule(
   let renewed = false;
   const current = (): ProviderSession => ({
     ...PROVIDER_SESSION,
+    providerId: id,
     accessToken: {
       ...PROVIDER_SESSION.accessToken,
       value: renewed ? 'access-renewed' : 'access-initial',
@@ -77,11 +96,20 @@ function providerModule(
     },
     renderIcon: () => null,
     auth,
+    authz: {
+      claims: () => ({
+        ...AUTHZ_CLAIMS,
+        roles: [renewed ? 'Workspace.Admin' : 'Workspace.User'],
+      }),
+      config: () => ({ tenant: 'tenant-1' }),
+    },
   };
 }
 
 beforeEach(() => {
   clearSession();
+  clearPermissions();
+  loadPolicyMock.mockReset();
   setOnExpire(null);
   setSessionLimits({ idleMs: IDLE_LIMIT_MS, absoluteMs: ABSOLUTE_LIMIT_MS });
   setProviderRegistry([providerModule()]);
@@ -89,6 +117,7 @@ beforeEach(() => {
 
 afterEach(() => {
   clearSession();
+  clearPermissions();
   setOnExpire(null);
   setSessionLimits({ idleMs: IDLE_LIMIT_MS, absoluteMs: ABSOLUTE_LIMIT_MS });
   vi.useRealTimers();
@@ -127,7 +156,7 @@ describe('real API seam', () => {
     expect(getSession()).toBeNull();
   });
 
-  it('refetches capabilities with the renewed token after a renewal (I1)', async () => {
+  it('recomputes capabilities after a renewal without reloading the policy (I1)', async () => {
     setAppConfig({
       gatewayUrl: 'https://localhost:9080',
       authz: { enabled: true },
@@ -135,26 +164,42 @@ describe('real API seam', () => {
         { id: 'entra', name: 'Entra', clientId: 'client-id', issuer: 'https://issuer.example' },
       ],
     });
-    const calls: Array<{ url: string; authorization?: string }> = [];
+    const policy = {
+      setData: vi.fn(),
+      evaluate: vi.fn((_input: { provider: string; claims: AuthzClaims }) => [
+        { result: capabilitiesWith({}) },
+      ]),
+    };
+    loadPolicyMock.mockResolvedValue(policy as unknown as LoadedPolicy);
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
-        calls.push({
-          url: String(url),
-          authorization: (init?.headers as Record<string, string> | undefined)?.authorization,
-        });
-        return { ok: true, status: 200, json: async () => capabilitiesWith({}) } as Response;
+      vi.fn(async (url: RequestInfo | URL) => {
+        const target = String(url);
+        if (target.endsWith('manifest.json')) {
+          return { ok: true, json: async () => ({ entrypoint: 'authz/capabilities' }) };
+        }
+        if (target.endsWith('policy.wasm')) {
+          return { ok: true, arrayBuffer: async () => new ArrayBuffer(0) };
+        }
+        if (target.endsWith('data.json')) {
+          return {
+            ok: true,
+            json: async () => ({ authz: { catalogue: {}, roles: {}, role_map: {}, routes: {} } }),
+          };
+        }
+        return { ok: false, status: 404 };
       })
     );
 
-    await signIn('test');
-    await refreshToken();
+    setProviderRegistry([providerModule(undefined, {}, 'entra')]);
+    await signIn('entra');
+    await vi.waitFor(() => expect(policy.evaluate).toHaveBeenCalledTimes(1));
+    expect(policy.evaluate.mock.calls[0][0].claims.roles).toEqual(['Workspace.User']);
 
-    expect(calls.map(call => call.authorization)).toEqual([
-      'Bearer access-initial',
-      'Bearer access-renewed',
-    ]);
-    expect(calls[1]?.url).toBe('https://localhost:9080/test/authz/capabilities');
+    await refreshToken();
+    await vi.waitFor(() => expect(policy.evaluate).toHaveBeenCalledTimes(2));
+    expect(policy.evaluate.mock.calls[1][0].claims.roles).toEqual(['Workspace.Admin']);
+    expect(loadPolicyMock).toHaveBeenCalledTimes(1);
   });
 
   it('signs the provider out and clears the store on expiry (A7, SD-5)', async () => {

@@ -31,6 +31,7 @@ const CAPABILITY_LABELS: Record<CapabilityId, string> = {
   'data.customer.list': 'View the customer list',
   'data.customer.write': 'Edit customer records',
   'data.film.list': 'View the film list',
+  'data.order.list': 'View the order list',
   'data.staff.list': 'View the staff list',
   'data.unmapped': 'View unmapped resources',
 };

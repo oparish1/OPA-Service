@@ -1,8 +1,23 @@
 import { AUTHZ_REASONS, CAPABILITY_IDS } from './generated';
-import type { AuthzClaims, AuthzReason, CapabilityId } from './generated';
+import type { AuthzReason, CapabilityId } from './generated';
 
 export { AUTHZ_REASONS, CAPABILITY_IDS };
-export type { AuthzClaims, AuthzReason, CapabilityId };
+export type { AuthzReason, CapabilityId };
+
+/**
+ * The normalized claim set every caller supplies to the shared policy. The
+ * published policy contract has no `claim_contract`, so this input shape is
+ * owned here rather than generated.
+ */
+export interface AuthzClaims {
+  roles: string[];
+  groups: string[];
+  scopes: string[];
+  tenant: string;
+  hd: string;
+  email_verified: boolean;
+  has_subject: boolean;
+}
 
 /**
  * A reason the UI may render. `permissions_unavailable` is never emitted by the
