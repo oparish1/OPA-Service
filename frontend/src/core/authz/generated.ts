@@ -1,6 +1,7 @@
 /**
- * Generated from the shared policy by `frontend/scripts/authz-codegen.ts`.
- * Do not edit by hand; run `bun run gen:authz`.
+ * Generated from the pinned `authz-policy` contract by
+ * `frontend/scripts/authz-codegen.ts`. Do not edit by hand; run
+ * `bun run gen:authz`.
  */
 
 export const CAPABILITY_IDS = [
@@ -13,6 +14,7 @@ export const CAPABILITY_IDS = [
   'data.customer.list',
   'data.customer.write',
   'data.film.list',
+  'data.order.list',
   'data.staff.list',
   'data.unmapped',
   'nav.account',
@@ -36,14 +38,3 @@ export const AUTHZ_REASONS = [
 ] as const;
 
 export type AuthzReason = (typeof AUTHZ_REASONS)[number];
-
-/** The normalized claim set every caller supplies to the shared policy. */
-export interface AuthzClaims {
-  roles: string[];
-  groups: string[];
-  scopes: string[];
-  tenant: string;
-  hd: string;
-  email_verified: boolean;
-  has_subject: boolean;
-}

@@ -5,8 +5,6 @@ on:
     paths:
       - 'frontend/**'
       - 'shared/**'
-      - 'gateway/**'
-      - 'authz-service/**'
       - 'scripts/**'
       - 'docs/**'
       - 'README.md'
@@ -15,8 +13,6 @@ on:
     paths:
       - 'frontend/**'
       - 'shared/**'
-      - 'gateway/**'
-      - 'authz-service/**'
       - 'scripts/**'
       - 'docs/**'
       - 'README.md'
@@ -36,18 +32,15 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run lint
       - run: bun run typecheck
-      - name: Install OPA
-        run: |
-          curl -fsSL -o /usr/local/bin/opa https://openpolicyagent.org/downloads/v1.4.2/opa_linux_amd64_static
-          chmod +x /usr/local/bin/opa
-      # Build before the tests so the A18 bundle scan sees `dist/`; the authz
-      # freshness check below still needs OPA. The build's `prebuild` hook runs
-      # `sync:policy`, which reads the private authz-policy release.
+      - uses: oras-project/setup-oras@v2
+      # Build before the tests so the A18 bundle scan sees `dist/`; the build's
+      # `prebuild` hook runs `sync:policy`, which downloads the private
+      # authz-policy release and its contract.
       - run: bun run build
         env:
           GH_TOKEN: ${{ secrets.AUTHZ_POLICY_READ_TOKEN }}
       - run: bun run test
       - run: bun run check:catch
-      # The generated capability/reason types and persona snapshot must match the
-      # policy; this fails when either is stale.
+      # The generated capability/reason types must match the downloaded
+      # contract; this fails when generated.ts is stale.
       - run: bun run check:authz

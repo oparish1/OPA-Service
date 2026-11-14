@@ -3,7 +3,7 @@ import type { LoadedPolicy } from '@open-policy-agent/opa-wasm';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { capabilitiesWith } from '../testing';
 import type { AuthzClaims } from '../types';
-import { evaluateCapabilities, resetPolicy } from '../wasm';
+import { CapabilitiesError, evaluateCapabilities, parseCapabilities, resetPolicy } from '../wasm';
 
 vi.mock('@open-policy-agent/opa-wasm', () => ({ loadPolicy: vi.fn() }));
 
@@ -136,5 +136,42 @@ describe('evaluateCapabilities', () => {
     vi.stubGlobal('fetch', servingFetch());
     await evaluateCapabilities('entra', CLAIMS, CONFIG);
     expect(loadPolicy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('parseCapabilities', () => {
+  it('accepts a full map and normalizes the allowed reason', () => {
+    const parsed = parseCapabilities(
+      capabilitiesWith({ 'nav.api.profile': { allowed: false, reason: 'missing_scope' } })
+    );
+    expect(parsed['nav.overview']).toEqual({ allowed: true, reason: '' });
+    expect(parsed['nav.api.profile']).toEqual({ allowed: false, reason: 'missing_scope' });
+  });
+
+  it('rejects a missing capability', () => {
+    const incomplete = capabilitiesWith({}) as Record<string, unknown>;
+    delete incomplete['nav.api.profile'];
+    expect(() => parseCapabilities(incomplete)).toThrow(CapabilitiesError);
+  });
+
+  it('rejects a non-boolean decision', () => {
+    expect(() => parseCapabilities({ 'nav.overview': { allowed: 'yes' } })).toThrow(
+      CapabilitiesError
+    );
+  });
+
+  it('rejects an unknown deny reason', () => {
+    expect(() =>
+      parseCapabilities({
+        ...capabilitiesWith({}),
+        'nav.api.profile': { allowed: false, reason: 'nope' },
+      })
+    ).toThrow(CapabilitiesError);
+  });
+
+  it('rejects a non-object body', () => {
+    for (const body of [null, 'body', 42, []]) {
+      expect(() => parseCapabilities(body)).toThrow(CapabilitiesError);
+    }
   });
 });

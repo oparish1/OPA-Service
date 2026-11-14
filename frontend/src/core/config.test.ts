@@ -89,7 +89,7 @@ describe('parseAppConfig', () => {
       );
     }
     // The old config nested them per provider under `authz`; the whole section
-    // only accepts `enabled` and `mode`.
+    // only accepts `enabled`.
     const providerKey = PROVIDER_IDS[0];
     expect(() =>
       parseAppConfig({
@@ -102,20 +102,12 @@ describe('parseAppConfig', () => {
   it('accepts an authz section that only carries enabled', () => {
     expect(parseAppConfig({ ...VALID, authz: { enabled: false } }).authz).toEqual({
       enabled: false,
-      mode: 'gateway',
     });
   });
 
-  it('accepts the opt-in wasm mode', () => {
-    expect(parseAppConfig({ ...VALID, authz: { mode: 'wasm' } }).authz).toEqual({
-      enabled: true,
-      mode: 'wasm',
-    });
-  });
-
-  it('rejects an unknown authz mode', () => {
-    expect(() => parseAppConfig({ ...VALID, authz: { mode: 'browser' } })).toThrow(
-      'authz.mode must be "gateway" or "wasm"'
+  it('rejects the retired authz mode field', () => {
+    expect(() => parseAppConfig({ ...VALID, authz: { mode: 'wasm' } })).toThrow(
+      'authz.mode is not a supported field'
     );
   });
 });

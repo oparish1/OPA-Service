@@ -1,17 +1,17 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { CAPABILITY_IDS } from '../src/core/authz/generated';
 
 /**
- * Downloads the pinned authz-policy release into `public/policy` and verifies it
- * against the published manifest. The pin lives in `policy/VERSION`; the
- * command never changes it, and `--latest` only reports the newest tag. Run
- * with `bun run sync:policy`.
+ * Downloads the pinned authz-policy release and contract into gitignored
+ * directories and verifies them against the published manifest. The pin lives
+ * in `policy/VERSION`; the command never changes it, and `--latest` only
+ * reports the newest tag. Run with `bun run sync:policy`.
  */
 
 const REPO = 'oparish1/authz-policy';
+const CONTRACT = 'ghcr.io/oparish1/authz-policy/authz-contract';
 const AUTH_HELP =
   'set GH_TOKEN to a token with read access to oparish1/authz-policy or run `gh auth login`';
 
@@ -19,6 +19,7 @@ const MODULE_DIR = (import.meta as unknown as { dir?: string }).dir;
 const FRONTEND_DIR = MODULE_DIR ? join(MODULE_DIR, '..') : process.cwd();
 const DEFAULT_VERSION_DIR = join(FRONTEND_DIR, 'policy');
 const DEFAULT_OUT_DIR = join(FRONTEND_DIR, 'public', 'policy');
+export const DEFAULT_CONTRACT_DIR = join(FRONTEND_DIR, 'policy', 'contract');
 
 export interface CommandResult {
   status: number;
@@ -41,6 +42,11 @@ export interface VerifiedArtifacts {
   version: string;
   policyHash: string;
   dataHash: string;
+}
+
+export interface VerifiedContract {
+  capabilityIds: string[];
+  reasonPrecedence: string[];
 }
 
 /** Reads the pinned version from `policy/VERSION` (or a test directory). */
@@ -120,17 +126,6 @@ export function verifyArtifacts(dir: string, version: string): VerifiedArtifacts
   const dataEntry = requireFileEntry(manifest.files, 'data.json', manifestFile);
   const policyHash = verifyFile(dir, 'policy.wasm', policyEntry, manifestFile);
   const dataHash = verifyFile(dir, 'data.json', dataEntry, manifestFile);
-
-  const data = parseArtifactJson(dir, 'data.json');
-  const catalogue =
-    isRecord(data) && isRecord(data.authz) && isRecord(data.authz.catalogue)
-      ? data.authz.catalogue
-      : null;
-  if (!catalogue) throw new Error('data.json has no authz.catalogue object');
-  const missing = CAPABILITY_IDS.filter(capability => !Object.hasOwn(catalogue, capability));
-  if (missing.length > 0) {
-    throw new Error(`pinned policy v${version} is missing capability ${missing[0]} in data.json`);
-  }
   return { version, policyHash, dataHash };
 }
 
@@ -158,6 +153,66 @@ export function downloadRelease(version: string, dir: string, run: CommandRunner
   }
 }
 
+/** Downloads and extracts the pinned `authz-contract` package with `oras`. */
+export function downloadContract(
+  version: string,
+  dir: string,
+  run: CommandRunner = defaultRun
+): void {
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  const pull = run('oras', ['pull', `${CONTRACT}:${version}`, '-o', dir]);
+  if (pull.status !== 0) {
+    throw new Error(
+      `could not download the authz contract v${version} (is oras installed? run \`bun run sync:policy\` again)`
+    );
+  }
+  const tarball = join(dir, 'authz-contract.tar.gz');
+  const extract = run('tar', ['-xzf', tarball, '-C', dir]);
+  if (extract.status !== 0) {
+    throw new Error(`could not extract the authz contract v${version} (${tarball})`);
+  }
+  rmSync(tarball, { force: true });
+}
+
+function requireStringArray(value: unknown, name: string): string[] {
+  if (!Array.isArray(value) || value.some(entry => typeof entry !== 'string' || entry.length === 0)) {
+    throw new Error(`${name} must be an array of non-empty strings`);
+  }
+  return value;
+}
+
+/** Verifies the extracted contract carries the vocabulary and parity fixtures. */
+export function verifyContract(dir: string): VerifiedContract {
+  const file = join(dir, 'fixtures', 'capability-ids.json');
+  const raw = parseArtifactJson(dir, join('fixtures', 'capability-ids.json'));
+  if (!isRecord(raw)) throw new Error(`${file} is not an object`);
+  const capabilityIds = requireStringArray(raw.capability_ids, `${file} capability_ids`);
+  const reasonPrecedence = requireStringArray(raw.reason_precedence, `${file} reason_precedence`);
+  for (const name of ['personas.json', 'matrix.snapshot.json']) {
+    parseArtifactJson(dir, join('fixtures', name));
+  }
+  return { capabilityIds, reasonPrecedence };
+}
+
+/** Fails when the release catalogue omits a capability the contract publishes. */
+export function verifyCatalogue(
+  dir: string,
+  version: string,
+  capabilityIds: readonly string[]
+): void {
+  const data = parseArtifactJson(dir, 'data.json');
+  const catalogue =
+    isRecord(data) && isRecord(data.authz) && isRecord(data.authz.catalogue)
+      ? data.authz.catalogue
+      : null;
+  if (!catalogue) throw new Error('data.json has no authz.catalogue object');
+  const missing = capabilityIds.filter(capability => !Object.hasOwn(catalogue, capability));
+  if (missing.length > 0) {
+    throw new Error(`pinned policy v${version} is missing capability ${missing[0]} in data.json`);
+  }
+}
+
 /** Reads the latest tag without changing the pin. */
 export function latestTag(run: CommandRunner = defaultRun): string {
   // `gh release view` with no tag reports the latest release; the `--latest`
@@ -182,6 +237,9 @@ export async function main(
   const version = readVersion();
   downloadRelease(version, DEFAULT_OUT_DIR, run);
   const { policyHash, dataHash } = verifyArtifacts(DEFAULT_OUT_DIR, version);
+  downloadContract(version, DEFAULT_CONTRACT_DIR, run);
+  const { capabilityIds } = verifyContract(DEFAULT_CONTRACT_DIR);
+  verifyCatalogue(DEFAULT_OUT_DIR, version, capabilityIds);
   console.log(`synced authz-policy v${version} policy.wasm ${policyHash} data.json ${dataHash}`);
 }
 

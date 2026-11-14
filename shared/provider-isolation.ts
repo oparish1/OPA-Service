@@ -9,15 +9,11 @@ import { collectSourceFiles, toPosix } from './source-files';
  * Both package test suites call this so either package catches a regression.
  */
 
-const SCAN_DIRS = ['frontend', 'shared', 'gateway'];
+const SCAN_DIRS = ['frontend', 'shared'];
 
 const EXEMPT_FILES = new Set<string>([
   'shared/providers.ts',
   'frontend/src/providers/index.ts',
-  // The gateway is a central multi-provider composition point, like a registry.
-  'gateway/config.test.ts',
-  'gateway/test-issuers/index.ts',
-  'gateway/test-issuers/acceptance.ts',
 ]);
 
 /** Identifier-boundary matching, so a name like `entrance` is not counted as `entra`. */

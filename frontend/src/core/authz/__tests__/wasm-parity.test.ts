@@ -8,20 +8,21 @@ import {
   type AuthzDecision,
   type AuthzSnapshotEntry,
 } from '../../../../../shared/authz-snapshot';
-import { parseCapabilities } from '../service';
+import { parseCapabilities } from '../wasm';
 import type { AuthzClaims, Capabilities } from '../types';
 import { CAPABILITY_IDS } from '../types';
 
 /**
  * The browser loads the real synced WASM with its static tables and must agree
- * with the committed persona snapshot. It skips only when no synced artifact
- * exists (the build's `prebuild` hook produces it).
+ * with the downloaded persona snapshot. It skips only when a synced artifact or
+ * contract fixture is missing (the build's `prebuild` hook produces them).
  */
 
 const REPO_ROOT = new URL('../../../../../', import.meta.url).pathname.replace(/^\/@fs/, '');
 const POLICY_DIR = join(REPO_ROOT, 'frontend', 'public', 'policy');
-const PERSONAS = join(REPO_ROOT, 'authz-service', 'fixtures', 'personas.json');
-const SNAPSHOT = join(REPO_ROOT, 'authz-service', 'fixtures', 'matrix.snapshot.json');
+const CONTRACT_FIXTURES = join(REPO_ROOT, 'frontend', 'policy', 'contract', 'fixtures');
+const PERSONAS = join(CONTRACT_FIXTURES, 'personas.json');
+const SNAPSHOT = join(CONTRACT_FIXTURES, 'matrix.snapshot.json');
 
 interface Persona {
   id: string;
@@ -54,10 +55,15 @@ function readArtifact(): {
 }
 
 const artifact = readArtifact();
-const personasFile = JSON.parse(readFileSync(PERSONAS, 'utf8')) as PersonasFile;
-const snapshot = (
-  JSON.parse(readFileSync(SNAPSHOT, 'utf8')) as { snapshot: Record<string, AuthzSnapshotEntry> }
-).snapshot;
+const fixturesPresent = existsSync(PERSONAS) && existsSync(SNAPSHOT);
+const personasFile = fixturesPresent
+  ? (JSON.parse(readFileSync(PERSONAS, 'utf8')) as PersonasFile)
+  : ({ config: {}, personas: [] } as PersonasFile);
+const snapshot = fixturesPresent
+  ? (JSON.parse(readFileSync(SNAPSHOT, 'utf8')) as { snapshot: Record<string, AuthzSnapshotEntry> })
+      .snapshot
+  : {};
+const skip = artifact === null || !fixturesPresent;
 
 async function loadWithData(
   tables: Record<string, unknown>,
@@ -86,7 +92,7 @@ function asSnapshot(decisions: Capabilities): AuthzSnapshotEntry {
 }
 
 describe('browser policy parity', () => {
-  it.skipIf(artifact === null)('matches the committed persona snapshot', async () => {
+  it.skipIf(skip)('matches the downloaded persona snapshot', async () => {
     const mismatches: unknown[] = [];
     for (const persona of personasFile.personas) {
       const config = personasFile.config[persona.provider];
@@ -104,7 +110,7 @@ describe('browser policy parity', () => {
     expect(mismatches).toEqual([]);
   });
 
-  it.skipIf(artifact === null)('projects the synced artifact onto the browser capability ids', async () => {
+  it.skipIf(skip)('projects the synced artifact onto the browser capability ids', async () => {
     const persona = personasFile.personas[0];
     const policy = await loadWithData(
       artifact?.tables as Record<string, unknown>,
@@ -115,7 +121,7 @@ describe('browser policy parity', () => {
     expect(Object.keys(decisions).sort()).toEqual([...CAPABILITY_IDS].sort());
   });
 
-  it.skipIf(artifact === null)('fails closed when the provider role map is missing', async () => {
+  it.skipIf(skip)('fails closed when the provider role map is missing', async () => {
     const policy = await loadWithData(
       { ...(artifact?.tables as Record<string, unknown>), role_map: {} },
       'entra',

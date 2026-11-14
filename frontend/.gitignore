@@ -1,6 +1,7 @@
 node_modules/
 dist/
 public/policy/
+policy/contract/
 coverage/
 *.tsbuildinfo
 .DS_Store

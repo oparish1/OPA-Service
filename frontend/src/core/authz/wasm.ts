@@ -1,8 +1,8 @@
 import { loadPolicy } from '@open-policy-agent/opa-wasm';
 import type { LoadedPolicy } from '@open-policy-agent/opa-wasm';
 import { AUTHZ_TABLE_NAMES } from '../../../../shared/authz-tables';
-import { parseCapabilities } from './service';
-import type { AuthzClaims, Capabilities } from './types';
+import { AUTHZ_REASONS, CAPABILITY_IDS } from './generated';
+import type { AuthzClaims, AuthzReason, Capabilities, Decision } from './types';
 
 /**
  * Loads and evaluates the policy the sync command downloaded into `public/policy`.
@@ -68,6 +68,47 @@ function getBundle(): Promise<PolicyBundle> {
     });
   }
   return bundlePromise;
+}
+
+function isAuthzReason(value: unknown): value is AuthzReason {
+  return typeof value === 'string' && (AUTHZ_REASONS as readonly string[]).includes(value);
+}
+
+/** A stable failure code an operator can look up; never carries body content. */
+export class CapabilitiesError extends Error {
+  readonly code: string;
+
+  constructor(code: string) {
+    super(code);
+    this.name = 'CapabilitiesError';
+    this.code = code;
+  }
+}
+
+function parseDecision(value: unknown): Decision {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new CapabilitiesError('capabilities_body_invalid');
+  }
+  const record = value as Record<string, unknown>;
+  if (typeof record.allowed !== 'boolean') {
+    throw new CapabilitiesError('capabilities_body_invalid');
+  }
+  if (record.allowed) return { allowed: true, reason: '' };
+  if (!isAuthzReason(record.reason)) throw new CapabilitiesError('capabilities_body_invalid');
+  return { allowed: false, reason: record.reason };
+}
+
+/** Requires every capability with a boolean decision and an allowed deny reason. */
+export function parseCapabilities(raw: unknown): Capabilities {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new CapabilitiesError('capabilities_body_invalid');
+  }
+  const record = raw as Record<string, unknown>;
+  const result = {} as Capabilities;
+  for (const capability of CAPABILITY_IDS) {
+    result[capability] = parseDecision(record[capability]);
+  }
+  return result;
 }
 
 export async function evaluateCapabilities(

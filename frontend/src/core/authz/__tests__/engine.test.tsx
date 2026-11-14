@@ -75,10 +75,10 @@ function providerModule(): FrontendProviderModule {
   };
 }
 
-function configure(enabled = true, mode: 'gateway' | 'wasm' = 'gateway'): void {
+function configure(enabled = true): void {
   setAppConfig({
     gatewayUrl: 'https://localhost:9080',
-    authz: { enabled, mode },
+    authz: { enabled },
     providers: [
       {
         id: 'entra',
@@ -89,18 +89,6 @@ function configure(enabled = true, mode: 'gateway' | 'wasm' = 'gateway'): void {
       },
     ],
   });
-}
-
-/** Serves one capability map over the fetch surface. */
-function servingFetch(
-  body: unknown = capabilitiesWith({}),
-  status = 200
-): ReturnType<typeof vi.fn> {
-  return vi.fn(async () => ({
-    ok: status >= 200 && status < 300,
-    status,
-    json: async () => body,
-  }));
 }
 
 const TABLES = { catalogue: {}, roles: {}, role_map: {}, routes: {} };
@@ -160,26 +148,13 @@ afterEach(() => {
 });
 
 describe('capability engine', () => {
-  it('fetches once for the session and caches the map', async () => {
-    const fetchMock = servingFetch(
-      capabilitiesWith({ 'nav.api.profile': { allowed: false, reason: 'missing_scope' } })
-    );
+  it('does not evaluate from a render or a re-render (A15)', async () => {
+    const policy = wasmPolicy();
+    loadPolicyMock.mockResolvedValue(policy as unknown as LoadedPolicy);
+    const fetchMock = wasmServingFetch();
     vi.stubGlobal('fetch', fetchMock);
     await refreshCapabilities();
-
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://localhost:9080/entra/authz/capabilities');
-    expect(getSnapshot().status).toBe('ready');
-    expect(getSnapshot().capabilities['nav.api.profile']).toEqual({
-      allowed: false,
-      reason: 'missing_scope',
-    });
-  });
-
-  it('does not fetch from a render or a re-render (A15)', async () => {
-    const fetchMock = servingFetch();
-    vi.stubGlobal('fetch', fetchMock);
-    await refreshCapabilities();
+    const fetchesAfterRefresh = fetchMock.mock.calls.length;
 
     function Probe() {
       const decision = useCan('nav.api.profile');
@@ -187,32 +162,15 @@ describe('capability engine', () => {
     }
     const { rerender } = render(<Probe />);
     rerender(<Probe />);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    expect(fetchMock).toHaveBeenCalledTimes(fetchesAfterRefresh);
+    expect(policy.evaluate).toHaveBeenCalledTimes(1);
   });
 
-  it('fails closed to the baseline floor when the fetch rejects (A14)', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => Promise.reject(new Error('capabilities fetch failed')))
-    );
+  it('fails closed to the baseline floor when the policy cannot load (A14)', async () => {
+    vi.stubGlobal('fetch', wasmServingFetch({ wasmOk: false }));
     await refreshCapabilities();
     expectBaselineFloor();
-  });
-
-  it('fails closed on a non-2xx response', async () => {
-    vi.stubGlobal('fetch', servingFetch({ error: 'nope' }, 503));
-    await refreshCapabilities();
-    expectBaselineFloor();
-  });
-
-  it('fails closed on an incomplete or invalid body', async () => {
-    const incomplete = capabilitiesWith({}) as Record<string, unknown>;
-    delete incomplete['nav.api.profile'];
-    for (const body of [incomplete, { 'nav.overview': { allowed: 'yes' } }, null]) {
-      vi.stubGlobal('fetch', servingFetch(body));
-      await refreshCapabilities();
-      expectBaselineFloor();
-    }
   });
 
   it('loads nothing when authz is disabled (A17)', async () => {
@@ -238,11 +196,13 @@ describe('capability engine', () => {
     const gate = new Promise<void>(resolve => {
       release = resolve;
     });
+    const policy = wasmPolicy();
+    loadPolicyMock.mockResolvedValue(policy as unknown as LoadedPolicy);
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => {
         await gate;
-        return { ok: true, status: 200, json: async () => capabilitiesWith({}) };
+        return { ok: false, status: 404 };
       })
     );
 
@@ -254,8 +214,7 @@ describe('capability engine', () => {
     expect(getSnapshot().status).toBe('disabled');
   });
 
-  it('evaluates the synced policy in wasm mode', async () => {
-    configure(true, 'wasm');
+  it('evaluates the synced policy', async () => {
     const policy = wasmPolicy(
       capabilitiesWith({ 'nav.api.profile': { allowed: false, reason: 'missing_scope' } })
     );
@@ -277,24 +236,7 @@ describe('capability engine', () => {
     });
   });
 
-  it('fails closed in wasm mode when the policy cannot load (A14)', async () => {
-    configure(true, 'wasm');
-    vi.stubGlobal('fetch', wasmServingFetch({ wasmOk: false }));
-    await refreshCapabilities();
-    expectBaselineFloor();
-  });
-
-  it('loads nothing when authz is disabled in wasm mode (A17)', async () => {
-    configure(false, 'wasm');
-    const fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
-    await refreshCapabilities();
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(getSnapshot().status).toBe('disabled');
-  });
-
   it('drops the cached policy on sign-out (A16)', async () => {
-    configure(true, 'wasm');
     const policy = wasmPolicy();
     loadPolicyMock.mockResolvedValue(policy as unknown as LoadedPolicy);
     vi.stubGlobal('fetch', wasmServingFetch());
