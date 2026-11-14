@@ -28,9 +28,16 @@ export type AppLogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 const LOG_LEVELS: readonly AppLogLevel[] = ['debug', 'info', 'warn', 'error'];
 
+export type AuthzMode = 'gateway' | 'wasm';
+
 export interface AuthzConfig {
   /** When false the browser skips the capability call and keeps pre-change behavior. */
   enabled: boolean;
+  /**
+   * The capability source; `gateway` fetches the gateway route, `wasm` evaluates
+   * the synced policy in the browser. Advisory either way.
+   */
+  mode: AuthzMode;
 }
 
 export interface AppConfig {
@@ -200,17 +207,23 @@ export function parseAppConfig(raw: unknown): AppConfig {
 }
 
 function parseAuthz(raw: unknown): AuthzConfig {
-  if (raw === undefined) return { enabled: true };
+  if (raw === undefined) return { enabled: true, mode: 'gateway' };
   if (!raw || typeof raw !== 'object') throw new AppConfigError('authz must be an object');
   const value = raw as Record<string, unknown>;
   // The old per-provider role/group keys lived under `authz`; any key outside
   // the normalized shape fails the build rather than being silently dropped.
   for (const key of Object.keys(value)) {
-    if (key !== 'enabled') throw new AppConfigError(`authz.${key} is not a supported field`);
+    if (key !== 'enabled' && key !== 'mode') {
+      throw new AppConfigError(`authz.${key} is not a supported field`);
+    }
   }
   const enabled = value.enabled;
   if (enabled !== undefined && typeof enabled !== 'boolean') {
     throw new AppConfigError('authz.enabled must be a boolean');
   }
-  return { enabled: enabled !== false };
+  const mode = value.mode;
+  if (mode !== undefined && mode !== 'gateway' && mode !== 'wasm') {
+    throw new AppConfigError('authz.mode must be "gateway" or "wasm"');
+  }
+  return { enabled: enabled !== false, mode: mode === 'wasm' ? 'wasm' : 'gateway' };
 }

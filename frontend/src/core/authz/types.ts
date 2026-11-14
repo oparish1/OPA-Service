@@ -18,6 +18,17 @@ export interface Decision {
 
 export type Capabilities = Record<CapabilityId, Decision>;
 
+/** The normalized claim set every provider module produces; the shared input contract. */
+export interface AuthzClaims {
+  roles: string[];
+  groups: string[];
+  scopes: string[];
+  tenant: string;
+  hd: string;
+  email_verified: boolean;
+  has_subject: boolean;
+}
+
 export type AuthzStatus = 'disabled' | 'ready' | 'error';
 
 export interface AuthzState {

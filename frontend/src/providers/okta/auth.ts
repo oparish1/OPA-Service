@@ -76,6 +76,7 @@ async function toSession(oktaAuth: OktaAuth): Promise<ProviderSession | null> {
     providerId: PROVIDER_ID,
     providerName: PROVIDER_NAME,
     issuer: stringClaim(claims, 'iss') || config().issuer,
+    rawClaims: claims,
     account: {
       displayName: stringClaim(claims, 'name') || username,
       email: username,

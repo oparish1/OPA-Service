@@ -97,6 +97,7 @@ function toSession(result: AuthenticationResult): ProviderSession {
     providerId: PROVIDER_ID,
     providerName: PROVIDER_NAME,
     issuer: stringClaim(claims, 'iss') || config().issuer,
+    rawClaims: claims,
     account: {
       displayName: result.account.name ?? stringClaim(claims, 'name'),
       email: result.account.username,

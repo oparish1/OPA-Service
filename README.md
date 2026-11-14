@@ -159,6 +159,24 @@ advisory; the gateway enforces every request.** Setting `authz.enabled` to
 `false` in the public config (default `true`) skips the call and restores the
 pre-change behavior without touching the gateway.
 
+### Using the WASM policy
+
+The default `authz.mode` is `"gateway"`. To evaluate the published policy in the
+browser instead, set `authz.mode` to `"wasm"` and run `bun run sync:policy`
+once. The command downloads the release pinned in `frontend/policy/VERSION`
+into `frontend/public/policy/` (gitignored) and verifies every file's SHA-256
+and byte count against the release manifest. `prebuild` and `predev` run it
+automatically, so `bun run build` and `bun run dev` always use a verified
+artifact; a hash mismatch, a missing file or a version mismatch fails the build.
+
+`oparish1/authz-policy` is private. Locally the download uses `gh`, so sign in
+with `gh auth login` or set `GH_TOKEN` to a PAT with read access to that
+repository; the frontend CI job reads the same PAT from the
+`AUTHZ_POLICY_READ_TOKEN` repository secret. `bun run sync:policy -- --latest`
+reports the newest published tag without changing the pin; to upgrade, edit
+`frontend/policy/VERSION` and sync again. The WASM decision is advisory UI
+hints only — the gateway remains the sole enforcer in either mode.
+
 The build and CI use OPA `1.4.2`. `authz-service/fixtures/matrix.snapshot.json`
 is the committed decision grid for the personas in
 `authz-service/fixtures/personas.json`; a Rego test asserts a provider wrapper's

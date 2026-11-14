@@ -127,6 +127,7 @@ function assertCredential(token: string): ProviderSession {
     providerId: PROVIDER_ID,
     providerName: PROVIDER_NAME,
     issuer: GOOGLE_ISSUER,
+    rawClaims: claims,
     account: {
       displayName: stringClaim(claims, 'name') || email,
       email,

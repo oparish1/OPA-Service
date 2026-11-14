@@ -107,7 +107,11 @@ Round 3/4 UI decisions remain binding.
 - **One shared policy source, one evaluator.** `authz-service/authz/` holds the
   claim rules in Rego v1; the gateway wrappers in
   `authz-service/authz/v1/gateway/` import it for enforcement and answer the
-  capabilities route. Issue #3 Capabilities may be evaluated in the browser from the published WASM (authz-policy release) as advisory UI hints only. The gateway is the sole enforcer. Gateway mode is the default; WASM mode is opt-in via authz.mode.
+  capabilities route.
+- **WASM mode is opt-in and advisory.** Capabilities may also be evaluated in
+  the browser from the published WASM (`oparish1/authz-policy` release) as
+  advisory UI hints only. `authz.mode` selects the source and defaults to
+  `"gateway"`; the gateway is the sole enforcer either way.
 - **Fail closed.** If the capability call fails or returns an incomplete map,
   the UI keeps a baseline capability floor (Overview and Account) and enables
   nothing else.
