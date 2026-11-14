@@ -4,28 +4,26 @@ A signed-in workspace for exercising protected APIs with Microsoft Entra, Okta
 and Google. The app is **browser-only**: a React + Vite static SPA signs users
 in directly with each identity provider, keeps tokens in memory only, and calls
 APIs through an Apache APISIX gateway that validates every token and is the
-single authorization authority. There is no backend-for-frontend and no
-identity-provider secret in the app, the repository or the gateway route files.
+single authorization authority. APISIX runs outside this repository; this repo
+holds only the frontend and the shared files it imports. There is no
+backend-for-frontend and no identity-provider secret in the app or the
+repository.
 
 Each identity provider lives entirely in its own folder so it can be taken on
 its own:
 
-- `frontend/src/core/` holds provider-neutral code;
-  `authz-service/authz/v1/gateway/` holds the provider-neutral policy helpers.
-- `frontend/src/providers/{entra,okta,google}/` and the matching
-  `authz-service/authz/v1/gateway/<id>.rego` hold one provider each; the
-  published bundle exposes that wrapper at `authz/v1/gateway/<id>`.
+- `frontend/src/core/` holds provider-neutral code.
+- `frontend/src/providers/{entra,okta,google}/` hold one provider each.
 - `frontend/src/providers/index.ts` is the single frontend registry that
   composes the providers; `shared/providers.ts` remains the provider-neutral
   wire contract; `shared/app-config.ts` is the shared public-config schema.
 - `shared/provider-isolation.ts` enforces that only the registries,
-  `shared/providers.ts`, `shared/app-config.ts`, the per-provider folders and
-  `gateway/apisix/apisix.yaml` name more than one provider.
+  `shared/providers.ts`, `shared/app-config.ts` and the per-provider folders
+  name more than one provider.
 
-Adding a provider touches its folder, its `authz-service/authz/providers/<id>.rego`
-and `role_map` entry, its `authz-service/authz/v1/gateway/<id>.rego` wrapper, and
-its route in `gateway/apisix/apisix.yaml`, adds its id to `shared/providers.ts`
-and adds one registry entry; removing one deletes those.
+Adding a provider touches its folder, its policy in `oparish1/authz-policy`, and
+its APISIX route outside this repo, adds its id to `shared/providers.ts` and
+adds one registry entry; removing one deletes those.
 
 ## Architecture
 
@@ -37,22 +35,20 @@ Entra / Okta / Google  <-- sign-in happens here directly
   |
   | Authorization: Bearer <access token | Google ID token>
   v
-APISIX gateway: one route per provider, own issuer, audience, key source and claim rules
+APISIX gateway (outside this repository): one route per provider
   |
   v
 /v1 responses built by the gateway
 ```
 
-The gateway runs in declarative (standalone) mode from `gateway/`. The
-`openid-connect` plugin verifies each bearer token (signature, `iss`, `exp`,
-`nbf`, algorithm) and the `opa` plugin enforces the per-provider audience,
-scope, claim and method rules, then sets `X-User-Issuer`, `X-User-Subject` and
-`X-User-Provider` from the validated token. The gateway itself serves the
-`/v1/me` and `/v1/projects` demo bodies; the golden bodies captured from the
-backend before deletion are kept in `gateway/fixtures/` as the A17 reference.
-The claim rules live once in `authz-service/authz/`: the gateway wrappers import
-them, enforce every request and answer the browser's capability call. UI
-authorization is advisory; the gateway enforces.
+The browser evaluates the published `policy.wasm` for advisory UI hints and
+calls the configured APISIX gateway for every real request. APISIX runs in
+declarative (standalone) mode outside this repository; its `openid-connect`
+plugin verifies each bearer token (signature, `iss`, `exp`, `nbf`, algorithm)
+and its `opa` plugin enforces the per-provider audience, scope, claim and method
+rules. The policy itself lives in `oparish1/authz-policy`; the browser reads the
+same published WASM. **UI authorization is advisory; APISIX enforces every
+request.**
 
 ## Local setup
 
@@ -62,33 +58,29 @@ Install the frontend dependencies with the committed lockfile:
 cd frontend && bun install --frozen-lockfile
 ```
 
-Run the app and the gateway together:
+Run the app against an APISIX gateway that is already reachable at the configured
+`gatewayUrl`:
 
 ```sh
-docker compose -f gateway/docker-compose.yml up
 cd frontend && bun run dev
 ```
 
 Copy `frontend/public/config.example.json` to `frontend/public/config.json`
 and fill in the provider client IDs, issuers, the gateway URL and the O-20
 account destinations. The example file is committed with placeholders only.
-The local Compose gateway serves plaintext HTTP on `http://localhost:9080` and
-terminates no TLS, so the example's `https://localhost:9080` assumes a TLS
-terminator in front of APISIX, as in production.
+The example's `https://localhost:9080` assumes a TLS terminator in front of
+APISIX, as in production.
 
 ### Gateway configuration
 
-`gateway/apisix/config.yaml` runs APISIX standalone, reads
-`gateway/apisix/apisix.yaml` on startup, writes structured JSON access logs and
-hides the server banner. `gateway/docker-compose.yml` pins an exact APISIX
-image tag and a pinned OPA image, and mounts the configuration read-only.
+APISIX runs outside this repository. Configure one route per provider there,
+with its own issuer, audience, key source and claim rules, and point the
+browser's `gatewayUrl` at that deployment. The policy that the gateway and the
+browser share lives in `oparish1/authz-policy`; changing it is a change in that
+repository, not here.
 
-The APISIX `openid-connect` plugin schema requires `client_secret`, `client_id`
-and `discovery` even in bearer-only mode. Because bearer-only local
-verification never calls the token endpoint, the client secret is unused. Per
-SD-11 the route file references the placeholder environment variables by name
-(`${{...}}`); **no secret value is stored anywhere in this repository**, and the
-local Compose stack supplies only the local test-issuer values.
+Per SD-11 the gateway route files reference placeholder environment variables by
+name; **no secret value is stored anywhere in this repository**.
 
 ## Browser configuration
 
@@ -135,81 +127,69 @@ a courtesy; the security bound is the token lifetime checked at the gateway.
 
 ## Advisory UI authorization
 
-The claim rules live once, in `authz-service/authz/` (Rego v1). The capability
+The policy lives once in `oparish1/authz-policy` (Rego v1). Its capability
 catalogue, role hierarchy, claim-to-role map and route table are non-secret
-static data in `authz-service/authz/{catalogue,roles,role_map,routes}.json`; the
-engine derives every capability set, the effective roles and the per-capability
-deny set from them, and names no capability, role or provider. Each provider
-file in `authz-service/authz/providers/` supplies only its own claim logic: the
-roles it grants through the shared map, the gate failures it raises, and whether
-scopes apply. Each gateway wrapper in `authz-service/authz/v1/gateway/` imports
-the shared package, keeps only the audience and issuer checks, and translates
-the shared reason codes to the `X-Auth-Reason` strings the access log has always
-carried. The published bundle carries those wrappers and the gateway loads it in
-signed bundle mode; the APISIX `opa` plugin queries `authz/v1/gateway/<provider>`.
+static data published in the `authz-contract` package; the engine derives every
+capability set, the effective roles and the per-capability deny set from them,
+and names no capability, role or provider. The browser downloads the pinned
+policy and contract with `bun run sync:policy`.
 
-The browser fetches that map from the gateway's per-provider
-`GET /{provider}/authz/capabilities` route once after sign-in and again when a
-renewal changes the claims, to hide menu items and disable buttons with an
-accessible reason. The gateway builds the OPA input from the token it already
-verified, so the browser sends only its bearer token and never claims or a
-policy query. A failed or incomplete call leaves the UI at the baseline floor
+The browser evaluates the policy once after sign-in and again when a renewal
+changes the claims, to hide menu items and disable buttons with an accessible
+reason. A failed load or malformed result leaves the UI at the baseline floor
 (Overview and Account) with `permissions_unavailable`. **UI authorization is
-advisory; the gateway enforces every request.** Setting `authz.enabled` to
-`false` in the public config (default `true`) skips the call and restores the
+advisory; APISIX enforces every request.** Setting `authz.enabled` to `false`
+in the public config (default `true`) skips the evaluation and restores the
 pre-change behavior without touching the gateway.
 
 ### Using the WASM policy
 
-The default `authz.mode` is `"gateway"`. To evaluate the published policy in the
-browser instead, set `authz.mode` to `"wasm"` and run `bun run sync:policy`
-once. The command downloads the release pinned in `frontend/policy/VERSION`
-into `frontend/public/policy/` (gitignored) and verifies every file's SHA-256
-and byte count against the release manifest. `prebuild` and `predev` run it
-automatically, so `bun run build` and `bun run dev` always use a verified
-artifact; a hash mismatch, a missing file or a version mismatch fails the build.
+The browser evaluates the published policy from WASM; there is no gateway
+capability source. Run `bun run sync:policy` once to download the release pinned
+in `frontend/policy/VERSION` into `frontend/public/policy/` (gitignored) and the
+matching `authz-contract` package into `frontend/policy/contract/` (gitignored).
+The command verifies every release file's SHA-256 and byte count against the
+release manifest and checks that the release catalogue covers every contract
+capability. `prebuild` and `predev` run it automatically, so `bun run build` and
+`bun run dev` always use a verified artifact; a hash mismatch, a missing file or
+a version mismatch fails the build.
 
-`oparish1/authz-policy` is private. Locally the download uses `gh`, so sign in
-with `gh auth login` or set `GH_TOKEN` to a PAT with read access to that
-repository; the frontend CI job reads the same PAT from the
-`AUTHZ_POLICY_READ_TOKEN` repository secret. `bun run sync:policy -- --latest`
-reports the newest published tag without changing the pin; to upgrade, edit
-`frontend/policy/VERSION` and sync again. The WASM decision is advisory UI
-hints only — the gateway remains the sole enforcer in either mode.
+The download needs `oras` and `tar` on the path. `oparish1/authz-policy` is
+private. Locally the release download uses `gh`, so sign in with
+`gh auth login` or set `GH_TOKEN` to a PAT with read access to that repository;
+the frontend CI job reads the same PAT from the `AUTHZ_POLICY_READ_TOKEN`
+repository secret. `bun run sync:policy -- --latest` reports the newest published
+tag without changing the pin; to upgrade, edit `frontend/policy/VERSION`, run
+`bun run sync:policy`, then run `bun run gen:authz`. The WASM decision is
+advisory UI hints only — APISIX remains the sole enforcer.
 
-The build and CI use OPA `1.4.2`. `authz-service/fixtures/matrix.snapshot.json`
-is the committed decision grid for the personas in
-`authz-service/fixtures/personas.json`; a Rego test asserts a provider wrapper's
-capability map equals the shared policy for every persona, and CI fails when the
-policy changes without regenerating either artifact.
+The downloaded contract's `fixtures/personas.json` and
+`fixtures/matrix.snapshot.json` are the persona decision grid. The browser parity
+test asserts the evaluated WASM equals the matching snapshot entry for every
+persona; `bun run sync:policy` must run before `bun run test` for that check to
+run locally (CI builds first).
 
 ### How to add a capability, a role or a route
 
-- **Capability.** Add one entry to `authz-service/authz/catalogue.json`
-  (`{"kind": "read" | "write" | "baseline", "role": <role or null>, "scope":
-  "workspace:read" | "workspace:write" | null}`), a route entry to
-  `authz-service/authz/routes.json` when it is API-backed (and its served path
-  to the `endpoint_inventory` below), and copy only if it introduces a new
-  reason code.
-- **Role.** Add one entry to `authz-service/authz/roles.json` with its flattened
-  `includes`, map the provider claim values in `authz-service/authz/role_map.json`, and
-  use it in catalogue entries. No Rego change.
+Policy changes belong in `oparish1/authz-policy`, not in this repository. In
+that repository:
+
+- **Capability.** Add one entry to `authz/catalogue.json` (`{"kind": "read" |
+  "write" | "baseline", "role": <role or null>, "scope": "workspace:read" |
+  "workspace:write" | null}`) and a route entry to `authz/routes.json` when it is
+  API-backed.
+- **Role.** Add one entry to `authz/roles.json` with its flattened `includes`,
+  map the provider claim values in `authz/role_map.json`, and use it in
+  catalogue entries. No Rego change.
 - **Route.** Add `{"suffix": ..., "capability": ...}` to `routes.json`; the
   longest matching suffix wins, and an unmatched request falls back to the
   admin-only `data.unmapped` (safe method) or `action.unmapped.write` (unsafe
-  method) capability, so a forgotten route fails closed. Add the served path to
-  `endpoint_inventory` in `authz-service/test/authz_test.rego`; the coverage
-  test fails when an inventory path has no route entry.
-- **Provider.** Add `authz-service/authz/providers/<id>.rego` honouring the
-  provider contract, role-map and config data, an
-  `authz-service/authz/v1/gateway/<id>.rego` wrapper (with its `capabilities`
-  rule) and a `/{provider}/authz/capabilities` route in
-  `gateway/apisix/apisix.yaml`.
+  method) capability, so a forgotten route fails closed.
 
-After any policy change run `bun run gen:authz`, which regenerates
-`frontend/src/core/authz/generated.ts` (the `CapabilityId` and reason unions)
-and `authz-service/fixtures/matrix.snapshot.json`; review the snapshot diff, then
-commit both. CI runs `bun run check:authz` and fails when either is stale.
+Then release `oparish1/authz-policy`, bump the pin in `frontend/policy/VERSION`,
+run `bun run sync:policy` and `bun run gen:authz`, and commit the regenerated
+`frontend/src/core/authz/generated.ts`. CI runs `bun run check:authz` and fails
+when it is stale.
 
 ## Checks
 
@@ -223,26 +203,6 @@ cd frontend && bun run lint && bun run typecheck && bun run build && bun run tes
 `bun run check` runs the same sequence. `check:catch` enforces the no-silent-catch
 rule over `frontend/src`.
 
-The gateway has its own Docker-free gates; install its dependencies once on a
-fresh clone:
-
-```sh
-cd gateway && bun install --frozen-lockfile
-cd ..
-bun test gateway                 # parses and asserts the APISIX route config
-opa fmt --fail --list authz-service gateway/opa
-opa check --strict authz-service gateway/opa
-opa test gateway/opa gateway/opa   # shared policy, gateway wrappers, golden table and mask
-```
-
-The existing gateway negative tests still deny out-of-role, out-of-group,
-wrong-domain and missing-scope requests while the browser policy is irrelevant,
-proving the gateway is independent of the advisory UI decision (A11).
-
-The Docker Compose integration script
-(`bun run gateway/test-issuers/acceptance.ts`) is the second gateway gate and
-requires Docker; it exercises A9–A17 end-to-end against the local test issuers.
-
 The provider boundaries have two extra checks, run from the repository root:
 
 ```sh
@@ -250,4 +210,4 @@ scripts/check-reuse-bundle.sh      # core + shared + one provider + registry typ
 scripts/check-provider-deletion.sh # deleting a provider leaves the surviving suites green
 ```
 
-The isolation check runs inside the frontend and gateway test suites.
+The isolation check runs inside the frontend test suite.
