@@ -34,9 +34,15 @@ jobs:
       - run: bun run typecheck
       - uses: oras-project/setup-oras@v2
       # `gh` and `oras` keep separate credential stores, so the private contract
-      # pull needs its own login with the same read token.
+      # pull needs its own login with the same read token. The token belongs to
+      # the repository owner even when a different collaborator triggers the run.
       - name: Log in to the container registry
-        run: echo "$GH_TOKEN" | oras login ghcr.io --username "${{ github.actor }}" --password-stdin
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "AUTHZ_POLICY_READ_TOKEN is not set; the private authz-policy release and contract cannot be downloaded." >&2
+            exit 1
+          fi
+          printf '%s' "$GH_TOKEN" | oras login ghcr.io --username "${{ github.repository_owner }}" --password-stdin
         env:
           GH_TOKEN: ${{ secrets.AUTHZ_POLICY_READ_TOKEN }}
       # Build before the tests so the A18 bundle scan sees `dist/`; the build's
